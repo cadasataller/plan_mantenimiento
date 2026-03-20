@@ -14,14 +14,13 @@ const OTStore = (() => {
   ];
 
   // ── Estado interno ───────────────────────────────────────
-  let _allOrders  = [];   // datos crudos completos
-  let _filtered   = [];   // después de aplicar filtros
-  let _grouped    = {};   // jerarquía: equipo → semana → proceso → [OTs]
+  let _allOrders  = [];
+  let _filtered   = [];
+  let _grouped    = {};
   let _loading    = false;
-  let _source     = 'demo'; // 'demo' | 'live'
+  let _source     = 'demo';
   let _listeners  = [];
 
-  // Filtros activos
   const _filters = {
     search:  '',
     area:    '',
@@ -39,8 +38,6 @@ const OTStore = (() => {
     _listeners.forEach(fn => fn(event));
   }
 
-  
-
   // ── Carga de datos ───────────────────────────────────────
   async function load(authenticated) {
     _loading = true;
@@ -48,19 +45,24 @@ const OTStore = (() => {
 
     try {
       if (authenticated) {
-        // Intentar Google Sheets
         try {
+          // Esperar token — con renovación silenciosa incluida
           await new Promise(resolve => AuthService.onTokenReady(resolve));
+
+          // Verificar que efectivamente llegó un token
+          const token = AuthService.getAccessToken();
+          if (!token) throw new Error('Sin token tras espera');
+
           const rows = await SheetsService.fetchAll();
           if (rows.length > 0) {
             _allOrders = rows;
-            const user    = AuthService.getUser();
-            const config  = RolesConfig.getForEmail(user?.email);
+            const user   = AuthService.getUser();
+            const config = RolesConfig.getForEmail(user?.email);
 
             if (config.role !== 'admin' && config.area) {
               _allOrders = _allOrders.filter(row => row.Area === config.area);
             }
-            _source    = 'live';
+            _source = 'live';
           } else {
             throw new Error('Sin filas en Sheets');
           }
@@ -70,7 +72,6 @@ const OTStore = (() => {
           _source    = 'demo';
         }
       } else {
-        // Sin autenticación: siempre mock
         _allOrders = MockDataService.generateOrders(100);
         _source    = 'demo';
       }
@@ -108,8 +109,8 @@ const OTStore = (() => {
       );
     }
 
-    if (area)    data = data.filter(o => o.Area    === area);
-    if (estatus) data = data.filter(o => o.Estatus === estatus);
+    if (area)    data = data.filter(o => o.Area        === area);
+    if (estatus) data = data.filter(o => o.Estatus     === estatus);
     if (proceso) data = data.filter(o => o.TipoProceso === proceso);
     if (semana === '__noasig') {
       data = data.filter(o => !o.Semana);
@@ -121,9 +122,6 @@ const OTStore = (() => {
     _grouped  = buildHierarchy(data);
   }
 
-  /**
-   * Construye la jerarquía: equipo → semana → proceso → [rows]
-   */
   function buildHierarchy(rows) {
     const tree = {};
 
@@ -155,9 +153,6 @@ const OTStore = (() => {
     return tree;
   }
 
-  /**
-   * Normaliza tipo de proceso al catálogo oficial
-   */
   function normalizeProcess(tipo) {
     if (!tipo) return 'Sin tipo';
     const t = tipo.trim().toLowerCase();
@@ -166,12 +161,11 @@ const OTStore = (() => {
         return et;
       }
     }
-    // Fuzzy: contiene alguna palabra clave
     if (t.includes('desmont') || t.includes('diagnos')) return ETAPAS[0];
     if (t.includes('lavado')  || t.includes('insp'))    return ETAPAS[1];
     if (t.includes('repar')   || t.includes('reempl'))  return ETAPAS[2];
     if (t.includes('ensam')   || t.includes('ajuste') || t.includes('prueba')) return ETAPAS[3];
-    return tipo; // mantener original si no matchea
+    return tipo;
   }
 
   // ── Getters ──────────────────────────────────────────────
@@ -201,7 +195,7 @@ const OTStore = (() => {
 
   function getSemanas() {
     return [...new Set(_allOrders.map(o => o.Semana).filter(Boolean))]
-      .sort((a,b) => a - b);
+      .sort((a, b) => a - b);
   }
 
   return {

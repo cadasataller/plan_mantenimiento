@@ -5,10 +5,11 @@
 // ============================================================
 const AUTH_CONFIG = {
   CLIENT_ID:   '607252823419-qrsktr92hff3k3kjmm82t5st3aavhso6.apps.googleusercontent.com',
-   SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file email profile openid',
-  STORAGE_KEY: 'cadasa_taller_user',  // irá a localStorage
-  TOKEN_KEY:   'cadasa_taller_token', // irá a sessionStorage
+  SCOPES:      'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file email profile openid',
+  STORAGE_KEY: 'cadasa_taller_user',
+  TOKEN_KEY:   'cadasa_taller_token',
 };
+
 // ── Estado interno ───────────────────────────────────────────
 const AuthState = {
   user:      null,
@@ -44,28 +45,35 @@ const AuthState = {
   notify() { this.listeners.forEach(fn => fn(this.user)); },
 };
 
+// ── Token client ─────────────────────────────────────────────
+let _tokenClient      = null;
+let _tokenClientReady = false;
+let _tokenReadyCallbacks = [];
 
-
+// ── onTokenReady ─────────────────────────────────────────────
 function onTokenReady(fn) {
+  // Ya listo y hay token en esta pestaña → ejecutar directo
   if (_tokenClientReady && sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY)) {
     fn();
     return;
   }
-  
+
+  // Ya listo pero sin usuario (modo demo) → ejecutar directo
+  if (_tokenClientReady && !AuthState.getUser()) {
+    fn();
+    return;
+  }
+
   let called = false;
-  
-  // Timeout de seguridad: si en 10 segundos no llega el token,
-  // ejecutar igual para que el store pueda caer al mock
+
+  // Timeout de seguridad: 15s → caer al mock si Google no responde
   const timer = setTimeout(() => {
     if (!called) {
       called = true;
-      console.warn('[Auth] ⚠ Timeout: Google no respondió en 10s — continuando sin token');
-      console.warn('[Auth] Estado del tokenClient:', _tokenClient ? 'inicializado' : 'null');
-      console.warn('[Auth] Usuario en caché:', AuthState.getUser()?.email ?? 'ninguno');
-    
+      console.warn('[Auth] ⚠ Timeout 15s — continuando sin token (modo demo)');
       fn();
     }
-  }, 10000);
+  }, 15000);
 
   _tokenReadyCallbacks.push(() => {
     if (!called) {
@@ -76,49 +84,63 @@ function onTokenReady(fn) {
   });
 }
 
-// ── Token client ─────────────────────────────────────────────
-let _tokenClient = null;
-let _tokenClientReady = false;
-let _tokenReadyCallbacks = [];
-
 // ── Init ─────────────────────────────────────────────────────
-  function initAuth() {
-    if (typeof google === 'undefined') { return; }
-
-    _tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: AUTH_CONFIG.CLIENT_ID,
-      scope:     AUTH_CONFIG.SCOPES,
-      callback:  handleTokenResponse,
-    });
-
-    console.log('[Auth] Token client inicializado.');
-
-    // Si hay usuario guardado pero no hay token activo → renovar silenciosamente
-    const savedUser = AuthState.getUser();
-    const savedToken = sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
-
-    if (savedUser && !savedToken) {
-      _tokenClientReady = false;
-      _tokenClient.requestAccessToken({ prompt: '' });
-    } else if (savedUser && savedToken) {
-      // Ya hay token válido en sessionStorage — notificar inmediatamente
-      _tokenClientReady = true;
-      _tokenReadyCallbacks.forEach(fn => fn());
-      _tokenReadyCallbacks = [];
-    } else {
-      // No hay usuario — marcar como ready para no bloquear (irá al mock)
-      _tokenClientReady = true;
-      _tokenReadyCallbacks.forEach(fn => fn());
-      _tokenReadyCallbacks = [];
-    }
+function initAuth() {
+  if (typeof google === 'undefined') {
+    console.warn('[Auth] Google SDK no disponible');
+    return;
   }
+
+  _tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: AUTH_CONFIG.CLIENT_ID,
+    scope:     AUTH_CONFIG.SCOPES,
+    callback:  handleTokenResponse,
+  });
+
+  console.log('[Auth] Token client inicializado.');
+
+  const savedUser  = AuthState.getUser();
+  const savedToken = sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
+
+  if (savedUser && savedToken) {
+    // Misma pestaña con token activo → listo inmediatamente
+    console.log('[Auth] Token en sessionStorage — listo.');
+    _tokenClientReady = true;
+    _tokenReadyCallbacks.forEach(fn => fn());
+    _tokenReadyCallbacks = [];
+
+  } else if (savedUser && !savedToken) {
+    // Nueva pestaña o token perdido → renovar silenciosamente sin popup
+    console.log('[Auth] Usuario sin token — renovando silenciosamente...');
+    _tokenClientReady = false;
+    _tokenClient.requestAccessToken({ prompt: '' });
+
+  } else {
+    // Sin usuario → modo demo, no bloquear
+    console.log('[Auth] Sin usuario — modo demo.');
+    _tokenClientReady = true;
+    _tokenReadyCallbacks.forEach(fn => fn());
+    _tokenReadyCallbacks = [];
+  }
+
+  // Avisar a app.js que initAuth corrió
+  window._onAuthReady?.();
+}
 
 // ── Callback tras obtener el Access Token ────────────────────
 async function handleTokenResponse(response) {
   if (response.error) {
     console.error('[Auth] Error OAuth:', response.error);
+
+    // Si falló la renovación silenciosa, liberar callbacks para no bloquear
+    if (!_tokenClientReady) {
+      console.warn('[Auth] Renovación silenciosa falló — continuando sin token');
+      _tokenClientReady = true;
+      _tokenReadyCallbacks.forEach(fn => fn());
+      _tokenReadyCallbacks = [];
+    }
+
     ToastService?.show('Error al iniciar sesión. Intenta de nuevo.', 'danger');
-    // Quitar spinner del login si estaba activo
     _setLoginLoading(false);
     return;
   }
@@ -127,12 +149,12 @@ async function handleTokenResponse(response) {
   sessionStorage.setItem(AUTH_CONFIG.TOKEN_KEY, accessToken);
   console.log('[Auth] Access Token obtenido.');
 
-  // ← AGREGAR ESTO:
+  // Notificar a todos los que esperaban el token
   _tokenClientReady = true;
   _tokenReadyCallbacks.forEach(fn => fn());
   _tokenReadyCallbacks = [];
+
   try {
-    // Obtener datos del usuario desde la API de Google
     const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -152,7 +174,12 @@ async function handleTokenResponse(response) {
     };
 
     AuthState.setUser(user);
-    Router?.navigate('dashboard');
+
+    // Solo navegar al dashboard si fue un login manual (no renovación silenciosa)
+    const currentRoute = Router?.current?.();
+    if (currentRoute === 'login' || !currentRoute) {
+      Router?.navigate('dashboard');
+    }
 
   } catch (err) {
     console.error('[Auth] Error obteniendo datos del usuario:', err);
@@ -161,10 +188,9 @@ async function handleTokenResponse(response) {
   }
 }
 
-// ── Iniciar sesión ───────────────────────────────────────────
+// ── Iniciar sesión manual ────────────────────────────────────
 function signIn() {
   if (!_tokenClient) {
-    // Si el script de Google aún no cargó, esperar e intentar de nuevo
     if (typeof google !== 'undefined') {
       initAuth();
     } else {
@@ -172,6 +198,7 @@ function signIn() {
       return;
     }
   }
+  _setLoginLoading(true);
   _tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
@@ -209,6 +236,6 @@ window.AuthService = {
   getUser:         () => AuthState.getUser(),
   isAuthenticated: () => AuthState.isAuthenticated(),
   getAccessToken,
-  onTokenReady,    // ← agregar
+  onTokenReady,
   subscribe:       (fn) => AuthState.subscribe(fn),
 };
