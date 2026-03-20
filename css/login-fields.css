@@ -1,0 +1,83 @@
+/* ============================================================
+   CADASA TALLER — LOGIN FORM FIELDS (Supabase)
+   Agrega esto al final de css/login.css
+   O inclúyelo como <link> separado en index.html
+   ============================================================ */
+
+/* Campo wrapper */
+.login-field {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.35rem;
+  margin-bottom:  1rem;
+}
+
+.login-label {
+  font-size:   0.72rem;
+  font-weight: 600;
+  color:       var(--text-secondary, #6b7280);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Input base */
+.login-input {
+  width:         100%;
+  padding:       0.65rem 0.85rem;
+  border:        1.5px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-md, 8px);
+  font-size:     0.875rem;
+  color:         var(--text-primary, #111827);
+  background:    var(--color-surface, #fff);
+  outline:       none;
+  transition:    border-color 0.18s, box-shadow 0.18s;
+  box-sizing:    border-box;
+}
+
+.login-input:focus {
+  border-color: var(--color-main, #004643);
+  box-shadow:   0 0 0 3px rgba(0, 70, 67, 0.12);
+}
+
+.login-input::placeholder {
+  color: var(--text-muted, #9ca3af);
+}
+
+/* Wrapper con botón ojo */
+.login-input-wrap {
+  position: relative;
+}
+
+.login-input-wrap .login-input {
+  padding-right: 2.5rem;
+}
+
+.btn-toggle-password {
+  position:   absolute;
+  right:      0.65rem;
+  top:        50%;
+  transform:  translateY(-50%);
+  background: none;
+  border:     none;
+  cursor:     pointer;
+  color:      var(--text-muted, #9ca3af);
+  padding:    0.2rem;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.btn-toggle-password:hover {
+  color: var(--text-secondary, #6b7280);
+}
+
+/* Mensaje de error inline */
+.login-error {
+  background:    #fef2f2;
+  border:        1px solid #fca5a5;
+  border-radius: var(--radius-md, 8px);
+  color:         #b91c1c;
+  font-size:     0.78rem;
+  padding:       0.55rem 0.85rem;
+  margin-bottom: 0.75rem;
+  line-height:   1.5;
+}

@@ -1,14 +1,8 @@
 // ============================================================
-// CADASA TALLER — AUTH SERVICE v2
-// Autenticación con Google OAuth2 (initTokenClient)
-// Un solo flujo: Access Token + datos de usuario via /userinfo
+// CADASA TALLER — AUTH SERVICE v3 (Supabase)
+// Misma API pública que v2 — los componentes no cambian.
+// Autenticación: Email + Password via supabase.auth
 // ============================================================
-const AUTH_CONFIG = {
-  CLIENT_ID:   '607252823419-qrsktr92hff3k3kjmm82t5st3aavhso6.apps.googleusercontent.com',
-  SCOPES:      'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file email profile openid',
-  STORAGE_KEY: 'cadasa_taller_user',
-  TOKEN_KEY:   'cadasa_taller_token',
-};
 
 // ── Estado interno ───────────────────────────────────────────
 const AuthState = {
@@ -17,207 +11,102 @@ const AuthState = {
 
   setUser(userData) {
     this.user = userData;
-    if (userData) {
-      localStorage.setItem(AUTH_CONFIG.STORAGE_KEY, JSON.stringify(userData));
-    } else {
-      localStorage.removeItem(AUTH_CONFIG.STORAGE_KEY);
-      sessionStorage.removeItem(AUTH_CONFIG.TOKEN_KEY);
-    }
     this.notify();
   },
 
   getUser() {
-    if (this.user) return this.user;
-    try {
-      const stored = localStorage.getItem(AUTH_CONFIG.STORAGE_KEY);
-      if (stored) { this.user = JSON.parse(stored); return this.user; }
-    } catch (_) {}
-    return null;
+    return this.user;
   },
 
-  isAuthenticated() { return this.getUser() !== null; },
+  isAuthenticated() {
+    return this.user !== null;
+  },
 
   subscribe(fn) {
     this.listeners.push(fn);
     return () => { this.listeners = this.listeners.filter(l => l !== fn); };
   },
 
-  notify() { this.listeners.forEach(fn => fn(this.user)); },
+  notify() {
+    this.listeners.forEach(fn => fn(this.user));
+  },
 };
 
-// ── Token client ─────────────────────────────────────────────
-let _tokenClient      = null;
-let _tokenClientReady = false;
-let _tokenReadyCallbacks = [];
-
-// ── onTokenReady ─────────────────────────────────────────────
-function onTokenReady(fn) {
-  // Ya listo y hay token en esta pestaña → ejecutar directo
-  if (_tokenClientReady && sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY)) {
-    fn();
-    return;
-  }
-
-  // Ya listo pero sin usuario (modo demo) → ejecutar directo
-  if (_tokenClientReady && !AuthState.getUser()) {
-    fn();
-    return;
-  }
-
-  let called = false;
-
-  // Timeout de seguridad: 15s → caer al mock si Google no responde
-  const timer = setTimeout(() => {
-    if (!called) {
-      called = true;
-      console.warn('[Auth] ⚠ Timeout 15s — continuando sin token (modo demo)');
-      fn();
-    }
-  }, 15000);
-
-  _tokenReadyCallbacks.push(() => {
-    if (!called) {
-      called = true;
-      clearTimeout(timer);
-      fn();
-    }
-  });
+// ── Mapear sesión de Supabase al formato de usuario de la app ─
+function _mapUser(supabaseUser) {
+  if (!supabaseUser) return null;
+  return {
+    id:        supabaseUser.id,
+    email:     supabaseUser.email,
+    name:      supabaseUser.user_metadata?.full_name || supabaseUser.email,
+    picture:   supabaseUser.user_metadata?.avatar_url || null,
+    loginAt:   new Date().toISOString(),
+  };
 }
 
-// ── Init ─────────────────────────────────────────────────────
+// ── Init: escuchar cambios de sesión ─────────────────────────
 function initAuth() {
-  if (typeof google === 'undefined') {
-    console.warn('[Auth] Google SDK no disponible');
-    return;
-  }
+  const db = window.SupabaseClient;
 
-  _tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: AUTH_CONFIG.CLIENT_ID,
-    scope:     AUTH_CONFIG.SCOPES,
-    callback:  handleTokenResponse,
+  // Recuperar sesión activa al arrancar
+  db.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      AuthState.setUser(_mapUser(session.user));
+      console.log('[Auth] Sesión activa restaurada.');
+    } else {
+      console.log('[Auth] Sin sesión activa.');
+    }
+    // Avisar a app.js que initAuth corrió
+    window._onAuthReady?.();
   });
 
-  console.log('[Auth] Token client inicializado.');
-
-  const savedUser  = AuthState.getUser();
-  const savedToken = sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
-
-  if (savedUser && savedToken) {
-    // Misma pestaña con token activo → listo inmediatamente
-    console.log('[Auth] Token en sessionStorage — listo.');
-    _tokenClientReady = true;
-    _tokenReadyCallbacks.forEach(fn => fn());
-    _tokenReadyCallbacks = [];
-
-  } else if (savedUser && !savedToken) {
-    // Nueva pestaña o token perdido → renovar silenciosamente sin popup
-    console.log('[Auth] Usuario sin token — renovando silenciosamente...');
-    _tokenClientReady = false;
-    _tokenClient.requestAccessToken({ prompt: '' });
-
-  } else {
-    // Sin usuario → modo demo, no bloquear
-    console.log('[Auth] Sin usuario — modo demo.');
-    _tokenClientReady = true;
-    _tokenReadyCallbacks.forEach(fn => fn());
-    _tokenReadyCallbacks = [];
-  }
-
-  // Avisar a app.js que initAuth corrió
-  window._onAuthReady?.();
+  // Escuchar cambios futuros (login, logout, token refresh)
+  db.auth.onAuthStateChange((_event, session) => {
+    const mapped = session?.user ? _mapUser(session.user) : null;
+    AuthState.setUser(mapped);
+  });
 }
 
-// ── Callback tras obtener el Access Token ────────────────────
-async function handleTokenResponse(response) {
-  if (response.error) {
-    console.error('[Auth] Error OAuth:', response.error);
+// ── Iniciar sesión (email + password) ────────────────────────
+async function signIn(email, password) {
+  const db = window.SupabaseClient;
+  _setLoginLoading(true);
 
-    // Si falló la renovación silenciosa, liberar callbacks para no bloquear
-    if (!_tokenClientReady) {
-      console.warn('[Auth] Renovación silenciosa falló — continuando sin token');
-      _tokenClientReady = true;
-      _tokenReadyCallbacks.forEach(fn => fn());
-      _tokenReadyCallbacks = [];
-    }
+  const { data, error } = await db.auth.signInWithPassword({ email, password });
 
-    ToastService?.show('Error al iniciar sesión. Intenta de nuevo.', 'danger');
+  if (error) {
+    console.error('[Auth] Error signIn:', error.message);
+    ToastService?.show('Credenciales incorrectas. Intenta de nuevo.', 'danger');
     _setLoginLoading(false);
     return;
   }
 
-  const accessToken = response.access_token;
-  sessionStorage.setItem(AUTH_CONFIG.TOKEN_KEY, accessToken);
-  console.log('[Auth] Access Token obtenido.');
-
-  // Notificar a todos los que esperaban el token
-  _tokenClientReady = true;
-  _tokenReadyCallbacks.forEach(fn => fn());
-  _tokenReadyCallbacks = [];
-
-  try {
-    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const info = await res.json();
-
-    const user = {
-      id:         info.sub,
-      name:       info.name,
-      email:      info.email,
-      picture:    info.picture,
-      givenName:  info.given_name,
-      familyName: info.family_name,
-      loginAt:    new Date().toISOString(),
-    };
-
-    AuthState.setUser(user);
-
-    // Solo navegar al dashboard si fue un login manual (no renovación silenciosa)
-    const currentRoute = Router?.current?.();
-    if (currentRoute === 'login' || !currentRoute) {
-      Router?.navigate('dashboard');
-    }
-
-  } catch (err) {
-    console.error('[Auth] Error obteniendo datos del usuario:', err);
-    ToastService?.show('No se pudieron obtener los datos del usuario.', 'danger');
-    _setLoginLoading(false);
-  }
-}
-
-// ── Iniciar sesión manual ────────────────────────────────────
-function signIn() {
-  if (!_tokenClient) {
-    if (typeof google !== 'undefined') {
-      initAuth();
-    } else {
-      ToastService?.show('Servicio de Google no disponible.', 'warning');
-      return;
-    }
-  }
-  _setLoginLoading(true);
-  _tokenClient.requestAccessToken({ prompt: 'consent' });
+  AuthState.setUser(_mapUser(data.user));
+  _setLoginLoading(false);
+  Router?.navigate('dashboard');
+  ToastService?.show('Sesión iniciada correctamente.', 'success');
 }
 
 // ── Cerrar sesión ─────────────────────────────────────────────
-function signOut() {
-  const token = sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
-  if (token && typeof google !== 'undefined') {
-    google.accounts.oauth2.revoke(token, () => {
-      console.log('[Auth] Token revocado.');
-    });
-  }
+async function signOut() {
+  const db = window.SupabaseClient;
+  await db.auth.signOut();
   AuthState.setUser(null);
   Router?.navigate('login');
   ToastService?.show('Sesión cerrada correctamente.', 'success');
 }
 
-// ── Access Token para Sheets ──────────────────────────────────
+// ── Métodos mantenidos por compatibilidad (ya no necesarios) ──
+// onTokenReady: en Supabase no hay token de Sheets, pero se
+// mantiene el método para no romper llamadas existentes.
+function onTokenReady(fn) {
+  // Ejecutar inmediatamente — no hay token externo que esperar
+  fn();
+}
+
 function getAccessToken() {
-  return sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
+  // Ya no se usa — mantenido para compatibilidad
+  return null;
 }
 
 // ── Helper interno para controlar spinner del login ──────────
@@ -228,7 +117,7 @@ function _setLoginLoading(active) {
   if (btn)     btn.disabled = active;
 }
 
-// ── Exportar API pública ──────────────────────────────────────
+// ── Exportar API pública (idéntica a v2) ─────────────────────
 window.AuthService = {
   init:            initAuth,
   signIn,

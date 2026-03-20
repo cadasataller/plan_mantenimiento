@@ -1,6 +1,7 @@
 // ============================================================
-// CADASA TALLER — OT STORE
-// Estado centralizado del módulo de Órdenes de Trabajo
+// CADASA TALLER — OT STORE (Supabase)
+// Estado centralizado del módulo de Órdenes de Trabajo.
+// Solo cambió: función load() — todo lo demás intacto.
 // ============================================================
 
 const OTStore = (() => {
@@ -38,48 +39,68 @@ const OTStore = (() => {
     _listeners.forEach(fn => fn(event));
   }
 
-  // ── Carga de datos ───────────────────────────────────────
+  // ── Mapear fila de Supabase al formato interno del store ─
+  // Convierte los nombres de columna de Supabase a los que
+  // usan los componentes (OTComponent, modal, filtros, etc.)
+  function _mapRow(row) {
+    return {
+      ID_Orden:        row['ID_Orden mantenimiento'],
+      Area:            row['Área'],
+      ID_EQUIPO:       row['ID_#EQUIPO'],
+      ITEM:            row['ITEM'],
+      Sistema:         row['Sistema'],
+      Descripcion:     row['Descripcion'],
+      TipoProceso:     row['Tipo de Proceso'],
+      Estatus:         row['Estatus'],
+      Semana:          row['Semana'],
+      FechaInicio:     row['Fecha inicio']
+                         ? new Date(row['Fecha inicio']).toLocaleDateString('es-PA')
+                         : null,
+      FechaConclusion: row['Fecha conclusion']
+                         ? new Date(row['Fecha conclusion']).toLocaleDateString('es-PA')
+                         : null,
+      TieneSolicitud:  row['Tiene solicitud de compra?'] ? 'Si' : 'No',
+      NSolicitud:      row['N° solicitud'],
+      NOrdenCompra:    row['N° Orden de compra'],
+      FechaEntrega:    row['Fecha Entrega'],
+      Observaciones:   row['Observaciones'],
+      Cantidad:        row['Cantidad'],
+      Etapa:           row['Etapa'],
+    };
+  }
+
+  // ── Carga de datos desde Supabase ────────────────────────
   async function load(authenticated) {
     _loading = true;
     notify('loading');
 
     try {
+      const db = window.SupabaseClient;
+
+      const { data, error } = await db
+        .from('ORDEN_MANTENIMIENTO')
+        .select('*');
+
+      if (error) throw error;
+
+      _allOrders = (data || []).map(_mapRow);
+
+      // Filtrar por área si el usuario no es admin
       if (authenticated) {
-        try {
-          // Esperar token — con renovación silenciosa incluida
-          await new Promise(resolve => AuthService.onTokenReady(resolve));
-
-          // Verificar que efectivamente llegó un token
-          const token = AuthService.getAccessToken();
-          if (!token) throw new Error('Sin token tras espera');
-
-          const rows = await SheetsService.fetchAll();
-          if (rows.length > 0) {
-            _allOrders = rows;
-            const user   = AuthService.getUser();
-            const config = RolesConfig.getForEmail(user?.email);
-
-            if (config.role !== 'admin' && config.area) {
-              _allOrders = _allOrders.filter(row => row.Area === config.area);
-            }
-            _source = 'live';
-          } else {
-            throw new Error('Sin filas en Sheets');
-          }
-        } catch (sheetsErr) {
-          console.warn('[OTStore] Sheets falló, usando mock:', sheetsErr.message);
-          _allOrders = MockDataService.generateOrders(100);
-          _source    = 'demo';
+        const user   = AuthService.getUser();
+        const config = RolesConfig.getForEmail(user?.email);
+        if (config.role !== 'admin' && config.area) {
+          _allOrders = _allOrders.filter(row => row.Area === config.area);
         }
-      } else {
-        _allOrders = MockDataService.generateOrders(100);
-        _source    = 'demo';
       }
+
+      _source = _allOrders.length > 0 ? 'live' : 'demo';
+      console.log(`[OTStore] ${_allOrders.length} órdenes cargadas desde Supabase.`);
 
       applyFilters();
 
     } catch (err) {
-      console.error('[OTStore] Error cargando datos:', err);
+      console.error('[OTStore] Error cargando desde Supabase:', err.message);
       notify('error');
     } finally {
       _loading = false;
@@ -101,11 +122,11 @@ const OTStore = (() => {
     if (search) {
       const q = search.toLowerCase();
       data = data.filter(o =>
-        o.ID_Orden.toLowerCase().includes(q)    ||
-        o.Descripcion.toLowerCase().includes(q) ||
-        o.ITEM.toLowerCase().includes(q)        ||
-        o.Sistema.toLowerCase().includes(q)     ||
-        o.ID_EQUIPO.toLowerCase().includes(q)
+        (o.ID_Orden    || '').toLowerCase().includes(q) ||
+        (o.Descripcion || '').toLowerCase().includes(q) ||
+        (o.ITEM        || '').toLowerCase().includes(q) ||
+        (o.Sistema     || '').toLowerCase().includes(q) ||
+        (o.ID_EQUIPO   || '').toLowerCase().includes(q)
       );
     }
 
@@ -190,7 +211,7 @@ const OTStore = (() => {
   }
 
   function getAreas() {
-    return [...new Set(_allOrders.map(o => o.Area))].sort();
+    return [...new Set(_allOrders.map(o => o.Area).filter(Boolean))].sort();
   }
 
   function getSemanas() {

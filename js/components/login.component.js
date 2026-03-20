@@ -1,6 +1,7 @@
 // ============================================================
-// CADASA TALLER — LOGIN COMPONENT
-// Renderiza y controla la pantalla de inicio de sesión
+// CADASA TALLER — LOGIN COMPONENT (Supabase)
+// Mismo branding y estructura. Solo cambia el formulario:
+// email + password en lugar del botón de Google.
 // ============================================================
 
 const LoginComponent = (() => {
@@ -60,26 +61,74 @@ const LoginComponent = (() => {
           <div class="login-card-header">
             <div class="login-greeting">Bienvenido</div>
             <h2 class="login-title">Iniciar Sesión</h2>
-            <p class="login-subtitle">Accede con tu cuenta corporativa de Google</p>
+            <p class="login-subtitle">Accede con tu cuenta corporativa</p>
           </div>
 
           <div class="login-divider">
             <span>Acceso Seguro</span>
           </div>
 
-          <!-- Botón propio que abre el popup de Google -->
-          <button class="btn-google" id="btn-google-signin" onclick="LoginComponent.handleSignIn()">
-            ${Icons.googleLogo()}
-            <span>Continuar con Google</span>
-          </button>
+          <!-- Campo email -->
+          <div class="login-field">
+            <label class="login-label" for="login-email">Correo electrónico</label>
+            <input
+              class="login-input"
+              id="login-email"
+              type="email"
+              placeholder="usuario@cadasa.com"
+              autocomplete="email"
+              onkeydown="LoginComponent._onKeyDown(event)"
+            />
+          </div>
 
-          <!-- Contenedor oculto para el botón nativo de Google (fallback) -->
-          <div id="google-btn-container" style="display:none; margin-top:0.75rem; justify-content:center;"></div>
+          <!-- Campo password -->
+          <div class="login-field">
+            <label class="login-label" for="login-password">Contraseña</label>
+            <div class="login-input-wrap">
+              <input
+                class="login-input"
+                id="login-password"
+                type="password"
+                placeholder="••••••••"
+                autocomplete="current-password"
+                onkeydown="LoginComponent._onKeyDown(event)"
+              />
+              <button
+                class="btn-toggle-password"
+                id="btn-toggle-pass"
+                type="button"
+                tabindex="-1"
+                onclick="LoginComponent._togglePassword()"
+                aria-label="Mostrar/ocultar contraseña">
+                <svg id="icon-eye-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg id="icon-eye-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="display:none">
+                  <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Mensaje de error -->
+          <div class="login-error" id="login-error" style="display:none"></div>
+
+          <!-- Botón de ingreso -->
+          <button class="btn-google" id="btn-google-signin" onclick="LoginComponent.handleSignIn()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+            <span>Ingresar al Sistema</span>
+          </button>
 
           <div class="login-access-info">
             <strong>Acceso restringido</strong>
             Solo personal autorizado de CADASA. Utiliza tu cuenta
-            <em>@cadasa.com</em> o la cuenta corporativa asignada.
+            corporativa asignada por el administrador.
           </div>
 
           <!-- Overlay de carga -->
@@ -93,16 +142,57 @@ const LoginComponent = (() => {
     `;
   }
 
-  /** Maneja clic en el botón de Google */
-  function handleSignIn() {
-    setLoading(true);
+  /** Enter en cualquier campo dispara el login */
+  function _onKeyDown(e) {
+    if (e.key === 'Enter') handleSignIn();
+  }
 
-    // Pequeño delay para mostrar el spinner antes del popup
-    setTimeout(() => {
-      AuthService.signIn();
-      // Quitar spinner si el popup tarda (se quitará en el callback si falla)
-      setTimeout(() => setLoading(false), 8000);
-    }, 300);
+  /** Mostrar / ocultar contraseña */
+  function _togglePassword() {
+    const input = document.getElementById('login-password');
+    const show  = document.getElementById('icon-eye-show');
+    const hide  = document.getElementById('icon-eye-hide');
+    if (!input) return;
+    const isPassword = input.type === 'password';
+    input.type  = isPassword ? 'text' : 'password';
+    if (show) show.style.display = isPassword ? 'none'  : '';
+    if (hide) hide.style.display = isPassword ? ''      : 'none';
+  }
+
+  /** Maneja clic en el botón de ingreso */
+  async function handleSignIn() {
+    const emailEl = document.getElementById('login-email');
+    const passEl  = document.getElementById('login-password');
+    const errEl   = document.getElementById('login-error');
+
+    const email    = emailEl?.value.trim()  ?? '';
+    const password = passEl?.value.trim()   ?? '';
+
+    // Validación básica en cliente
+    if (!email || !password) {
+      _showError('Por favor ingresa tu correo y contraseña.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      _showError('El correo no tiene un formato válido.');
+      return;
+    }
+
+    _hideError();
+    // AuthService.signIn maneja el loading, el toast y la navegación
+    await AuthService.signIn(email, password);
+  }
+
+  function _showError(msg) {
+    const el = document.getElementById('login-error');
+    if (!el) return;
+    el.textContent  = msg;
+    el.style.display = 'block';
+  }
+
+  function _hideError() {
+    const el = document.getElementById('login-error');
+    if (el) el.style.display = 'none';
   }
 
   function setLoading(active) {
@@ -115,14 +205,12 @@ const LoginComponent = (() => {
   /** Llamado al entrar a la vista */
   function onEnter() {
     setLoading(false);
-    // OAuth2 initTokenClient no requiere inicialización visible aquí —
-    // AuthService.init() ya fue llamado en app.js al cargar la página.
-    // Si por alguna razón no lo estaba, lo intentamos ahora.
-    if (typeof google !== 'undefined') {
-      AuthService.init();
-    }
+    _hideError();
+    // Enfocar el campo email automáticamente
+    setTimeout(() => document.getElementById('login-email')?.focus(), 100);
   }
-  return { mount, onEnter, handleSignIn };
+
+  return { mount, onEnter, handleSignIn, _onKeyDown, _togglePassword };
 })();
 
 window.LoginComponent = LoginComponent;
