@@ -20,13 +20,13 @@ const Router = (() => {
       return;
     }
 
-    // Guard: verificar autenticación
+    // Guard: ruta protegida sin sesión → ir al login
     if (route.requiresAuth && !AuthService?.isAuthenticated()) {
-      navigate('dashboard');
+      if (name !== 'login') navigate('login');  // ← corregido: era 'dashboard'
       return;
     }
 
-    // Guard: redirigir si ya autenticado e intenta ir al login
+    // Guard: ya autenticado e intenta ir al login → ir al dashboard
     if (name === 'login' && AuthService?.isAuthenticated()) {
       navigate('dashboard');
       return;

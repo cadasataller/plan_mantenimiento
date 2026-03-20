@@ -1,5 +1,5 @@
-/// ============================================================
-// CADASA TALLER — APP ENTRY POINT
+// ============================================================
+// CADASA TALLER — APP ENTRY POINT (Supabase)
 // ============================================================
 
 (function initApp() {
@@ -29,18 +29,17 @@
     }
   });
 
-  // ── 4. Arrancar cuando Google SDK esté listo ──
-  function startApp() {
-    AuthService.init();  // ← ahora Google sí existe, requestAccessToken funciona
-    Router.init();       // ← detecta sesión y navega
-  }
+  // ── 4. Arrancar: AuthService.init() llama a _onAuthReady
+  //    cuando getSession() ya resolvió, y solo ahí iniciamos
+  //    el router — así isAuthenticated() ya tiene el valor correcto.
+  window._onAuthReady = function () {
+    const hash  = location.hash.replace('#', '');
+    // Si el usuario abrió directo #dashboard pero no hay sesión,
+    // el guard del router lo manda al login correctamente.
+    Router.init();
+  };
 
-  if (typeof google !== 'undefined') {
-    // SDK ya cargó (raro pero posible si el script estaba cacheado)
-    startApp();
-  } else {
-    // Esperar el evento que dispara onload del script GSI en el index.html
-    window.addEventListener('google-ready', startApp, { once: true });
-  }
+  // Iniciar auth (getSession es async; llama _onAuthReady al terminar)
+  AuthService.init();
 
 })();
