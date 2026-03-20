@@ -1,0 +1,123 @@
+/* ============================================================
+   CADASA TALLER — ESTILOS BASE GLOBALES
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-second);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-gray-100); }
+::-webkit-scrollbar-thumb { background: var(--color-gray-300); border-radius: var(--radius-full); }
+::-webkit-scrollbar-thumb:hover { background: var(--color-gray-400); }
+
+/* ── Utilidades ── */
+.hidden   { display: none !important; }
+.visible  { display: block !important; }
+.sr-only  {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); border: 0;
+}
+
+/* ── Page views ── */
+.page-view {
+  display: none;
+  min-height: 100vh;
+}
+.page-view.active {
+  display: flex;
+}
+
+/* ── Loader global ── */
+#app-loader {
+  position: fixed; inset: 0;
+  background: var(--color-main-dark);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  transition: opacity var(--transition-slow), visibility var(--transition-slow);
+}
+#app-loader.fade-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.loader-logo {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  color: var(--color-accent);
+  letter-spacing: 0.15em;
+  animation: pulse-loader 1.2s ease-in-out infinite;
+}
+.loader-sub {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--color-second-deep);
+  text-align: center;
+  margin-top: 6px;
+}
+
+@keyframes pulse-loader {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.97); }
+}
+
+/* ── Toast notifications ── */
+#toast-container {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 8000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  background: var(--color-white);
+  border-left: 4px solid var(--color-main);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.25rem;
+  box-shadow: var(--shadow-lg);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  max-width: 320px;
+  animation: toast-in var(--transition-normal) ease forwards;
+}
+.toast.toast-success { border-color: var(--color-success); }
+.toast.toast-danger  { border-color: var(--color-danger); }
+.toast.toast-warning { border-color: var(--color-warning); }
+.toast.toast-out {
+  animation: toast-out var(--transition-normal) ease forwards;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(40px); }
+}

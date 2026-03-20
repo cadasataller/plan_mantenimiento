@@ -1,0 +1,74 @@
+/* ============================================================
+   CADASA TALLER — PALETA DE COLORES
+   Modifica este archivo para cambiar el tema de toda la app
+   ============================================================ */
+
+:root {
+  /* ── Colores principales ── */
+  --color-main:        #004643;   /* Verde oscuro CADASA */
+  --color-main-light:  #006B65;   /* Verde principal claro */
+  --color-main-dark:   #002E2C;   /* Verde principal oscuro */
+  --color-main-muted:  #004643CC; /* Verde principal con transparencia */
+
+  /* ── Color secundario / fondo ── */
+  --color-second:      #F0EDE5;   /* Crema / fondo global */
+  --color-second-dark: #E2DDD3;   /* Crema más oscuro (cards hover, bordes) */
+  --color-second-deep: #C9C3B4;   /* Crema profundo (divisores, inputs) */
+
+  /* ── Acentos ── */
+  --color-accent:      #D4A853;   /* Dorado industrial */
+  --color-accent-light:#E8C47A;   /* Dorado claro */
+  --color-accent-dark: #B8892F;   /* Dorado oscuro (hover) */
+
+  /* ── Estados / semántica ── */
+  --color-success:     #2D8A4E;
+  --color-success-bg:  #E8F5ED;
+  --color-warning:     #C97B2F;
+  --color-warning-bg:  #FDF3E3;
+  --color-danger:      #C0392B;
+  --color-danger-bg:   #FDECEA;
+  --color-info:        #1A6B9A;
+  --color-info-bg:     #E3F0FA;
+
+  /* ── Neutros ── */
+  --color-white:       #FFFFFF;
+  --color-gray-50:     #F8F7F4;
+  --color-gray-100:    #EFEDE7;
+  --color-gray-200:    #D8D4CA;
+  --color-gray-300:    #B8B3A7;
+  --color-gray-400:    #8F8A7F;
+  --color-gray-500:    #6B6660;
+  --color-gray-600:    #4A4640;
+  --color-gray-700:    #2E2B26;
+  --color-gray-900:    #1A1917;
+
+  /* ── Texto ── */
+  --text-primary:      #1A1917;
+  --text-secondary:    #4A4640;
+  --text-muted:        #8F8A7F;
+  --text-on-main:      #F0EDE5;
+  --text-on-accent:    #1A1917;
+
+  /* ── Sombras ── */
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.07);
+  --shadow-lg:  0 10px 30px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-xl:  0 20px 50px rgba(0,0,0,0.16), 0 8px 20px rgba(0,0,0,0.10);
+
+  /* ── Radios ── */
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  14px;
+  --radius-xl:  22px;
+  --radius-full:9999px;
+
+  /* ── Tipografía ── */
+  --font-display: 'Bebas Neue', 'Arial Narrow', sans-serif;
+  --font-body:    'DM Sans', 'Segoe UI', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+
+  /* ── Transiciones ── */
+  --transition-fast:   150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow:   400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
