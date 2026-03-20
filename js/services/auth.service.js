@@ -10,10 +10,13 @@ const AUTH_CONFIG = {
 };
 
 let googleClient = null;
+let tokenClient = null;
+let accessToken = null;
 
 /** Estado reactivo del usuario */
 const AuthState = {
   user: null,
+  accessToken: null,
   listeners: [],
 
   setUser(userData) {
@@ -22,8 +25,23 @@ const AuthState = {
       sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEY, JSON.stringify(userData));
     } else {
       sessionStorage.removeItem(AUTH_CONFIG.STORAGE_KEY);
+      this.setAccessToken(null);
     }
     this.notify();
+  },
+
+  setAccessToken(token) {
+    this.accessToken = token;
+    if (token) {
+      sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEY + '_token', token);
+    } else {
+      sessionStorage.removeItem(AUTH_CONFIG.STORAGE_KEY + '_token');
+    }
+  },
+
+  getAccessToken() {
+    if (this.accessToken) return this.accessToken;
+    return sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEY + '_token');
   },
 
   getUser() {
@@ -61,12 +79,36 @@ function initGoogleAuth(onReady) {
     return;
   }
 
-  googleClient = google.accounts.id.initialize({
+  // Evitar inicialización múltiple
+  if (googleClient) {
+    if (typeof onReady === 'function') onReady();
+    return;
+  }
+
+  google.accounts.id.initialize({
     client_id: AUTH_CONFIG.CLIENT_ID,
     callback: handleGoogleCallback,
     auto_select: false,
     cancel_on_tap_outside: true,
+    use_fedcm_for_prompt: false, // Desactivar FedCM para evitar errores en iframes (AI Studio)
+    itp_support: true,           // Mejorar compatibilidad con iframes y bloqueo de cookies
   });
+
+  // Inicializar Token Client para OAuth2 (Sheets API)
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: AUTH_CONFIG.CLIENT_ID,
+    scope: AUTH_CONFIG.SCOPES,
+    callback: (tokenResponse) => {
+      if (tokenResponse && tokenResponse.access_token) {
+        AuthState.setAccessToken(tokenResponse.access_token);
+        console.log('[Auth] Access Token obtenido.');
+        // Notificar a los suscriptores que el token cambió (opcional, notify() ya se llama en setUser)
+        AuthState.notify();
+      }
+    },
+  });
+
+  googleClient = true;
 
   if (typeof onReady === 'function') onReady();
 }
@@ -144,12 +186,18 @@ function signInWithGoogle() {
     ToastService?.show('Servicio de Google no disponible.', 'warning');
     return;
   }
+
+  // Primero autenticar identidad (ID Token)
   google.accounts.id.prompt((notification) => {
     if (notification.isNotDisplayed()) {
-      // Fallback: renderizar botón nativo de Google si One Tap está bloqueado
       console.warn('[Auth] One Tap bloqueado, usando botón estándar.');
     }
   });
+
+  // Solicitar token de acceso si no tenemos uno
+  if (!AuthState.getAccessToken()) {
+    tokenClient.requestAccessToken({ prompt: '' });
+  }
 }
 
 /** Cerrar sesión */
@@ -172,6 +220,8 @@ window.AuthService = {
   signOut,
   renderGoogleButton,
   getUser: () => AuthState.getUser(),
+  getAccessToken: () => AuthState.getAccessToken(),
+  requestAccessToken: () => tokenClient?.requestAccessToken({ prompt: '' }),
   isAuthenticated: () => AuthState.isAuthenticated(),
   subscribe: (fn) => AuthState.subscribe(fn),
 };
