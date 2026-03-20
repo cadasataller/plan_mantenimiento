@@ -33,13 +33,28 @@ const AuthState = {
 };
 
 // ── Mapear sesión de Supabase al formato de usuario de la app ─
-function _mapUser(supabaseUser) {
+async function _buildUser(supabaseUser) {
   if (!supabaseUser) return null;
+  const db = window.SupabaseClient;
+ 
+  const { data: profile, error } = await db
+    .from('PROFILE')
+    .select('nombre, area, role')
+    .eq('email', supabaseUser.email)
+    .single();
+ 
+  if (error) {
+    console.warn('[Auth] Perfil no encontrado en PROFILE:', error.message);
+  }
+ 
   return {
     id:        supabaseUser.id,
     email:     supabaseUser.email,
-    name:      supabaseUser.user_metadata?.full_name || supabaseUser.email,
-    picture:   supabaseUser.user_metadata?.avatar_url || null,
+    name:      profile?.nombre || supabaseUser.email,
+    givenName: profile?.nombre || supabaseUser.email,
+    area:      profile?.area   || null,
+    role:      profile?.role   || 'user',
+    picture:   null,
     loginAt:   new Date().toISOString(),
   };
 }
@@ -51,7 +66,8 @@ function initAuth() {
   // Recuperar sesión activa al arrancar
   db.auth.getSession().then(({ data: { session } }) => {
     if (session?.user) {
-      AuthState.setUser(_mapUser(session.user));
+      const user = await _buildUser(session.user);
+      AuthState.setUser(user);
       console.log('[Auth] Sesión activa restaurada.');
     } else {
       console.log('[Auth] Sin sesión activa.');

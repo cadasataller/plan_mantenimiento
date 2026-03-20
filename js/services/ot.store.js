@@ -1,12 +1,10 @@
 // ============================================================
 // CADASA TALLER — OT STORE (Supabase)
 // Estado centralizado del módulo de Órdenes de Trabajo.
-// Solo cambió: función load() — todo lo demás intacto.
 // ============================================================
 
 const OTStore = (() => {
 
-  // ── Tipos de proceso en orden de etapa ──────────────────
   const ETAPAS = [
     'Desmontaje y diagnóstico',
     'Lavado e inspección',
@@ -14,7 +12,8 @@ const OTStore = (() => {
     'Ensamblaje y ajuste; pruebas finales',
   ];
 
-  // ── Estado interno ───────────────────────────────────────
+  const PAGE_LOAD = 1000; // filas por request al cargar todo
+
   let _allOrders  = [];
   let _filtered   = [];
   let _grouped    = {};
@@ -39,9 +38,7 @@ const OTStore = (() => {
     _listeners.forEach(fn => fn(event));
   }
 
-  // ── Mapear fila de Supabase al formato interno del store ─
-  // Convierte los nombres de columna de Supabase a los que
-  // usan los componentes (OTComponent, modal, filtros, etc.)
+  // ── Mapear fila de Supabase al formato interno ───────────
   function _mapRow(row) {
     return {
       ID_Orden:        row['ID_Orden mantenimiento'],
@@ -69,32 +66,58 @@ const OTStore = (() => {
     };
   }
 
-  // ── Carga de datos desde Supabase ────────────────────────
+  // ── Carga COMPLETA con paginación automática ─────────────
+  // Supabase devuelve máx 1000 filas por request.
+  // Este loop sigue pidiendo páginas hasta que no haya más.
+  async function _fetchAll(db, userArea) {
+    let allRows = [];
+    let from    = 0;
+    const size  = PAGE_LOAD;
+
+    while (true) {
+      let query = db
+        .from('ORDEN_MANTENIMIENTO')
+        .select('*')
+        .range(from, from + size - 1);
+
+      // Si el usuario no es admin, filtrar por área directo en la query
+      if (userArea) {
+        query = query.eq('Área', userArea);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      allRows = allRows.concat(data || []);
+
+      // Si devolvió menos de PAGE_LOAD, ya no hay más páginas
+      if (!data || data.length < size) break;
+
+      from += size;
+    }
+
+    return allRows;
+  }
+
+  // ── load ─────────────────────────────────────────────────
   async function load(authenticated) {
     _loading = true;
     notify('loading');
 
     try {
-      const db = window.SupabaseClient;
+      const db   = window.SupabaseClient;
+      const user = AuthService.getUser();
 
-      const { data, error } = await db
-        .from('ORDEN_MANTENIMIENTO')
-        .select('*');
+      // Solo filtrar por área en la query si no es admin
+      const userArea = (authenticated && user?.role !== 'admin' && user?.area)
+        ? user.area
+        : null;
 
-      if (error) throw error;
+      const raw  = await _fetchAll(db, userArea);
+      _allOrders = raw.map(_mapRow);
+      _source    = _allOrders.length > 0 ? 'live' : 'demo';
 
-      _allOrders = (data || []).map(_mapRow);
-
-      // Filtrar por área si el usuario no es admin
-      if (authenticated) {
-        const user   = AuthService.getUser();
-        const config = RolesConfig.getForEmail(user?.email);
-        if (config.role !== 'admin' && config.area) {
-          _allOrders = _allOrders.filter(row => row.Area === config.area);
-        }
-      }
-
-      _source = _allOrders.length > 0 ? 'live' : 'demo';
       console.log(`[OTStore] ${_allOrders.length} órdenes cargadas desde Supabase.`);
 
       applyFilters();
@@ -108,7 +131,10 @@ const OTStore = (() => {
     }
   }
 
-  // ── Filtros ──────────────────────────────────────────────
+  // ── Filtros (client-side sobre los datos ya cargados) ────
+  // La búsqueda por texto opera sobre _allOrders en memoria.
+  // Si el dataset es muy grande (>50k filas) considera mover
+  // el filtro de texto a server-side con ilike de Supabase.
   function setFilter(key, value) {
     _filters[key] = value;
     applyFilters();
@@ -145,32 +171,17 @@ const OTStore = (() => {
 
   function buildHierarchy(rows) {
     const tree = {};
-
     rows.forEach(row => {
       const eqKey  = row.ID_EQUIPO;
       const semKey = row.Semana ? `Semana ${String(row.Semana).padStart(2,'0')}` : '__noasig';
       const proc   = normalizeProcess(row.TipoProceso);
-
       if (!tree[eqKey]) {
-        tree[eqKey] = {
-          equipoId: row.ID_EQUIPO,
-          item:     row.ITEM,
-          area:     row.Area,
-          semanas:  {},
-        };
+        tree[eqKey] = { equipoId: row.ID_EQUIPO, item: row.ITEM, area: row.Area, semanas: {} };
       }
-
-      if (!tree[eqKey].semanas[semKey]) {
-        tree[eqKey].semanas[semKey] = { procesos: {} };
-      }
-
-      if (!tree[eqKey].semanas[semKey].procesos[proc]) {
-        tree[eqKey].semanas[semKey].procesos[proc] = [];
-      }
-
+      if (!tree[eqKey].semanas[semKey]) tree[eqKey].semanas[semKey] = { procesos: {} };
+      if (!tree[eqKey].semanas[semKey].procesos[proc]) tree[eqKey].semanas[semKey].procesos[proc] = [];
       tree[eqKey].semanas[semKey].procesos[proc].push(row);
     });
-
     return tree;
   }
 
@@ -178,9 +189,7 @@ const OTStore = (() => {
     if (!tipo) return 'Sin tipo';
     const t = tipo.trim().toLowerCase();
     for (const et of ETAPAS) {
-      if (et.toLowerCase().includes(t) || t.includes(et.toLowerCase().split(' ')[0])) {
-        return et;
-      }
+      if (et.toLowerCase().includes(t) || t.includes(et.toLowerCase().split(' ')[0])) return et;
     }
     if (t.includes('desmont') || t.includes('diagnos')) return ETAPAS[0];
     if (t.includes('lavado')  || t.includes('insp'))    return ETAPAS[1];
@@ -215,8 +224,7 @@ const OTStore = (() => {
   }
 
   function getSemanas() {
-    return [...new Set(_allOrders.map(o => o.Semana).filter(Boolean))]
-      .sort((a, b) => a - b);
+    return [...new Set(_allOrders.map(o => o.Semana).filter(Boolean))].sort((a, b) => a - b);
   }
 
   return {
