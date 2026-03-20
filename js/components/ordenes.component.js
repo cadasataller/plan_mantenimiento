@@ -41,6 +41,8 @@ const OTComponent = (() => {
   let _activeDims = ['semana'];
   let _unsub = null;
   const _rowCache = new Map(); // ID → row object (para el modal)
+  const PAGE_SIZE = 50;        // ← agregar
+  let _currentPage = 0; 
 
   // ══════════════════════════════════════════════════════════
   // MOUNT
@@ -249,6 +251,7 @@ const OTComponent = (() => {
   }
 
   function _refreshPanel() {
+    _currentPage = 0;
     renderGroupingPanel();
     renderList();
   }
@@ -259,11 +262,13 @@ const OTComponent = (() => {
   function bindStaticEvents() {
     document.getElementById('ot-search')?.addEventListener('input', e => {
       OTStore.setFilter('search', e.target.value);
+      _currentPage = 0
       renderList();
     });
     ['area','estatus','semana'].forEach(k => {
       document.getElementById(`ot-filter-${k}`)?.addEventListener('change', e => {
         OTStore.setFilter(k, e.target.value);
+        _currentPage = 0
         renderList();
       });
     });
@@ -519,17 +524,40 @@ const OTComponent = (() => {
     if (!rows || rows.length === 0) {
       return `<div style="padding:1rem 1.5rem;font-size:0.8rem;color:var(--text-muted);">Sin órdenes.</div>`;
     }
+
+    const start    = _currentPage * PAGE_SIZE;
+    const pageRows = rows.slice(start, start + PAGE_SIZE);
+    const total    = rows.length;
+    const pages    = Math.ceil(total / PAGE_SIZE);
+
     const extraH = showArea ? '<th>Área</th><th>Equipo</th>' : '';
     const thead  = `<tr>
       <th>ID Orden</th><th>Sistema</th><th>Descripción</th><th>Tipo Proceso</th>
       <th>Fecha Inicio</th><th>Semana</th><th>Estado</th><th>Compra</th>${extraH}
     </tr>`;
+
+    const pagination = pages > 1 ? `
+      <div class="ot-pagination">
+        <span class="ot-pagination-info">
+          ${start + 1}–${Math.min(start + PAGE_SIZE, total)} de ${total}
+        </span>
+        <div class="ot-pagination-btns">
+          <button class="ot-page-btn" ${_currentPage === 0 ? 'disabled' : ''}
+            onclick="OTComponent._goPage(${_currentPage - 1})">‹</button>
+          ${Array.from({length: pages}, (_, i) => `
+            <button class="ot-page-btn ${i === _currentPage ? 'active' : ''}"
+              onclick="OTComponent._goPage(${i})">${i + 1}</button>
+          `).join('')}
+          <button class="ot-page-btn" ${_currentPage >= pages - 1 ? 'disabled' : ''}
+            onclick="OTComponent._goPage(${_currentPage + 1})">›</button>
+        </div>
+      </div>` : '';
+
     return `<table class="ot-table">
       <thead>${thead}</thead>
-      <tbody>${rows.map(r => buildRow(r, showArea)).join('')}</tbody>
-    </table>`;
+      <tbody>${pageRows.map(r => buildRow(r, showArea)).join('')}</tbody>
+    </table>${pagination}`;
   }
-
   function buildRow(row, showArea = false) {
     const sc   = statusToClass(row.Estatus);
     const eIdx = ETAPA_IDX[row.TipoProceso] ?? 'x';
@@ -726,7 +754,13 @@ const OTComponent = (() => {
     return `<div class="ot-loading"><div class="spinner"></div> Cargando órdenes de trabajo…</div>`;
   }
 
-  // Exponer al scope global
-  return { mount, onEnter, _toggle, _addDim, _removeDim, _moveDim, _applyPreset, _clearGroups };
+  function _goPage(page) {
+  _currentPage = page;
+  renderList();
+  // Scroll suave al inicio de la lista
+  document.getElementById('ot-list-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+return { mount, onEnter, _toggle, _addDim, _removeDim, _moveDim, _applyPreset, _clearGroups, _goPage };
 })();
 
