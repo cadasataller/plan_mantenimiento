@@ -48,27 +48,34 @@ const SheetsService = (() => {
    * @returns {Promise<object[]>}
    */
   async function fetchSheet(sheetName) {
-    const url = `${BASE}/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  const token = window.AuthService?.getAccessToken();
 
-    const headers = {};
-    const token = window.AuthService?.getAccessToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const res = await fetch(url, { headers });
-    
-    if (res.status === 401 || res.status === 403) {
-      console.warn('[Sheets] Token expirado o sin permisos. Intentando renovar...');
-      window.AuthService?.requestAccessToken();
-      throw new Error('Sesión de Google Sheets expirada. Por favor, autoriza de nuevo.');
-    }
-
-    if (!res.ok) throw new Error(`Error ${res.status} leyendo hoja "${sheetName}"`);
-
-    const text = await res.text();
-    return parseCSV(text);
+  if (!token) {
+    throw new Error('No hay access token. Usuario no autenticado.');
   }
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}`;
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (res.status === 401 || res.status === 403) {
+    console.warn('[Sheets] Token expirado. Renovando...');
+    window.AuthService?.requestAccessToken();
+    throw new Error('Token expirado');
+  }
+
+  if (!res.ok) {
+    throw new Error(`Error ${res.status} leyendo hoja`);
+  }
+
+  const data = await res.json();
+
+  return parseRows(data.values);
+}
 
   /**
    * Lee todas las hojas configuradas y devuelve un array unificado
@@ -96,43 +103,42 @@ const SheetsService = (() => {
    * @param {string} text  CSV raw
    * @returns {object[]}
    */
-  function parseCSV(text) {
-    const lines = text.trim().split('\n');
-    if (lines.length < 2) return [];
+ function parseRows(rows) {
+  if (!rows || rows.length < 2) return [];
 
-    // La primera fila es el header — usamos índices fijos (COL)
-    const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cols = splitCSVLine(lines[i]);
-      if (!cols[COL.ID_Orden]?.trim()) continue; // fila vacía
+  const result = [];
 
-      const raw = {
-        ID_Orden:        clean(cols[COL.ID_Orden]),
-        Area:            clean(cols[COL.Area]),
-        ID_EQUIPO:       clean(cols[COL.ID_EQUIPO]),
-        ITEM:            clean(cols[COL.ITEM]),
-        Sistema:         clean(cols[COL.Sistema]),
-        Descripcion:     clean(cols[COL.Descripcion]),
-        TipoProceso:     clean(cols[COL.TipoProceso]),
-        Estatus:         clean(cols[COL.Estatus]) || 'Programado',
-        FechaInicio:     clean(cols[COL.FechaInicio]),
-        FechaConclusion: clean(cols[COL.FechaConclusion]),
-        TieneSolicitud:  clean(cols[COL.TieneSolicitud]),
-        NSolicitud:      clean(cols[COL.NSolicitud]),
-        NOrdenCompra:    clean(cols[COL.NOrdenCompra]),
-        FechaEntrega:    clean(cols[COL.FechaEntrega]),
-        Observaciones:   clean(cols[COL.Observaciones]),
-        Semana:          parseSemana(cols[COL.Semana], cols[COL.FechaInicio]),
-        Cantidad:        clean(cols[COL.Cantidad]),
-        Etapa:           clean(cols[COL.Etapa]),
-      };
+  for (let i = 1; i < rows.length; i++) {
+    const cols = rows[i];
 
-      rows.push(raw);
-    }
+    if (!cols[COL.ID_Orden]?.trim()) continue;
 
-    return rows;
+    const raw = {
+      ID_Orden:        clean(cols[COL.ID_Orden]),
+      Area:            clean(cols[COL.Area]),
+      ID_EQUIPO:       clean(cols[COL.ID_EQUIPO]),
+      ITEM:            clean(cols[COL.ITEM]),
+      Sistema:         clean(cols[COL.Sistema]),
+      Descripcion:     clean(cols[COL.Descripcion]),
+      TipoProceso:     clean(cols[COL.TipoProceso]),
+      Estatus:         clean(cols[COL.Estatus]) || 'Programado',
+      FechaInicio:     clean(cols[COL.FechaInicio]),
+      FechaConclusion: clean(cols[COL.FechaConclusion]),
+      TieneSolicitud:  clean(cols[COL.TieneSolicitud]),
+      NSolicitud:      clean(cols[COL.NSolicitud]),
+      NOrdenCompra:    clean(cols[COL.NOrdenCompra]),
+      FechaEntrega:    clean(cols[COL.FechaEntrega]),
+      Observaciones:   clean(cols[COL.Observaciones]),
+      Semana:          parseSemana(cols[COL.Semana], cols[COL.FechaInicio]),
+      Cantidad:        clean(cols[COL.Cantidad]),
+      Etapa:           clean(cols[COL.Etapa]),
+    };
+
+    result.push(raw);
   }
 
+  return result;
+}
   /**
    * Calcula semana: usa la columna si existe, sino la calcula desde FechaInicio
    */
