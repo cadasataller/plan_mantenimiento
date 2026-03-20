@@ -115,22 +115,14 @@ const LoginComponent = (() => {
   /** Llamado al entrar a la vista */
   function onEnter() {
     setLoading(false);
-    // Asegurar que Google está listo e inicializar si es necesario
     if (typeof google !== 'undefined') {
-      AuthService.init(() => {
-        // Renderizar botón nativo como fallback
-        AuthService.renderGoogleButton('google-btn-container');
-      });
+      AuthService.init();
     } else {
-      // Esperar a que cargue el script
       window.addEventListener('google-ready', () => {
-        AuthService.init(() => {
-          AuthService.renderGoogleButton('google-btn-container');
-        });
+        AuthService.init();
       }, { once: true });
     }
   }
-
   return { mount, onEnter, handleSignIn };
 })();
 
