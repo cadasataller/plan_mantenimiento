@@ -44,19 +44,42 @@ const AuthState = {
   notify() { this.listeners.forEach(fn => fn(this.user)); },
 };
 
-let _tokenClientReady = false;
-let _tokenReadyCallbacks = [];
+
 
 function onTokenReady(fn) {
-  if (_tokenClientReady) {
-    fn(); // ya está listo, ejecutar inmediatamente
-  } else {
-    _tokenReadyCallbacks.push(fn); // encolar para cuando llegue
+  if (_tokenClientReady && sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY)) {
+    fn();
+    return;
   }
+  
+  let called = false;
+  
+  // Timeout de seguridad: si en 10 segundos no llega el token,
+  // ejecutar igual para que el store pueda caer al mock
+  const timer = setTimeout(() => {
+    if (!called) {
+      called = true;
+      console.warn('[Auth] ⚠ Timeout: Google no respondió en 10s — continuando sin token');
+      console.warn('[Auth] Estado del tokenClient:', _tokenClient ? 'inicializado' : 'null');
+      console.warn('[Auth] Usuario en caché:', AuthState.getUser()?.email ?? 'ninguno');
+    
+      fn();
+    }
+  }, 10000);
+
+  _tokenReadyCallbacks.push(() => {
+    if (!called) {
+      called = true;
+      clearTimeout(timer);
+      fn();
+    }
+  });
 }
 
 // ── Token client ─────────────────────────────────────────────
 let _tokenClient = null;
+let _tokenClientReady = false;
+let _tokenReadyCallbacks = [];
 
 // ── Init ─────────────────────────────────────────────────────
   function initAuth() {
@@ -75,11 +98,18 @@ let _tokenClient = null;
     const savedToken = sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
 
     if (savedUser && !savedToken) {
-      console.log('[Auth] Usuario en caché, renovando token silenciosamente...');
       _tokenClientReady = false;
       _tokenClient.requestAccessToken({ prompt: '' });
     } else if (savedUser && savedToken) {
+      // Ya hay token válido en sessionStorage — notificar inmediatamente
       _tokenClientReady = true;
+      _tokenReadyCallbacks.forEach(fn => fn());
+      _tokenReadyCallbacks = [];
+    } else {
+      // No hay usuario — marcar como ready para no bloquear (irá al mock)
+      _tokenClientReady = true;
+      _tokenReadyCallbacks.forEach(fn => fn());
+      _tokenReadyCallbacks = [];
     }
   }
 
