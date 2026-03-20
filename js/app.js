@@ -21,11 +21,17 @@
     requiresAuth: true
   });
 
-  // ── 3. Inicializar Google Identity Services cuando cargue ──
-  window.onGoogleLibraryLoad = () => {
-    AuthService.init();
-    window.dispatchEvent(new Event('google-ready'));
-  };
+  // ── 3. Inicializar Auth cuando Google cargue ──
+  // OAuth2 (initTokenClient) no necesita onGoogleLibraryLoad,
+  // solo que el script de GSI haya cargado antes del clic del usuario.
+  function tryInitAuth() {
+    if (typeof google !== 'undefined') {
+      AuthService.init();
+    } else {
+      // El script GSI aún no cargó — reintentar en 300ms
+      setTimeout(tryInitAuth, 300);
+    }
+  }
 
   // ── 4. Quitar loader inicial ──
   window.addEventListener('load', () => {

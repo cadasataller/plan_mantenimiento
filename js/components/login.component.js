@@ -115,12 +115,11 @@ const LoginComponent = (() => {
   /** Llamado al entrar a la vista */
   function onEnter() {
     setLoading(false);
+    // OAuth2 initTokenClient no requiere inicialización visible aquí —
+    // AuthService.init() ya fue llamado en app.js al cargar la página.
+    // Si por alguna razón no lo estaba, lo intentamos ahora.
     if (typeof google !== 'undefined') {
       AuthService.init();
-    } else {
-      window.addEventListener('google-ready', () => {
-        AuthService.init();
-      }, { once: true });
     }
   }
   return { mount, onEnter, handleSignIn };

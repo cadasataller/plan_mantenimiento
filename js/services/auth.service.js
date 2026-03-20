@@ -1,22 +1,17 @@
 // ============================================================
-// CADASA TALLER — AUTH SERVICE
-// Maneja autenticación con Google OAuth 2.0
+// CADASA TALLER — AUTH SERVICE v2
+// Autenticación con Google OAuth2 (initTokenClient)
+// Un solo flujo: Access Token + datos de usuario via /userinfo
 // ============================================================
-
 const AUTH_CONFIG = {
   CLIENT_ID: '607252823419-qrsktr92hff3k3kjmm82t5st3aavhso6.apps.googleusercontent.com',
   SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file email profile openid',
   STORAGE_KEY: 'cadasa_taller_user',
 };
 
-let googleClient = null;
-let tokenClient = null;
-let accessToken = null;
-
-/** Estado reactivo del usuario */
+// ── Estado interno ───────────────────────────────────────────
 const AuthState = {
-  user: null,
-  accessToken: null,
+  user:      null,
   listeners: [],
 
   setUser(userData) {
@@ -25,113 +20,80 @@ const AuthState = {
       sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEY, JSON.stringify(userData));
     } else {
       sessionStorage.removeItem(AUTH_CONFIG.STORAGE_KEY);
-      this.setAccessToken(null);
+      sessionStorage.removeItem(AUTH_CONFIG.TOKEN_KEY);
     }
     this.notify();
-  },
-
-  setAccessToken(token) {
-    this.accessToken = token;
-    if (token) {
-      sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEY + '_token', token);
-    } else {
-      sessionStorage.removeItem(AUTH_CONFIG.STORAGE_KEY + '_token');
-    }
-  },
-
-  getAccessToken() {
-    if (this.accessToken) return this.accessToken;
-    return sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEY + '_token');
   },
 
   getUser() {
     if (this.user) return this.user;
     try {
       const stored = sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEY);
-      if (stored) {
-        this.user = JSON.parse(stored);
-        return this.user;
-      }
-    } catch (_) { /* */ }
+      if (stored) { this.user = JSON.parse(stored); return this.user; }
+    } catch (_) {}
     return null;
   },
 
-  isAuthenticated() {
-    return this.getUser() !== null;
-  },
+  isAuthenticated() { return this.getUser() !== null; },
 
   subscribe(fn) {
     this.listeners.push(fn);
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== fn);
-    };
+    return () => { this.listeners = this.listeners.filter(l => l !== fn); };
   },
 
-  notify() {
-    this.listeners.forEach(fn => fn(this.user));
-  },
+  notify() { this.listeners.forEach(fn => fn(this.user)); },
 };
 
-/** Inicializar Google Identity Services */
-function initGoogleAuth(onReady) {
+// ── Token client ─────────────────────────────────────────────
+let _tokenClient = null;
+
+// ── Init ─────────────────────────────────────────────────────
+function initAuth() {
   if (typeof google === 'undefined') {
     console.error('[Auth] Google GSI no cargado.');
     return;
   }
 
-  // Evitar inicialización múltiple
-  if (googleClient) {
-    if (typeof onReady === 'function') onReady();
-    return;
-  }
-
-  google.accounts.id.initialize({
+  _tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: AUTH_CONFIG.CLIENT_ID,
-    callback: handleGoogleCallback,
-    auto_select: false,
-    cancel_on_tap_outside: true,
-    use_fedcm_for_prompt: false, // Desactivar FedCM para evitar errores en iframes (AI Studio)
-    itp_support: true,           // Mejorar compatibilidad con iframes y bloqueo de cookies
+    scope:     AUTH_CONFIG.SCOPES,
+    callback:  handleTokenResponse,
   });
 
-  // Inicializar Token Client para OAuth2 (Sheets API)
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: AUTH_CONFIG.CLIENT_ID,
-    scope: AUTH_CONFIG.SCOPES,
-    callback: (tokenResponse) => {
-      if (tokenResponse && tokenResponse.access_token) {
-        AuthState.setAccessToken(tokenResponse.access_token);
-        console.log('[Auth] Access Token obtenido.');
-        // Notificar a los suscriptores que el token cambió (opcional, notify() ya se llama en setUser)
-        AuthState.notify();
-      }
-    },
-  });
-
-  googleClient = true;
-
-  if (typeof onReady === 'function') onReady();
+  console.log('[Auth] Token client inicializado.');
 }
 
-/** Callback recibido tras autenticación Google */
-function handleGoogleCallback(response) {
-  if (!response?.credential) {
-    console.error('[Auth] No se recibió credencial.');
+// ── Callback tras obtener el Access Token ────────────────────
+async function handleTokenResponse(response) {
+  if (response.error) {
+    console.error('[Auth] Error OAuth:', response.error);
     ToastService?.show('Error al iniciar sesión. Intenta de nuevo.', 'danger');
+    // Quitar spinner del login si estaba activo
+    _setLoginLoading(false);
     return;
   }
 
+  const accessToken = response.access_token;
+  sessionStorage.setItem(AUTH_CONFIG.TOKEN_KEY, accessToken);
+  console.log('[Auth] Access Token obtenido.');
+
   try {
-    const payload = decodeJwt(response.credential);
+    // Obtener datos del usuario desde la API de Google
+    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const info = await res.json();
 
     const user = {
-      id:         payload.sub,
-      name:       payload.name,
-      email:      payload.email,
-      picture:    payload.picture,
-      givenName:  payload.given_name,
-      familyName: payload.family_name,
-      token:      response.credential,
+      id:         info.sub,
+      name:       info.name,
+      email:      info.email,
+      picture:    info.picture,
+      givenName:  info.given_name,
+      familyName: info.family_name,
       loginAt:    new Date().toISOString(),
     };
 
@@ -139,89 +101,59 @@ function handleGoogleCallback(response) {
     Router?.navigate('dashboard');
 
   } catch (err) {
-    console.error('[Auth] Error decodificando token:', err);
-    ToastService?.show('Error procesando credenciales.', 'danger');
+    console.error('[Auth] Error obteniendo datos del usuario:', err);
+    ToastService?.show('No se pudieron obtener los datos del usuario.', 'danger');
+    _setLoginLoading(false);
   }
 }
 
-/** Decodifica JWT (solo payload, sin verificar firma) */
-function decodeJwt(token) {
-  const parts = token.split('.');
-  if (parts.length !== 3) throw new Error('JWT inválido');
-  const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-  const padded  = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
-  const decoded = atob(padded);
-  return JSON.parse(decoded);
-}
-
-/** Renderiza el botón oficial de Google en un contenedor */
-function renderGoogleButton(containerId) {
-  if (!googleClient && typeof google !== 'undefined') {
-    initGoogleAuth();
-  }
-
-  if (typeof google === 'undefined') {
-    console.warn('[Auth] GSI no disponible todavía');
-    return;
-  }
-
-  google.accounts.id.renderButton(
-    document.getElementById(containerId),
-    {
-      type:  'standard',
-      theme: 'outline',
-      size:  'large',
-      text:  'signin_with',
-      shape: 'rectangular',
-      logo_alignment: 'left',
-      width: 360,
-      locale: 'es',
+// ── Iniciar sesión ───────────────────────────────────────────
+function signIn() {
+  if (!_tokenClient) {
+    // Si el script de Google aún no cargó, esperar e intentar de nuevo
+    if (typeof google !== 'undefined') {
+      initAuth();
+    } else {
+      ToastService?.show('Servicio de Google no disponible.', 'warning');
+      return;
     }
-  );
+  }
+  _tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
-/** Trigger del popup de Google (botón propio) */
-function signInWithGoogle() {
-  if (typeof google === 'undefined') {
-    ToastService?.show('Servicio de Google no disponible.', 'warning');
-    return;
-  }
-
-  // Primero autenticar identidad (ID Token)
-  google.accounts.id.prompt((notification) => {
-    if (notification.isNotDisplayed()) {
-      console.warn('[Auth] One Tap bloqueado, usando botón estándar.');
-    }
-  });
-
-  // Solicitar token de acceso si no tenemos uno
-  if (!AuthState.getAccessToken()) {
-    tokenClient.requestAccessToken({ prompt: '' });
-  }
-}
-
-/** Cerrar sesión */
+// ── Cerrar sesión ─────────────────────────────────────────────
 function signOut() {
-  const user = AuthState.getUser();
-
-  if (typeof google !== 'undefined' && user?.email) {
-    google.accounts.id.revoke(user.email, () => {});
+  const token = sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
+  if (token && typeof google !== 'undefined') {
+    google.accounts.oauth2.revoke(token, () => {
+      console.log('[Auth] Token revocado.');
+    });
   }
-
   AuthState.setUser(null);
   Router?.navigate('login');
   ToastService?.show('Sesión cerrada correctamente.', 'success');
 }
 
-// Exportar al scope global
+// ── Access Token para Sheets ──────────────────────────────────
+function getAccessToken() {
+  return sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
+}
+
+// ── Helper interno para controlar spinner del login ──────────
+function _setLoginLoading(active) {
+  const overlay = document.getElementById('login-loading');
+  const btn     = document.getElementById('btn-google-signin');
+  if (overlay) overlay.classList.toggle('active', active);
+  if (btn)     btn.disabled = active;
+}
+
+// ── Exportar API pública ──────────────────────────────────────
 window.AuthService = {
-  init: initGoogleAuth,
-  signIn: signInWithGoogle,
+  init:            initAuth,
+  signIn,
   signOut,
-  renderGoogleButton,
-  getUser: () => AuthState.getUser(),
-  getAccessToken: () => AuthState.getAccessToken(),
-  requestAccessToken: () => tokenClient?.requestAccessToken({ prompt: '' }),
+  getUser:         () => AuthState.getUser(),
   isAuthenticated: () => AuthState.isAuthenticated(),
-  subscribe: (fn) => AuthState.subscribe(fn),
+  getAccessToken,
+  subscribe:       (fn) => AuthState.subscribe(fn),
 };

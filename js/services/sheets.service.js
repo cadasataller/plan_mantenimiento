@@ -64,7 +64,7 @@ const SheetsService = (() => {
 
   if (res.status === 401 || res.status === 403) {
     console.warn('[Sheets] Token expirado. Renovando...');
-    window.AuthService?.requestAccessToken();
+    window.AuthService?.signIn();
     throw new Error('Token expirado');
   }
 
