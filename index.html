@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CADASA Taller — Sistema de Gestión de Mantenimiento" />
+  <title>CADASA · Taller</title>
+
+  <!-- Favicon inline -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23004643'/><text y='22' x='4' font-size='20' fill='%23D4A853' font-family='Arial'>⚙</text></svg>" />
+
+  <!-- ── Google Fonts (cargadas antes del CSS para evitar FOUT) ── -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- ── Estilos: paleta primero, luego base, luego componentes ── -->
+  <link rel="stylesheet" href="css/palette.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/login.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/ordenes.css" />
+<link rel="stylesheet" href="css/modal.css" />
+
+  <!-- ── Google Identity Services ── -->
+  <script src="https://accounts.google.com/gsi/client" async defer
+    onload="window.dispatchEvent(new Event('google-ready'))"></script>
+</head>
+<body>
+
+  <!-- ════════════════════════════════════════════════
+       LOADER DE ARRANQUE
+       ════════════════════════════════════════════════ -->
+  <div id="app-loader">
+    <div>
+      <div class="loader-logo">CADASA</div>
+      <div class="loader-sub">Sistema de Taller</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       CONTENEDOR DE TOASTS
+       ════════════════════════════════════════════════ -->
+  <div id="toast-container" role="region" aria-live="polite"></div>
+
+  <!-- ════════════════════════════════════════════════
+       VISTA: LOGIN
+       ════════════════════════════════════════════════ -->
+  <div id="page-login" class="page-view" role="main" aria-label="Inicio de sesión">
+    <!-- LoginComponent.mount() renderiza aquí -->
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       VISTA: DASHBOARD
+       ════════════════════════════════════════════════ -->
+  <div id="page-dashboard" class="page-view" role="main" aria-label="Dashboard">
+    <!-- DashboardComponent.mount() renderiza aquí -->
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════
+       SCRIPTS — Orden importante:
+       1. Utilidades (sin dependencias)
+       2. Servicios (dependen de utilidades)
+       3. Componentes (dependen de servicios)
+       4. App bootstrap (depende de todo lo anterior)
+       ════════════════════════════════════════════════ -->
+
+  <!-- Utilidades -->
+  <script src="js/utils/icons.js"></script>
+
+  <!-- Servicios -->
+  <script src="js/services/toast.service.js"></script>
+  <script src="js/services/router.service.js"></script>
+  <script src="js/services/auth.service.js"></script>
+  <script src="js/services/mock-data.service.js"></script>
+  <script src="js/services/sheets.service.js"></script>
+  <script src="js/services/ot.store.js"></script>
+<script src="js/services/mock-ot.service.js"></script>
+<script src="js/services/ot-work.store.js"></script>
+
+  <!-- Componentes -->
+  <script src="js/components/login.component.js"></script>
+  <script src="js/components/ordenes.component.js"></script>
+  <script src="js/components/dashboard.component.js"></script>
+<script src="js/components/modal.component.js"></script>
+
+  <!-- Bootstrap -->
+  <script src="js/app.js"></script>
+
+</body>
+</html>
