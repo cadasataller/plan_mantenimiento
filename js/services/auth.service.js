@@ -4,11 +4,11 @@
 // Un solo flujo: Access Token + datos de usuario via /userinfo
 // ============================================================
 const AUTH_CONFIG = {
-  CLIENT_ID: '607252823419-qrsktr92hff3k3kjmm82t5st3aavhso6.apps.googleusercontent.com',
-  SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file email profile openid',
-  STORAGE_KEY: 'cadasa_taller_user',
+  CLIENT_ID:   '607252823419-qrsktr92hff3k3kjmm82t5st3aavhso6.apps.googleusercontent.com',
+   SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file email profile openid',
+  STORAGE_KEY: 'cadasa_taller_user',  // irá a localStorage
+  TOKEN_KEY:   'cadasa_taller_token', // irá a sessionStorage
 };
-
 // ── Estado interno ───────────────────────────────────────────
 const AuthState = {
   user:      null,
@@ -17,9 +17,9 @@ const AuthState = {
   setUser(userData) {
     this.user = userData;
     if (userData) {
-      sessionStorage.setItem(AUTH_CONFIG.STORAGE_KEY, JSON.stringify(userData));
+      localStorage.setItem(AUTH_CONFIG.STORAGE_KEY, JSON.stringify(userData));
     } else {
-      sessionStorage.removeItem(AUTH_CONFIG.STORAGE_KEY);
+      localStorage.removeItem(AUTH_CONFIG.STORAGE_KEY);
       sessionStorage.removeItem(AUTH_CONFIG.TOKEN_KEY);
     }
     this.notify();
@@ -28,7 +28,7 @@ const AuthState = {
   getUser() {
     if (this.user) return this.user;
     try {
-      const stored = sessionStorage.getItem(AUTH_CONFIG.STORAGE_KEY);
+      const stored = localStorage.getItem(AUTH_CONFIG.STORAGE_KEY);
       if (stored) { this.user = JSON.parse(stored); return this.user; }
     } catch (_) {}
     return null;
@@ -48,20 +48,27 @@ const AuthState = {
 let _tokenClient = null;
 
 // ── Init ─────────────────────────────────────────────────────
-function initAuth() {
-  if (typeof google === 'undefined') {
-    console.error('[Auth] Google GSI no cargado.');
-    return;
+  function initAuth() {
+    if (typeof google === 'undefined') { return; }
+
+    _tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: AUTH_CONFIG.CLIENT_ID,
+      scope:     AUTH_CONFIG.SCOPES,
+      callback:  handleTokenResponse,
+    });
+
+    console.log('[Auth] Token client inicializado.');
+
+    // Si hay usuario guardado pero no hay token activo → renovar silenciosamente
+    const savedUser = AuthState.getUser();
+    const savedToken = sessionStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
+
+    if (savedUser && !savedToken) {
+      console.log('[Auth] Usuario en caché, renovando token silenciosamente...');
+      // prompt: '' evita mostrar el popup si Google ya tiene sesión activa
+      _tokenClient.requestAccessToken({ prompt: '' });
+    }
   }
-
-  _tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: AUTH_CONFIG.CLIENT_ID,
-    scope:     AUTH_CONFIG.SCOPES,
-    callback:  handleTokenResponse,
-  });
-
-  console.log('[Auth] Token client inicializado.');
-}
 
 // ── Callback tras obtener el Access Token ────────────────────
 async function handleTokenResponse(response) {
