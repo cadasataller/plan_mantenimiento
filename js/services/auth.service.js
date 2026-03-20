@@ -44,6 +44,17 @@ const AuthState = {
   notify() { this.listeners.forEach(fn => fn(this.user)); },
 };
 
+let _tokenClientReady = false;
+let _tokenReadyCallbacks = [];
+
+function onTokenReady(fn) {
+  if (_tokenClientReady) {
+    fn(); // ya está listo, ejecutar inmediatamente
+  } else {
+    _tokenReadyCallbacks.push(fn); // encolar para cuando llegue
+  }
+}
+
 // ── Token client ─────────────────────────────────────────────
 let _tokenClient = null;
 
@@ -65,8 +76,10 @@ let _tokenClient = null;
 
     if (savedUser && !savedToken) {
       console.log('[Auth] Usuario en caché, renovando token silenciosamente...');
-      // prompt: '' evita mostrar el popup si Google ya tiene sesión activa
+      _tokenClientReady = false;
       _tokenClient.requestAccessToken({ prompt: '' });
+    } else if (savedUser && savedToken) {
+      _tokenClientReady = true;
     }
   }
 
@@ -84,6 +97,10 @@ async function handleTokenResponse(response) {
   sessionStorage.setItem(AUTH_CONFIG.TOKEN_KEY, accessToken);
   console.log('[Auth] Access Token obtenido.');
 
+  // ← AGREGAR ESTO:
+  _tokenClientReady = true;
+  _tokenReadyCallbacks.forEach(fn => fn());
+  _tokenReadyCallbacks = [];
   try {
     // Obtener datos del usuario desde la API de Google
     const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -162,5 +179,6 @@ window.AuthService = {
   getUser:         () => AuthState.getUser(),
   isAuthenticated: () => AuthState.isAuthenticated(),
   getAccessToken,
+  onTokenReady,    // ← agregar
   subscribe:       (fn) => AuthState.subscribe(fn),
 };

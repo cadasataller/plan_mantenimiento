@@ -41,6 +41,8 @@ const OTComponent = (() => {
   let _activeDims = ['semana'];
   let _unsub = null;
   const _rowCache = new Map(); // ID → row object (para el modal)
+  const _tableCache = new Map(); // tableId → rows[]
+  let _tablePages   = new Map(); // tableId → currentPage
   const PAGE_SIZE = 100;        // ← agregar
   let _currentPage = 0; 
 
@@ -371,6 +373,8 @@ const OTComponent = (() => {
   // RENDER LISTA
   // ══════════════════════════════════════════════════════════
   function renderList() {
+    _tableCache.clear();
+    _tablePages.clear();
     const wrap = document.getElementById('ot-list-wrap');
     if (!wrap) return;
 
@@ -386,7 +390,7 @@ const OTComponent = (() => {
         <div class="ot-empty-text">No se encontraron órdenes con los filtros aplicados.</div>
       </div>`;
     } else if (_activeDims.length === 0) {
-      wrap.innerHTML = `<div class="ot-flat-table-wrap">${buildTable(data, true)}</div>`;
+      wrap.innerHTML = `<div class="ot-flat-table-wrap">${buildTable(data, true, 'flat_main')}</div>`;
     } else {
       const tree = buildTree(data, _activeDims, 0);
       wrap.innerHTML = renderNodes(tree, 0);
@@ -458,7 +462,8 @@ const OTComponent = (() => {
     // ¿Los hijos son filas de datos (no nodos agrupadores)?
     const isDataLeaf = nodes[0] && nodes[0].dim === undefined;
     if (isDataLeaf) {
-      return `<div class="ot-table-wrap">${buildTable(nodes)}</div>`;
+      const tblId = safeUID(level, 'leaf', nodes.map(r=>r.ID_Orden).join('').slice(0,20));
+      return `<div class="ot-table-wrap">${buildTable(nodes, false, tblId)}</div>`;
     }
 
     return nodes.map(node => {
@@ -525,15 +530,28 @@ const OTComponent = (() => {
   // ══════════════════════════════════════════════════════════
   // TABLA
   // ══════════════════════════════════════════════════════════
-  function buildTable(rows, showArea = false) {
+  function buildTable(rows, showArea = false, tableId = 'tbl_' + Math.random().toString(36).slice(2,7)) {
     if (!rows || rows.length === 0) {
       return `<div style="padding:1rem 1.5rem;font-size:0.8rem;color:var(--text-muted);">Sin órdenes.</div>`;
     }
 
-    const start    = _currentPage * PAGE_SIZE;
-    const pageRows = rows.slice(start, start + PAGE_SIZE);
+    // Guardar rows en cache para re-paginar sin reconstruir el árbol
+    _tableCache.set(tableId, { rows, showArea });
+    const page  = _tablePages.get(tableId) ?? 0;
+    _tablePages.set(tableId, page);
+
+    return _renderTablePage(tableId, page);
+  }
+
+  function _renderTablePage(tableId, page) {
+    const cached = _tableCache.get(tableId);
+    if (!cached) return '';
+
+    const { rows, showArea } = cached;
     const total    = rows.length;
     const pages    = Math.ceil(total / PAGE_SIZE);
+    const start    = page * PAGE_SIZE;
+    const pageRows = rows.slice(start, start + PAGE_SIZE);
 
     const extraH = showArea ? '<th>Área</th><th>Equipo</th>' : '';
     const thead  = `<tr>
@@ -541,75 +559,73 @@ const OTComponent = (() => {
       <th>Fecha Inicio</th><th>Semana</th><th>Estado</th><th>Compra</th>${extraH}
     </tr>`;
 
-    const pagination = pages > 1 ? (() => {
-      // Ventana de 10 botones centrada en la página actual
-      const WINDOW  = 10;
-      const half    = Math.floor(WINDOW / 2);
-      let   winStart = Math.max(0, _currentPage - half);
-      let   winEnd   = Math.min(pages - 1, winStart + WINDOW - 1);
-      // Ajustar si la ventana choca con el final
-      if (winEnd - winStart < WINDOW - 1) {
-        winStart = Math.max(0, winEnd - WINDOW + 1);
-      }
+    // — paginación igual que tienes ahora pero con tableId —
+    const WINDOW = 10;
+    const half   = Math.floor(WINDOW / 2);
+    let winStart = Math.max(0, page - half);
+    let winEnd   = Math.min(pages - 1, winStart + WINDOW - 1);
+    if (winEnd - winStart < WINDOW - 1) winStart = Math.max(0, winEnd - WINDOW + 1);
+    const btnPages          = Array.from({ length: winEnd - winStart + 1 }, (_, i) => winStart + i);
+    const showLeftEllipsis  = winStart > 0;
+    const showRightEllipsis = winEnd < pages - 1;
 
-      const btnPages = Array.from(
-        { length: winEnd - winStart + 1 },
-        (_, i) => winStart + i
-      );
+    const pagination = pages > 1 ? `
+      <div class="ot-pagination">
+        <span class="ot-pagination-info">
+          <strong>${start + 1}–${Math.min(start + PAGE_SIZE, total)}</strong>
+          <span>de ${total} órdenes</span>
+        </span>
+        <div class="ot-pagination-btns">
+          <button class="ot-page-btn nav-btn" ${page === 0 ? 'disabled' : ''}
+            onclick="OTComponent._goTablePage('${tableId}',${page - 1})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+          ${showLeftEllipsis ? `
+            <button class="ot-page-btn" onclick="OTComponent._goTablePage('${tableId}',0)">1</button>
+            <span class="ot-page-ellipsis">…</span>` : ''}
+          ${btnPages.map(i => `
+            <button class="ot-page-btn ${i === page ? 'active' : ''}"
+              onclick="OTComponent._goTablePage('${tableId}',${i})">${i + 1}</button>
+          `).join('')}
+          ${showRightEllipsis ? `
+            <span class="ot-page-ellipsis">…</span>
+            <button class="ot-page-btn" onclick="OTComponent._goTablePage('${tableId}',${pages - 1})">${pages}</button>` : ''}
+          <button class="ot-page-btn nav-btn" ${page >= pages - 1 ? 'disabled' : ''}
+            onclick="OTComponent._goTablePage('${tableId}',${page + 1})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        </div>
+      </div>` : '';
 
-      const showLeftEllipsis  = winStart > 0;
-      const showRightEllipsis = winEnd < pages - 1;
-
-      return `
-        <div class="ot-pagination">
-          <span class="ot-pagination-info">
-            <strong>${start + 1}–${Math.min(start + PAGE_SIZE, total)}</strong>
-            <span>de ${total} órdenes</span>
-          </span>
-
-          <div class="ot-pagination-btns">
-            <!-- Anterior -->
-            <button class="ot-page-btn nav-btn"
-              ${_currentPage === 0 ? 'disabled' : `onclick="OTComponent._goPage(${_currentPage - 1})"`}
-              title="Página anterior">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                  width="12" height="12"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-
-            <!-- Primera página + ellipsis izquierdo -->
-            ${showLeftEllipsis ? `
-              <button class="ot-page-btn" onclick="OTComponent._goPage(0)">1</button>
-              <span class="ot-page-ellipsis">…</span>
-            ` : ''}
-
-            <!-- Ventana de páginas -->
-            ${btnPages.map(i => `
-              <button class="ot-page-btn ${i === _currentPage ? 'active' : ''}"
-                onclick="OTComponent._goPage(${i})">${i + 1}</button>
-            `).join('')}
-
-            <!-- Ellipsis derecho + última página -->
-            ${showRightEllipsis ? `
-              <span class="ot-page-ellipsis">…</span>
-              <button class="ot-page-btn" onclick="OTComponent._goPage(${pages - 1})">${pages}</button>
-            ` : ''}
-
-            <!-- Siguiente -->
-            <button class="ot-page-btn nav-btn"
-              ${_currentPage >= pages - 1 ? 'disabled' : `onclick="OTComponent._goPage(${_currentPage + 1})"`}
-              title="Página siguiente">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                  width="12" height="12"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        </div>`;
-    })() : '';
-
-    return `<table class="ot-table">
-      <thead>${thead}</thead>
-      <tbody>${pageRows.map(r => buildRow(r, showArea)).join('')}</tbody>
-    </table>${pagination}`;
+    return `<div id="tbl-wrap-${tableId}">
+      <table class="ot-table">
+        <thead>${thead}</thead>
+        <tbody>${pageRows.map(r => buildRow(r, showArea)).join('')}</tbody>
+      </table>
+      ${pagination}
+    </div>`;
   }
+
+  function _goTablePage(tableId, page) {
+    _tablePages.set(tableId, page);
+
+    const wrap = document.getElementById(`tbl-wrap-${tableId}`);
+    if (!wrap) return;
+
+    // Reemplazar solo el contenido de esa tabla, grupos intactos
+    wrap.outerHTML = _renderTablePage(tableId, page);
+
+    // Scroll al inicio del contenedor padre del grupo, no de toda la página
+    const groupBody = document.getElementById(`tbl-wrap-${tableId}`)
+      ?.closest('.ot-group-body, .ot-subgroup-body, .ot-sub2group-body, .ot-flat-table-wrap');
+    
+    groupBody?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
   function buildRow(row, showArea = false) {
     const sc   = statusToClass(row.Estatus);
     const eIdx = ETAPA_IDX[row.TipoProceso] ?? 'x';
@@ -813,6 +829,7 @@ const OTComponent = (() => {
   document.getElementById('ot-list-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-return { mount, onEnter, _toggle, _addDim, _removeDim, _moveDim, _applyPreset, _clearGroups, _goPage };
+return { mount, onEnter, _toggle, _addDim, _removeDim, _moveDim,
+         _applyPreset, _clearGroups, _goPage, _goTablePage };
 })();
 

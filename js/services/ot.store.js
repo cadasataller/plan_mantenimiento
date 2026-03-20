@@ -39,29 +39,7 @@ const OTStore = (() => {
     _listeners.forEach(fn => fn(event));
   }
 
-  function waitForToken(timeoutMs = 8000) {
-    return new Promise((resolve, reject) => {
-      // Si ya hay token, resolver inmediatamente
-      if (AuthService.getAccessToken()) {
-        resolve();
-        return;
-      }
-      const interval = 200; // revisar cada 200ms
-      let elapsed    = 0;
-      const timer = setInterval(() => {
-        if (AuthService.getAccessToken()) {
-          clearInterval(timer);
-          resolve();
-        } else {
-          elapsed += interval;
-          if (elapsed >= timeoutMs) {
-            clearInterval(timer);
-            reject(new Error('Timeout esperando token'));
-          }
-        }
-      }, interval);
-    });
-  }
+  
 
   // ── Carga de datos ───────────────────────────────────────
   async function load(authenticated) {
@@ -72,7 +50,7 @@ const OTStore = (() => {
       if (authenticated) {
         // Intentar Google Sheets
         try {
-          await waitForToken(8000);
+          await new Promise(resolve => AuthService.onTokenReady(resolve));
           const rows = await SheetsService.fetchAll();
           if (rows.length > 0) {
             _allOrders = rows;
