@@ -4,7 +4,7 @@
 // ============================================================
 
 const ToastService = (() => {
-  const DURATION = 4000;
+  const DURATION = 2000;
 
   function getContainer() {
     let c = document.getElementById('toast-container');
