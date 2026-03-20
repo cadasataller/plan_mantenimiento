@@ -603,6 +603,84 @@
   overflow:hidden;
 }
 
+/*
+||||||| PAGINACION ESTILOS
+*/
+.ot-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--color-gray-100);
+  background: var(--color-gray-50);
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ot-pagination-info {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.ot-pagination-info strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.ot-pagination-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.ot-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 0.4rem;
+  border: 1.5px solid var(--color-second-deep);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-family: var(--font-body);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  font-weight: 500;
+}
+.ot-page-btn:hover:not(:disabled) {
+  background: rgba(0,70,67,0.07);
+  border-color: var(--color-main-light);
+  color: var(--color-main);
+}
+.ot-page-btn.active {
+  background: var(--color-main);
+  color: var(--color-second);
+  border-color: var(--color-main);
+  font-weight: 700;
+  pointer-events: none;
+}
+.ot-page-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.ot-page-btn.nav-btn {
+  background: var(--color-gray-50);
+}
+
+.ot-page-ellipsis {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding: 0 0.2rem;
+  user-select: none;
+  line-height: 30px;
+}
+
 /* ── Modal de detalle ── */
 .ot-modal-backdrop {
   position: fixed;

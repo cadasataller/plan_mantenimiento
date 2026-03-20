@@ -128,6 +128,8 @@ const DashboardComponent = (() => {
   function renderTopbarUser(user) {
     const container = document.getElementById('topbar-user');
     if (!container) return;
+    const config = RolesConfig.getForEmail(user?.email);
+    const roleLabel = config.role === 'admin' ? 'Administrador' : `Taller · ${config.area ?? 'Sin área'}`;
     const initials = (user.name||'').trim().split(' ').slice(0,2).map(w=>w[0]?.toUpperCase()||'').join('');
     const avatar   = user.picture
       ? `<img class="topbar-avatar" src="${user.picture}" alt="${user.name}" referrerpolicy="no-referrer">`
@@ -135,7 +137,7 @@ const DashboardComponent = (() => {
     container.innerHTML = `
       <div class="topbar-user-info">
         <span class="topbar-user-name">${user.givenName ?? user.name}</span>
-        <span class="topbar-user-role">Taller · Operario</span>
+        <span class="topbar-user-role">Taller · ${roleLabel}</span>
       </div>
       ${avatar}
       <div class="topbar-divider"></div>

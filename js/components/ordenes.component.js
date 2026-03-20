@@ -41,7 +41,7 @@ const OTComponent = (() => {
   let _activeDims = ['semana'];
   let _unsub = null;
   const _rowCache = new Map(); // ID → row object (para el modal)
-  const PAGE_SIZE = 50;        // ← agregar
+  const PAGE_SIZE = 100;        // ← agregar
   let _currentPage = 0; 
 
   // ══════════════════════════════════════════════════════════
@@ -301,6 +301,11 @@ const OTComponent = (() => {
       OTStore.load(AuthService?.isAuthenticated() ?? false);
     } else {
       updateFilterOptions(); renderKPIs(); renderList(); updateSourceBadge();
+    };
+
+    const _user = AuthService.getUser();
+    if (!RolesConfig.isAdmin(_user?.email)) {
+      document.getElementById('ot-filter-area').style.display = 'none';
     }
   }
 
@@ -536,22 +541,69 @@ const OTComponent = (() => {
       <th>Fecha Inicio</th><th>Semana</th><th>Estado</th><th>Compra</th>${extraH}
     </tr>`;
 
-    const pagination = pages > 1 ? `
-      <div class="ot-pagination">
-        <span class="ot-pagination-info">
-          ${start + 1}–${Math.min(start + PAGE_SIZE, total)} de ${total}
-        </span>
-        <div class="ot-pagination-btns">
-          <button class="ot-page-btn" ${_currentPage === 0 ? 'disabled' : ''}
-            onclick="OTComponent._goPage(${_currentPage - 1})">‹</button>
-          ${Array.from({length: pages}, (_, i) => `
-            <button class="ot-page-btn ${i === _currentPage ? 'active' : ''}"
-              onclick="OTComponent._goPage(${i})">${i + 1}</button>
-          `).join('')}
-          <button class="ot-page-btn" ${_currentPage >= pages - 1 ? 'disabled' : ''}
-            onclick="OTComponent._goPage(${_currentPage + 1})">›</button>
-        </div>
-      </div>` : '';
+    const pagination = pages > 1 ? (() => {
+      // Ventana de 10 botones centrada en la página actual
+      const WINDOW  = 10;
+      const half    = Math.floor(WINDOW / 2);
+      let   winStart = Math.max(0, _currentPage - half);
+      let   winEnd   = Math.min(pages - 1, winStart + WINDOW - 1);
+      // Ajustar si la ventana choca con el final
+      if (winEnd - winStart < WINDOW - 1) {
+        winStart = Math.max(0, winEnd - WINDOW + 1);
+      }
+
+      const btnPages = Array.from(
+        { length: winEnd - winStart + 1 },
+        (_, i) => winStart + i
+      );
+
+      const showLeftEllipsis  = winStart > 0;
+      const showRightEllipsis = winEnd < pages - 1;
+
+      return `
+        <div class="ot-pagination">
+          <span class="ot-pagination-info">
+            <strong>${start + 1}–${Math.min(start + PAGE_SIZE, total)}</strong>
+            <span>de ${total} órdenes</span>
+          </span>
+
+          <div class="ot-pagination-btns">
+            <!-- Anterior -->
+            <button class="ot-page-btn nav-btn"
+              ${_currentPage === 0 ? 'disabled' : `onclick="OTComponent._goPage(${_currentPage - 1})"`}
+              title="Página anterior">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                  width="12" height="12"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+
+            <!-- Primera página + ellipsis izquierdo -->
+            ${showLeftEllipsis ? `
+              <button class="ot-page-btn" onclick="OTComponent._goPage(0)">1</button>
+              <span class="ot-page-ellipsis">…</span>
+            ` : ''}
+
+            <!-- Ventana de páginas -->
+            ${btnPages.map(i => `
+              <button class="ot-page-btn ${i === _currentPage ? 'active' : ''}"
+                onclick="OTComponent._goPage(${i})">${i + 1}</button>
+            `).join('')}
+
+            <!-- Ellipsis derecho + última página -->
+            ${showRightEllipsis ? `
+              <span class="ot-page-ellipsis">…</span>
+              <button class="ot-page-btn" onclick="OTComponent._goPage(${pages - 1})">${pages}</button>
+            ` : ''}
+
+            <!-- Siguiente -->
+            <button class="ot-page-btn nav-btn"
+              ${_currentPage >= pages - 1 ? 'disabled' : `onclick="OTComponent._goPage(${_currentPage + 1})"`}
+              title="Página siguiente">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                  width="12" height="12"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>`;
+    })() : '';
 
     return `<table class="ot-table">
       <thead>${thead}</thead>

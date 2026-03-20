@@ -51,6 +51,12 @@ const OTStore = (() => {
           const rows = await SheetsService.fetchAll();
           if (rows.length > 0) {
             _allOrders = rows;
+            const user    = AuthService.getUser();
+            const config  = RolesConfig.getForEmail(user?.email);
+
+            if (config.role !== 'admin' && config.area) {
+              _allOrders = _allOrders.filter(row => row.Area === config.area);
+            }
             _source    = 'live';
           } else {
             throw new Error('Sin filas en Sheets');
