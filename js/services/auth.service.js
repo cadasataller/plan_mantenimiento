@@ -2,6 +2,7 @@
 // CADASA TALLER — AUTH SERVICE v3 (Supabase)
 // Misma API pública que v2 — los componentes no cambian.
 // Autenticación: Email + Password via supabase.auth
+// Perfil: nombre, area, role desde tabla PROFILE
 // ============================================================
 
 // ── Estado interno ───────────────────────────────────────────
@@ -32,21 +33,21 @@ const AuthState = {
   },
 };
 
-// ── Mapear sesión de Supabase al formato de usuario de la app ─
+// ── Obtener perfil desde tabla PROFILE ───────────────────────
 async function _buildUser(supabaseUser) {
   if (!supabaseUser) return null;
   const db = window.SupabaseClient;
- 
+
   const { data: profile, error } = await db
     .from('PROFILE')
     .select('nombre, area, role')
     .eq('email', supabaseUser.email)
     .single();
- 
+
   if (error) {
     console.warn('[Auth] Perfil no encontrado en PROFILE:', error.message);
   }
- 
+
   return {
     id:        supabaseUser.id,
     email:     supabaseUser.email,
@@ -63,23 +64,26 @@ async function _buildUser(supabaseUser) {
 function initAuth() {
   const db = window.SupabaseClient;
 
-  // Recuperar sesión activa al arrancar
-  db.auth.getSession().then(({ data: { session } }) => {
+  // IMPORTANTE: el callback de .then() es async para poder usar await
+  db.auth.getSession().then(async ({ data: { session } }) => {
     if (session?.user) {
       const user = await _buildUser(session.user);
       AuthState.setUser(user);
-      console.log('[Auth] Sesión activa restaurada.');
+      console.log('[Auth] Sesión activa restaurada:', user.email);
     } else {
       console.log('[Auth] Sin sesión activa.');
     }
-    // Avisar a app.js que initAuth corrió
     window._onAuthReady?.();
   });
 
   // Escuchar cambios futuros (login, logout, token refresh)
-  db.auth.onAuthStateChange((_event, session) => {
-    const mapped = session?.user ? _mapUser(session.user) : null;
-    AuthState.setUser(mapped);
+  db.auth.onAuthStateChange(async (_event, session) => {
+    if (session?.user) {
+      const user = await _buildUser(session.user);
+      AuthState.setUser(user);
+    } else {
+      AuthState.setUser(null);
+    }
   });
 }
 
@@ -97,7 +101,8 @@ async function signIn(email, password) {
     return;
   }
 
-  AuthState.setUser(_mapUser(data.user));
+  const user = await _buildUser(data.user);
+  AuthState.setUser(user);
   _setLoginLoading(false);
   Router?.navigate('dashboard');
   ToastService?.show('Sesión iniciada correctamente.', 'success');
@@ -112,18 +117,9 @@ async function signOut() {
   ToastService?.show('Sesión cerrada correctamente.', 'success');
 }
 
-// ── Métodos mantenidos por compatibilidad (ya no necesarios) ──
-// onTokenReady: en Supabase no hay token de Sheets, pero se
-// mantiene el método para no romper llamadas existentes.
-function onTokenReady(fn) {
-  // Ejecutar inmediatamente — no hay token externo que esperar
-  fn();
-}
-
-function getAccessToken() {
-  // Ya no se usa — mantenido para compatibilidad
-  return null;
-}
+// ── Métodos mantenidos por compatibilidad ─────────────────────
+function onTokenReady(fn) { fn(); }
+function getAccessToken() { return null; }
 
 // ── Helper interno para controlar spinner del login ──────────
 function _setLoginLoading(active) {
