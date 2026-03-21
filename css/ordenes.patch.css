@@ -6,102 +6,113 @@
 /* ── Ocultar elementos eliminados ───────────────────────── */
 .ot-page-header,
 .ot-source-badge,
-.ot-toolbar {
+.ot-toolbar,
+.ot-grouping-panel {
   display: none !important;
 }
 
 /* ══════════════════════════════════════════════════════════
-   TOP CARD — card único, dos mitades iguales
+   TOP CARD — un solo card con dos mitades
    ══════════════════════════════════════════════════════════ */
 .ot-topcard {
   display: flex;
   align-items: stretch;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
-  margin-bottom: 0.75rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-100);
+  border-radius: var(--radius-lg);
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
-  min-height: 62px;
+  min-height: 60px;
 }
 
-/* Mitad izquierda — búsqueda */
+/* ── Mitad izquierda: búsqueda ── */
 .ot-topcard-search {
   flex: 1;
   display: flex;
   align-items: center;
   gap: 0.65rem;
   padding: 0.75rem 1.25rem;
+  min-width: 0;
 }
 
-.ot-topcard-search .ot-search-wrap {
+/* Contenedor del campo: tiene el borde y fondo */
+.ot-topcard-search > .ot-search-wrap {
+  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  border: 1.5px solid var(--border);
-  background: var(--bg, #f5f5f0);
-  border-radius: 8px;
-  padding: 0.45rem 0.75rem;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  gap: 0;
+  min-width: 0;
+  border: 1.5px solid var(--color-second-deep);
+  border-radius: var(--radius-md);
+  background: var(--color-gray-50);
+  padding: 0;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.ot-topcard-search .ot-search-wrap:focus-within {
-  border-color: var(--accent, #004643);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #004643) 15%, transparent);
-  background: var(--surface);
+.ot-topcard-search > .ot-search-wrap:focus-within {
+  border-color: var(--color-main-light);
+  box-shadow: 0 0 0 3px rgba(0,107,101,0.1);
+  background: var(--color-white);
 }
 
-.ot-topcard-search .ot-search-wrap svg {
+/* Ícono dentro del wrap */
+.ot-topcard-search > .ot-search-wrap > svg {
+  position: static;
+  transform: none;
   width: 15px;
   height: 15px;
   flex-shrink: 0;
-  color: var(--text-muted);
+  margin-left: 0.75rem;
+  stroke: var(--text-muted);
+  fill: none;
+  stroke-width: 2;
+  pointer-events: none;
 }
 
-.ot-topcard-search .ot-search {
+/* Input dentro del wrap */
+.ot-topcard-search > .ot-search-wrap > .ot-search {
   flex: 1;
   border: none;
   background: transparent;
-  font-size: 0.88rem;
-  color: var(--text);
+  font-size: 0.87rem;
+  font-family: var(--font-body);
+  color: var(--text-primary);
   outline: none;
-  padding: 0;
+  padding: 0.6rem 0.85rem 0.6rem 0.5rem;
+  width: 100%;
+  min-width: 0;
 }
 
-.ot-topcard-search .ot-search::placeholder {
+.ot-topcard-search > .ot-search-wrap > .ot-search::placeholder {
   color: var(--text-muted);
-  opacity: 0.8;
 }
 
-/* Divisor vertical */
+/* Divisor vertical entre mitades */
 .ot-topcard-div {
   width: 1px;
-  background: var(--border);
+  background: var(--color-gray-100);
   align-self: stretch;
   flex-shrink: 0;
+  margin: 0.75rem 0;
 }
 
-/* Mitad derecha — agrupación */
+/* ── Mitad derecha: agrupación ── */
 .ot-topcard-grp {
   flex: 1;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.4rem 0.6rem;
-  padding: 0.55rem 1rem;
+  gap: 0.4rem 0.5rem;
+  padding: 0.65rem 1.25rem;
+  min-width: 0;
 }
 
-/* Cuando agrupación oculta: búsqueda ocupa todo */
-.ot-topcard-grp[style*="display: none"] ~ .ot-topcard-div,
-.ot-topcard-div:has(+ [style*="display: none"]) {
-  display: none;
-}
-
-/* ── Etiqueta AGRUPAR ────────────────────────────────────── */
 .ot-grp-label {
-  font-size: 0.68rem;
+  font-size: 0.67rem;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
   flex-shrink: 0;
@@ -117,20 +128,21 @@
 }
 
 .ot-grp-none {
-  font-size: 0.78rem;
+  font-size: 0.77rem;
   color: var(--text-muted);
   font-style: italic;
 }
 
 .ot-grp-arrow {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--color-gray-300);
 }
 
 .ot-grp-sep {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--text-muted);
   flex-shrink: 0;
+  line-height: 1;
 }
 
 /* Chip base */
@@ -138,42 +150,49 @@
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
-  font-size: 0.73rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  padding: 0.25rem 0.55rem;
-  border-radius: 99px;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
   border: 1.5px solid transparent;
-  transition: all 0.15s;
+  transition: all var(--transition-fast);
   white-space: nowrap;
   line-height: 1;
+  font-family: var(--font-body);
 }
 
 /* Chip activo */
 .ot-grp-chip.active {
-  background: color-mix(in srgb, var(--accent, #004643) 10%, var(--surface));
-  border-color: color-mix(in srgb, var(--accent, #004643) 35%, transparent);
-  color: var(--accent, #004643);
+  background: rgba(0,70,67,0.08);
+  border-color: rgba(0,70,67,0.25);
+  color: var(--color-main);
 }
 .ot-grp-chip.active button {
-  background: none; border: none; cursor: pointer;
-  color: inherit; font-size: 0.68rem; padding: 0 0.08rem;
-  line-height: 1; opacity: 0.6; transition: opacity 0.1s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 0.68rem;
+  padding: 0 0.08rem;
+  line-height: 1;
+  opacity: 0.55;
+  transition: opacity var(--transition-fast);
+  font-family: var(--font-body);
 }
 .ot-grp-chip.active button:hover { opacity: 1; }
-.ot-grp-chip.active button.rm   { color: #c0392b; opacity: 0.45; }
-.ot-grp-chip.active button.rm:hover { opacity: 1; }
+.ot-grp-chip.active button.rm    { color: var(--color-danger); }
 
 /* Chip disponible */
 .ot-grp-chip.avail {
-  background: var(--bg, #f5f5f0);
-  border-color: var(--border);
-  color: var(--text-muted);
+  background: var(--color-gray-50);
+  border-color: var(--color-second-deep);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 .ot-grp-chip.avail:hover {
-  border-color: var(--accent, #004643);
-  color: var(--accent, #004643);
-  background: color-mix(in srgb, var(--accent, #004643) 6%, var(--surface));
+  border-color: var(--color-main-light);
+  color: var(--color-main);
+  background: rgba(0,70,67,0.05);
 }
 
 /* Botón limpiar todo */
@@ -181,16 +200,20 @@
   margin-left: auto;
   font-size: 0.67rem;
   font-weight: 600;
-  padding: 0.2rem 0.55rem;
-  border-radius: 99px;
-  border: 1.5px solid #c0392b;
+  padding: 0.22rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1.5px solid rgba(192,57,43,0.3);
   background: transparent;
-  color: #c0392b;
+  color: var(--color-danger);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all var(--transition-fast);
   white-space: nowrap;
+  font-family: var(--font-body);
 }
-.ot-grp-clear:hover { background: #c0392b; color: #fff; }
+.ot-grp-clear:hover {
+  background: var(--color-danger);
+  color: var(--color-white);
+}
 
 /* ══════════════════════════════════════════════════════════
    KPIs CLICKEABLES
@@ -199,49 +222,53 @@
   cursor: pointer;
   position: relative;
   user-select: none;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 .ot-kpi:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.09);
+  box-shadow: var(--shadow-md);
 }
 .ot-kpi.kpi-active {
-  border-color: var(--accent, #004643) !important;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #004643) 20%, transparent) !important;
-  background: color-mix(in srgb, var(--accent, #004643) 6%, var(--surface)) !important;
+  border-color: var(--color-main) !important;
+  box-shadow: 0 0 0 2px rgba(0,70,67,0.15) !important;
+  background: rgba(0,70,67,0.04) !important;
 }
 .ot-kpi-active-badge {
   position: absolute;
-  top: 0.4rem; right: 0.5rem;
-  font-size: 0.62rem; font-weight: 700;
-  color: var(--accent, #004643);
-  background: color-mix(in srgb, var(--accent, #004643) 12%, transparent);
-  border-radius: 99px;
-  padding: 0.08rem 0.3rem;
+  top: 0.4rem;
+  right: 0.5rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--color-main);
+  background: rgba(0,70,67,0.1);
+  border-radius: var(--radius-full);
+  padding: 0.08rem 0.35rem;
+  line-height: 1.4;
 }
 
 /* ══════════════════════════════════════════════════════════
    GAUGE CARD
    ══════════════════════════════════════════════════════════ */
 .ot-gauge-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-100);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   padding: 1rem 1.5rem 0.75rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .ot-gauge-label {
-  font-size: 0.68rem;
+  font-size: 0.67rem;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
   align-self: flex-start;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.1rem;
 }
 
 .ot-gauge-ctx {
@@ -250,5 +277,5 @@
   font-style: italic;
   min-height: 1.2em;
   text-align: center;
-  margin-top: 0.25rem;
+  margin-top: 0.15rem;
 }
