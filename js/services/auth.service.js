@@ -100,7 +100,7 @@ async function signIn(email, password) {
   AuthState.setUser(user);
   _setLoginLoading(false);
   Router?.navigate('dashboard');
-  ToastService?.show('Sesión iniciada correctamente.', 'success');
+  //ToastService?.show('Sesión iniciada correctamente.', 'success');
 }
 
 // ── Cerrar sesión ─────────────────────────────────────────────

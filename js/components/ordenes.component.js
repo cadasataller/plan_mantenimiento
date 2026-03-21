@@ -519,8 +519,15 @@ const OTComponent = (() => {
   }
 
   function safeUID(level, dim, key) {
-    return ('g' + level + '_' + dim + '_' + key)
-      .replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,90);
+    // Limpiamos el texto igual que antes, pero añadimos un sufijo aleatorio único
+    const cleanStr = ('g' + level + '_' + dim + '_' + key)
+      .replace(/\s+/g,'_')
+      .replace(/[^a-zA-Z0-9_-]/g,'')
+      .slice(0, 50); // Reducimos el slice para dar espacio al sufijo
+      
+    const randomSuffix = Math.random().toString(36).slice(2, 7);
+    
+    return `${cleanStr}_${randomSuffix}`;
   }
 
   function _toggle(uid) {
