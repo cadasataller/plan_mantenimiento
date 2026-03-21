@@ -243,8 +243,9 @@ const ModalComponent = (() => {
     const kpis    = OTWorkStore.calcKPIs(ots);
     // DESPUÉS — solo la OM actual
     // DESPUÉS
-    const equipos = OTWorkStore.calcEquipoAvance([_currentOM]);
-    const equipo  = equipos[0]; 
+    const omsDelEquipo = OTStore.getAll().filter(o => o.ID_EQUIPO === _currentOM.ID_EQUIPO);
+    const equipos      = OTWorkStore.calcEquipoAvance(omsDelEquipo);
+    const equipo       = equipos[0];
 
     return `
       <!-- KPIs resumen -->
