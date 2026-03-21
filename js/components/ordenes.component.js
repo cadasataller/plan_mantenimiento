@@ -306,7 +306,7 @@ const OTComponent = (() => {
     };
 
     const _user = AuthService.getUser();
-    if (!RolesConfig.isAdmin(_user?.email)) {
+    if (_user?.role !== 'ADMIN') {
       document.getElementById('ot-filter-area').style.display = 'none';
     }
   }
@@ -663,7 +663,12 @@ const OTComponent = (() => {
   // MODAL
   // ══════════════════════════════════════════════════════════
   function openModal(row) {
-    const root = document.getElementById('ot-modal-root');
+    if (window.ModalComponent) {
+      ModalComponent.open(row);
+    } else {
+      console.error("ModalComponent no está cargado.");
+    }
+    /*const root = document.getElementById('ot-modal-root');
     if (!root) return;
 
     const sc   = statusToClass(row.Estatus);
@@ -785,10 +790,10 @@ const OTComponent = (() => {
     document.getElementById('ot-backdrop')?.addEventListener('click', e => {
       if (e.target === e.currentTarget) closeModal();
     });
-    document.addEventListener('keydown', escHandler);
+    document.addEventListener('keydown', escHandler); */
   }
 
-  function closeModal() {
+  /*function closeModal() {
     const root = document.getElementById('ot-modal-root');
     const bd   = document.getElementById('ot-backdrop');
     document.removeEventListener('keydown', escHandler);
@@ -803,7 +808,7 @@ const OTComponent = (() => {
     }
   }
 
-  function escHandler(e) { if (e.key === 'Escape') closeModal(); }
+  function escHandler(e) { if (e.key === 'Escape') closeModal(); }*/
 
   // ── Helpers ──────────────────────────────────────────────
   function statusToClass(s) {
