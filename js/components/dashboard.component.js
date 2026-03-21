@@ -130,8 +130,12 @@ const DashboardComponent = (() => {
     if (!container) return;
  
     // role y area vienen directamente desde la tabla PROFILE via _buildUser
-    const isAdmin   = user.role === 'admin';
-    const roleLabel = isAdmin ? 'Administrador' : `Taller · ${user.area ?? 'Sin área'}`;
+    const isAdmin   = user.role === 'ADMIN';
+    const roleLabel = isAdmin
+                      ? 'Administrador'
+                      : user.area === 'ALL' || !user.area
+                      ? 'Taller'
+                      : `Taller · ${user.area}`;
     const initials  = (user.name || '').trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
     const avatar    = user.picture
       ? `<img class="topbar-avatar" src="${user.picture}" alt="${user.name}" referrerpolicy="no-referrer">`

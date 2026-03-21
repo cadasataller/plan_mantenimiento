@@ -33,7 +33,9 @@
   //    cuando getSession() ya resolvió, y solo ahí iniciamos
   //    el router — así isAuthenticated() ya tiene el valor correcto.
   window._onAuthReady = function () {
-    const hash  = location.hash.replace('#', '');
+    console.log("ON_AUTH_READY");
+    
+    //const hash  = location.hash.replace('#', '');
     // Si el usuario abrió directo #dashboard pero no hay sesión,
     // el guard del router lo manda al login correctamente.
     Router.init();

@@ -60,9 +60,15 @@ async function _buildUser(supabaseUser) {
   };
 }
 
+let _authSubscription = null;
 // ── Init: escuchar cambios de sesión ─────────────────────────
 function initAuth() {
   const db = window.SupabaseClient;
+
+  if (_authSubscription) {
+    _authSubscription.unsubscribe();
+    _authSubscription = null;
+  }
 
   // IMPORTANTE: el callback de .then() es async para poder usar await
   db.auth.getSession().then(async ({ data: { session } }) => {
@@ -76,8 +82,9 @@ function initAuth() {
     window._onAuthReady?.();
   });
 
-  // Escuchar cambios futuros (login, logout, token refresh)
-  db.auth.onAuthStateChange(async (_event, session) => {
+    // Escuchar cambios futuros (login, logout, token refresh)
+    // Escuchar cambios futuros — guardar referencia para poder limpiar
+  const { data: { subscription } } = db.auth.onAuthStateChange(async (_event, session) => {
     if (session?.user) {
       const user = await _buildUser(session.user);
       AuthState.setUser(user);
@@ -85,6 +92,8 @@ function initAuth() {
       AuthState.setUser(null);
     }
   });
+
+  _authSubscription = subscription;
 }
 
 // ── Iniciar sesión (email + password) ────────────────────────
