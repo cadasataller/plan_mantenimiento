@@ -241,8 +241,10 @@ const ModalComponent = (() => {
   // ══════════════════════════════════════════════════════════
   function renderCharts(ots) {
     const kpis    = OTWorkStore.calcKPIs(ots);
-    const allOMs  = OTStore.getAll();
-    const equipos = OTWorkStore.calcEquipoAvance(allOMs);
+    // DESPUÉS — solo la OM actual
+    // DESPUÉS
+    const equipos = OTWorkStore.calcEquipoAvance([_currentOM]);
+    const equipo  = equipos[0]; 
 
     return `
       <!-- KPIs resumen -->
@@ -264,13 +266,31 @@ const ModalComponent = (() => {
           ${renderDonut(kpis)}
         </div>
 
-        <!-- Barras de avance por equipo -->
+        <!-- Barras de avance de equipo -->
+        
         <div class="ot-chart-card">
           <div class="ot-chart-card-title">
             <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-            Avance General por Equipo
+            Avance del Equipo
           </div>
-          ${renderBarChart(equipos)}
+          ${equipo ? `
+            <div style="padding:0.75rem 0;">
+              <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.25rem;">
+                ${equipo.equipoId} — ${equipo.item}
+              </div>
+              <div style="display:flex;align-items:center;gap:0.75rem;">
+                <div style="flex:1;height:10px;background:var(--color-gray-100);border-radius:99px;overflow:hidden;">
+                  <div style="height:100%;width:${equipo.pct}%;background:var(--color-main);border-radius:99px;transition:width 0.4s ease;"></div>
+                </div>
+                <span style="font-family:var(--font-mono);font-size:0.85rem;font-weight:700;color:var(--color-main);min-width:36px;">
+                  ${equipo.pct}%
+                </span>
+              </div>
+              <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.35rem;">
+                ${equipo.concluidas} de ${equipo.total} órdenes completadas
+              </div>
+            </div>` 
+          : '<div style="font-size:0.8rem;color:var(--text-muted);">Sin datos de equipo.</div>'}
         </div>
 
       </div>`;
