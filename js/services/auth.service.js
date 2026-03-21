@@ -82,9 +82,10 @@ function initAuth() {
     if (session?.user) {
       _buildUser(session.user).then(user => {
           AuthState.setUser(user);
+          console.log('[Auth] Sesión activa:', user.email);
         });
 
-      console.log('[Auth] Sesión activa:', user.email);
+      
     } else {
       AuthState.setUser(null);
       console.log('[Auth] Sin sesión');
