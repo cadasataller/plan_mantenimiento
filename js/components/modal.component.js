@@ -307,14 +307,16 @@ const ModalComponent = (() => {
             </div>`
           : `<div style="font-size:0.8rem;color:var(--text-muted);">Sin datos de equipo.</div>`}
 
-          <!-- 3. KPIs de soporte -->
-        <div class="ot-modal-kpis">
-          ${mkpi(kpis.total,                    'Total OTs')}
-          ${mkpi(kpis.horasTotal.toFixed(1),    'Horas totales')}
-          ${mkpi(kpis.mecanicos,                'Mecánicos')}
-          ${mkpi(kpis.pctConcluida + '%',       'Concluido')}
+          
         </div>
-        </div>
+
+        <!-- 3. KPIs de soporte -->
+          <div class="ot-modal-kpis">
+            ${mkpi(kpis.total,                    'Total OTs')}
+            ${mkpi(kpis.horasTotal.toFixed(1),    'Horas totales')}
+            ${mkpi(kpis.mecanicos,                'Mecánicos')}
+            ${mkpi(kpis.pctConcluida + '%',       'Concluido')}
+          </div>
 
       </div>
 
