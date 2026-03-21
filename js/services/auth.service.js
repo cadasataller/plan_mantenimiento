@@ -68,31 +68,27 @@ function initAuth() {
   const db = window.SupabaseClient;
 
   if (_authSubscription) {
+    console.log("VALIDACION DE AUTH");
+    
     _authSubscription.unsubscribe();
     _authSubscription = null;
   }
 
-  // IMPORTANTE: el callback de .then() es async para poder usar await
-  db.auth.getSession().then(async ({ data: { session } }) => {
-    if (session?.user) {
-      const user = await _buildUser(session.user);
-      AuthState.setUser(user);
-      console.log('[Auth] Sesión activa restaurada:', user.email);
-    } else {
-      console.log('[Auth] Sin sesión activa.');
-    }
-    window._onAuthReady?.();
-  });
+  const { data: { subscription } } = db.auth.onAuthStateChange(async (event, session) => {
+    console.log('[Auth event]', event);
 
-    // Escuchar cambios futuros (login, logout, token refresh)
-    // Escuchar cambios futuros — guardar referencia para poder limpiar
-  const { data: { subscription } } = db.auth.onAuthStateChange(async (_event, session) => {
     if (session?.user) {
       const user = await _buildUser(session.user);
       AuthState.setUser(user);
+
+      console.log('[Auth] Sesión activa:', user.email);
     } else {
       AuthState.setUser(null);
+      console.log('[Auth] Sin sesión');
     }
+
+    // 👇 IMPORTANTE: esto reemplaza tu getSession
+    window._onAuthReady?.();
   });
 
   _authSubscription = subscription;
