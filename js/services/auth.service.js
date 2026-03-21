@@ -107,9 +107,10 @@ async function signIn(email, password) {
 async function signOut() {
   const db = window.SupabaseClient;
   await db.auth.signOut();
+  OTStore.empties();
   AuthState.setUser(null);
   Router?.navigate('login');
-  ToastService?.show('Sesión cerrada correctamente.', 'success');
+  //ToastService?.show('Sesión cerrada correctamente.', 'success');
 }
 
 // ── Métodos mantenidos por compatibilidad ─────────────────────

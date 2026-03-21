@@ -200,6 +200,14 @@ const OTStore = (() => {
 
   // ── Getters ──────────────────────────────────────────────
   function getAll()      { return _allOrders; }
+  function empties() {
+    _allOrders=[];
+    _filtered=[]
+    _filters=[]
+    ETAPAS=[]
+    _source=[]
+    _grouped=[]
+  }
   function getFiltered() { return _filtered;  }
   function getGrouped()  { return _grouped;   }
   function isLoading()   { return _loading;   }
@@ -232,7 +240,7 @@ const OTStore = (() => {
     setFilter, getFilters,
     getAll, getFiltered, getGrouped,
     isLoading, getSource,
-    getKPIs, getAreas, getSemanas, getEtapas,
+    getKPIs, getAreas, getSemanas, getEtapas,empties,
   };
 })();
 
