@@ -333,9 +333,10 @@
 }
 
 /* KPIs en el panel de gráficas */
+/* DESPUÉS */
 .ot-modal-kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.65rem;
   margin-bottom: 1.25rem;
 }
