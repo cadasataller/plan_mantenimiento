@@ -150,13 +150,25 @@
 .ot-modal-val.empty { color:var(--color-gray-300);font-style:italic;font-weight:400; }
 
 /* ── Panel de Gráficas ── */
+/* Misma altura para ambas cards */
 .ot-charts-panel {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 1.25rem;
-  align-items: start;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: stretch;
 }
 
+.ot-charts-panel .ot-chart-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* División interna dentro de la card derecha */
+.ot-chart-card-divider {
+  border: none;
+  border-top: 1px solid var(--color-gray-100);
+  margin: 1rem 0;
+}
 /* Gráfica dona */
 .ot-chart-card {
   background: var(--color-gray-50);
@@ -336,9 +348,9 @@
 /* DESPUÉS */
 .ot-modal-kpis {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.65rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0;
 }
 .ot-modal-kpi {
   background: var(--color-gray-50);
