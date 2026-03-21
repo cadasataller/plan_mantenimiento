@@ -35,6 +35,8 @@ const AuthState = {
 
 // ── Obtener perfil desde tabla PROFILE ───────────────────────
 async function _buildUser(supabaseUser) {
+  console.log(supabaseUser);
+  
   if (!supabaseUser) return null;
   const db = window.SupabaseClient;
 
@@ -78,8 +80,9 @@ function initAuth() {
     console.log('[Auth event]', event);
 
     if (session?.user) {
-      const user = await _buildUser(session.user);
-      AuthState.setUser(user);
+      _buildUser(session.user).then(user => {
+          AuthState.setUser(user);
+        });
 
       console.log('[Auth] Sesión activa:', user.email);
     } else {
