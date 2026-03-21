@@ -63,6 +63,8 @@ async function _buildUser(supabaseUser) {
 let _authSubscription = null;
 // ── Init: escuchar cambios de sesión ─────────────────────────
 function initAuth() {
+  console.log("INIT AUTH");
+  
   const db = window.SupabaseClient;
 
   if (_authSubscription) {

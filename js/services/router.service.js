@@ -50,6 +50,8 @@ const Router = (() => {
 
   /** Inicializar: leer hash o redirigir según estado */
   function init() {
+    console.log("INIT ROUTER");
+    
     const hash = location.hash.replace('#', '') || 'login';
     navigate(hash);
   }

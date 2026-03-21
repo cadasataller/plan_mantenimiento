@@ -41,6 +41,9 @@
     Router.init();
   };
 
+  console.log("INIT APP");
+  
+
   // Iniciar auth (getSession es async; llama _onAuthReady al terminar)
   AuthService.init();
 
