@@ -79,19 +79,17 @@ function initAuth() {
   const { data: { subscription } } = db.auth.onAuthStateChange(async (event, session) => {
     console.log('[Auth event]', event);
 
-    if (session?.user) {
-      _buildUser(session.user).then(user => {
-          AuthState.setUser(user);
-          console.log('[Auth] Sesión activa:', user.email);
-        });
+    const { data: { session } } = await db.auth.getSession();
 
-      
+    if (session?.user) {
+      const user = await _buildUser(session.user);
+      AuthState.setUser(user);
+      console.log('[Auth] Sesión activa:', user.email);
     } else {
       AuthState.setUser(null);
       console.log('[Auth] Sin sesión');
     }
 
-    // 👇 IMPORTANTE: esto reemplaza tu getSession
     window._onAuthReady?.();
   });
 
