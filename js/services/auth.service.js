@@ -64,36 +64,22 @@ async function _buildUser(supabaseUser) {
 
 let _authSubscription = null;
 // ── Init: escuchar cambios de sesión ─────────────────────────
-function initAuth() {
+async function initAuth() {
   console.log("INIT AUTH");
-  
   const db = window.SupabaseClient;
 
-  if (_authSubscription) {
-    console.log("VALIDACION DE AUTH");
-    
-    _authSubscription.unsubscribe();
-    _authSubscription = null;
+  const { data: { session } } = await db.auth.getSession();
+
+  if (session?.user) {
+    const user = await _buildUser(session.user);
+    AuthState.setUser(user);
+    console.log('[Auth] Sesión activa:', user.email);
+  } else {
+    AuthState.setUser(null);
+    console.log('[Auth] Sin sesión');
   }
 
-  const { data: { subscription } } = db.auth.onAuthStateChange(async (event, session) => {
-    console.log('[Auth event]', event);
-
-    const { data: { session } } = await db.auth.getSession();
-
-    if (session?.user) {
-      const user = await _buildUser(session.user);
-      AuthState.setUser(user);
-      console.log('[Auth] Sesión activa:', user.email);
-    } else {
-      AuthState.setUser(null);
-      console.log('[Auth] Sin sesión');
-    }
-
-    window._onAuthReady?.();
-  });
-
-  _authSubscription = subscription;
+  window._onAuthReady?.();
 }
 
 // ── Iniciar sesión (email + password) ────────────────────────
