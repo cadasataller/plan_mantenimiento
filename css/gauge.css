@@ -1,0 +1,72 @@
+/* ============================================================
+   CADASA TALLER — gauge.css
+   Estilos para el velocímetro SVG debajo de los KPIs
+   ============================================================ */
+
+#ot-gauge-wrap {
+  margin-bottom: 0.75rem;
+}
+
+.ot-gauge-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 1.25rem 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ot-gauge-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  align-self: flex-start;
+}
+
+.ot-gauge-svg-wrap {
+  width: 100%;
+  max-width: 300px;
+}
+
+/* Leyenda horizontal */
+.ot-gauge-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+.ot-gauge-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+
+.ot-gauge-legend-item.active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ot-gauge-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Etiqueta de filtro activo */
+.ot-gauge-ctx {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+  min-height: 1em;
+  text-align: center;
+}

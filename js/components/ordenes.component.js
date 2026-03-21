@@ -1,11 +1,10 @@
 // ============================================================
-// CADASA TALLER — ÓRDENES DE TRABAJO COMPONENT v3
-// Agrupación flexible con clicks + modal de detalle correcto
+// CADASA TALLER — ÓRDENES DE TRABAJO COMPONENT v4.1
+// + Velocímetro SVG (gauge.component.js requerido)
 // ============================================================
 
 const OTComponent = (() => {
 
-  // ── Catálogo de etapas ───────────────────────────────────
   const ETAPA_IDX = {
     'Desmontaje y diagnóstico':             0,
     'Lavado e inspección':                  1,
@@ -22,11 +21,11 @@ const OTComponent = (() => {
   };
 
   const ALL_DIMS = [
-    { id: 'equipo',  label: 'Equipo'          },
-    { id: 'semana',  label: 'Semana'           },
-    { id: 'proceso', label: 'Tipo de Proceso'  },
-    { id: 'area',    label: 'Área'             },
-    { id: 'estatus', label: 'Estado'           },
+    { id: 'equipo',  label: 'Equipo'         },
+    { id: 'semana',  label: 'Semana'          },
+    { id: 'proceso', label: 'Tipo de Proceso' },
+    { id: 'area',    label: 'Área'            },
+    { id: 'estatus', label: 'Estado'          },
   ];
 
   const PRESETS = [
@@ -39,12 +38,13 @@ const OTComponent = (() => {
 
   // ── Estado ───────────────────────────────────────────────
   let _activeDims = ['semana'];
-  let _unsub = null;
-  const _rowCache = new Map(); // ID → row object (para el modal)
-  const _tableCache = new Map(); // tableId → rows[]
-  let _tablePages   = new Map(); // tableId → currentPage
-  const PAGE_SIZE = 100;        // ← agregar
-  let _currentPage = 0; 
+  let _unsub      = null;
+  let _activeKPI  = null;
+  const _rowCache   = new Map();
+  const _tableCache = new Map();
+  let _tablePages   = new Map();
+  const PAGE_SIZE   = 100;
+  let _currentPage  = 0;
 
   // ══════════════════════════════════════════════════════════
   // MOUNT
@@ -60,21 +60,9 @@ const OTComponent = (() => {
   function buildShell() {
     return `
       <div class="ot-page">
-        <div class="ot-page-header">
-          <div class="ot-page-title-group">
-            <div class="ot-page-eyebrow">Módulo de Gestión</div>
-            <h2 class="ot-page-title">Órdenes de Trabajo</h2>
-            <p class="ot-page-subtitle" id="ot-subtitle">Cargando datos…</p>
-          </div>
-          <span class="ot-source-badge demo" id="ot-source-badge">
-            <span class="ot-source-dot"></span>
-            <span id="ot-source-label">Demo</span>
-          </span>
-        </div>
 
-        <div class="ot-kpi-bar" id="ot-kpi-bar">${buildKPISkeleton()}</div>
-
-        <div class="ot-toolbar">
+        <!-- 1. TOP BAR (búsqueda + reload) — solo admins -->
+        <div class="ot-top-bar" id="ot-top-bar">
           <div class="ot-search-wrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -82,22 +70,6 @@ const OTComponent = (() => {
             <input class="ot-search" id="ot-search"
               type="text" placeholder="Buscar por ID, equipo, descripción…" autocomplete="off"/>
           </div>
-          <div class="ot-toolbar-sep"></div>
-          <select class="ot-select" id="ot-filter-area">
-            <option value="">Todas las áreas</option>
-          </select>
-          <select class="ot-select" id="ot-filter-estatus">
-            <option value="">Todos los estados</option>
-            <option value="Programado">Programado</option>
-            <option value="En proceso">En proceso</option>
-            <option value="Completado">Completado</option>
-            <option value="Pendiente">Pendiente</option>
-          </select>
-          <select class="ot-select" id="ot-filter-semana">
-            <option value="">Todas las semanas</option>
-            <option value="__noasig">Sin asignar</option>
-          </select>
-          <div class="ot-toolbar-sep"></div>
           <button class="btn-reload" id="btn-reload" title="Recargar datos">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="23 4 23 10 17 10"/>
@@ -106,131 +78,83 @@ const OTComponent = (() => {
           </button>
         </div>
 
+        <!-- 2. Panel de agrupación — solo admins -->
         <div class="ot-grouping-panel" id="ot-grouping-panel"></div>
+
+        <!-- 3. KPIs como filtros -->
+        <div class="ot-kpi-bar" id="ot-kpi-bar">${buildKPISkeleton()}</div>
+
+        <!-- 4. Velocímetro — debajo de KPIs -->
+        <div id="ot-gauge-wrap"></div>
+
+        <!-- 5. Lista / tabla -->
         <div class="ot-list-wrap" id="ot-list-wrap">${buildLoadingState()}</div>
       </div>
       <div id="ot-modal-root"></div>`;
   }
 
   // ══════════════════════════════════════════════════════════
-  // PANEL DE AGRUPACIÓN — todo por click
+  // PANEL DE AGRUPACIÓN — simplificado
   // ══════════════════════════════════════════════════════════
   function renderGroupingPanel() {
     const panel = document.getElementById('ot-grouping-panel');
     if (!panel) return;
-
     const available = ALL_DIMS.filter(d => !_activeDims.includes(d.id));
-    const presetActive = PRESETS.find(p => JSON.stringify(p.dims) === JSON.stringify(_activeDims));
 
     panel.innerHTML = `
-      <div class="ot-grouping-header">
-        <div class="ot-grouping-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="7" height="7" rx="1"/>
-            <rect x="14" y="3" width="7" height="7" rx="1"/>
-            <rect x="3" y="14" width="7" height="7" rx="1"/>
-            <rect x="14" y="14" width="7" height="7" rx="1"/>
-          </svg>
-          Agrupar por
-        </div>
-        <span class="ot-grouping-hint">Clic para añadir · ✕ para quitar · ↑↓ para reordenar</span>
-      </div>
+      <div class="ot-grp-simple">
+        <span class="ot-grp-label">Agrupar</span>
 
-      <div class="ot-grouping-body">
-
-        <!-- Zona activa -->
-        <div class="ot-grouping-active-wrap">
-          <div class="ot-dim-zone-label">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-            Jerarquía activa
-            ${_activeDims.length > 0
-              ? `<span class="ot-active-count">${_activeDims.length} nivel${_activeDims.length > 1 ? 'es' : ''}</span>`
-              : ''}
-          </div>
-          <div class="ot-active-chips">
-            ${_activeDims.length === 0
-              ? `<span class="ot-empty-hint">Sin agrupación — haz clic en una dimensión disponible</span>`
-              : _activeDims.map((dimId, idx) => {
-                  const dim = ALL_DIMS.find(d => d.id === dimId);
-                  const canUp   = idx > 0;
-                  const canDown = idx < _activeDims.length - 1;
-                  return `
-                    ${idx > 0 ? `<span class="ot-level-sep">›</span>` : ''}
-                    <span class="ot-dim-chip active-chip dim-${dimId}">
-                      <span class="ot-level-num">${idx + 1}</span>
-                      ${dim.label}
-                      <span class="ot-chip-actions">
-                        <button class="ot-chip-btn${canUp?'':' disabled'}" ${canUp?`onclick="OTComponent._moveDim('${dimId}',-1)"`:'disabled'} title="Subir">↑</button>
-                        <button class="ot-chip-btn${canDown?'':' disabled'}" ${canDown?`onclick="OTComponent._moveDim('${dimId}',1)"`:'disabled'} title="Bajar">↓</button>
-                        <button class="ot-chip-btn remove" onclick="OTComponent._removeDim('${dimId}')" title="Quitar">✕</button>
-                      </span>
-                    </span>`;
-                }).join('')
-            }
-          </div>
-        </div>
-
-        <div class="ot-grouping-divider"></div>
-
-        <!-- Disponibles -->
-        <div class="ot-grouping-available-wrap">
-          <div class="ot-dim-zone-label">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="16"/>
-              <line x1="8" y1="12" x2="16" y2="12"/>
-            </svg>
-            Añadir dimensión
-          </div>
-          <div class="ot-available-chips">
-            ${available.length === 0
-              ? `<span class="ot-empty-hint">Todas las dimensiones están activas</span>`
-              : available.map(dim => `
-                  <span class="ot-dim-chip available-chip dim-${dim.id}"
-                        onclick="OTComponent._addDim('${dim.id}')"
-                        title="Clic para añadir">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:10px;height:10px;flex-shrink:0">
-                      <line x1="12" y1="5" x2="12" y2="19"/>
-                      <line x1="5" y1="12" x2="19" y2="12"/>
-                    </svg>
+        <div class="ot-grp-active">
+          ${_activeDims.length === 0
+            ? `<span class="ot-grp-none">Sin agrupación</span>`
+            : _activeDims.map((dimId, idx) => {
+                const dim   = ALL_DIMS.find(d => d.id === dimId);
+                const canUp = idx > 0;
+                const canDn = idx < _activeDims.length - 1;
+                return `
+                  ${idx > 0 ? `<span class="ot-grp-arrow">›</span>` : ''}
+                  <span class="ot-grp-chip active dim-${dimId}">
                     ${dim.label}
-                  </span>`).join('')
-            }
-          </div>
+                    ${canUp ? `<button onclick="OTComponent._moveDim('${dimId}',-1)" title="Mover izquierda">‹</button>` : ''}
+                    ${canDn ? `<button onclick="OTComponent._moveDim('${dimId}',1)"  title="Mover derecha">›</button>` : ''}
+                    <button class="rm" onclick="OTComponent._removeDim('${dimId}')" title="Quitar">✕</button>
+                  </span>`;
+              }).join('')
+          }
         </div>
 
-      </div>
+        ${available.length > 0 ? `<span class="ot-grp-sep">+</span>` : ''}
 
-      <!-- Presets -->
-      <div class="ot-grouping-presets">
-        <span class="ot-preset-label">Presets:</span>
-        ${PRESETS.map(p => {
-          const isActive = JSON.stringify(_activeDims) === JSON.stringify(p.dims);
-          const dimsStr  = p.dims.join(',');
-          return `<button class="btn-preset${isActive?' active':''}"
-                          onclick="OTComponent._applyPreset('${dimsStr}')">${p.label}</button>`;
-        }).join('')}
-        ${_activeDims.length > 0
-          ? `<button class="btn-clear-groups" onclick="OTComponent._clearGroups()">✕ Sin agrupar</button>`
-          : ''}
+        <div class="ot-grp-available">
+          ${available.map(dim => `
+            <span class="ot-grp-chip avail dim-${dim.id}"
+                  onclick="OTComponent._addDim('${dim.id}')">
+              ${dim.label}
+            </span>`).join('')}
+        </div>
+
+        <div class="ot-grp-presets">
+          ${PRESETS.map(p => {
+            const isActive = JSON.stringify(_activeDims) === JSON.stringify(p.dims);
+            return `<button class="ot-grp-preset${isActive?' on':''}"
+                            onclick="OTComponent._applyPreset('${p.dims.join(',')}')">
+                      ${p.label}
+                    </button>`;
+          }).join('')}
+          ${_activeDims.length > 0
+            ? `<button class="ot-grp-preset clear" onclick="OTComponent._clearGroups()">Sin agrupar</button>`
+            : ''}
+        </div>
       </div>`;
   }
 
-  // ── Acciones del panel ───────────────────────────────────
   function _addDim(dimId) {
-    if (!_activeDims.includes(dimId)) {
-      _activeDims.push(dimId);
-      _refreshPanel();
-    }
+    if (!_activeDims.includes(dimId)) { _activeDims.push(dimId); _refreshPanel(); }
   }
-
   function _removeDim(dimId) {
-    _activeDims = _activeDims.filter(d => d !== dimId);
-    _refreshPanel();
+    _activeDims = _activeDims.filter(d => d !== dimId); _refreshPanel();
   }
-
   function _moveDim(dimId, dir) {
     const idx = _activeDims.indexOf(dimId);
     if (idx === -1) return;
@@ -241,17 +165,12 @@ const OTComponent = (() => {
     _activeDims = arr;
     _refreshPanel();
   }
-
   function _applyPreset(dimsStr) {
-    _activeDims = dimsStr.split(',').filter(Boolean);
-    _refreshPanel();
+    _activeDims = dimsStr.split(',').filter(Boolean); _refreshPanel();
   }
-
   function _clearGroups() {
-    _activeDims = [];
-    _refreshPanel();
+    _activeDims = []; _refreshPanel();
   }
-
   function _refreshPanel() {
     _currentPage = 0;
     renderGroupingPanel();
@@ -264,22 +183,16 @@ const OTComponent = (() => {
   function bindStaticEvents() {
     document.getElementById('ot-search')?.addEventListener('input', e => {
       OTStore.setFilter('search', e.target.value);
-      _currentPage = 0
+      _currentPage = 0;
+      _updateGaugeFromSearch();
       renderList();
-    });
-    ['area','estatus','semana'].forEach(k => {
-      document.getElementById(`ot-filter-${k}`)?.addEventListener('change', e => {
-        OTStore.setFilter(k, e.target.value);
-        _currentPage = 0
-        renderList();
-      });
     });
     document.getElementById('btn-reload')?.addEventListener('click', () => {
       const btn = document.getElementById('btn-reload');
       btn?.classList.add('spinning');
       OTStore.load(AuthService?.isAuthenticated() ?? false).then(() => {
         btn?.classList.remove('spinning');
-        updateFilterOptions();
+        _updateGaugeFromSearch();
         renderList();
       });
     });
@@ -292,7 +205,9 @@ const OTComponent = (() => {
     if (_unsub) _unsub();
     _unsub = OTStore.subscribe(event => {
       if (event === 'ready' || event === 'filtered') {
-        updateFilterOptions(); renderKPIs(); renderList(); updateSourceBadge();
+        renderKPIs();
+        _updateGaugeFromSearch();
+        renderList();
       }
       if (event === 'loading') {
         const w = document.getElementById('ot-list-wrap');
@@ -302,71 +217,117 @@ const OTComponent = (() => {
     if (OTStore.getAll().length === 0) {
       OTStore.load(AuthService?.isAuthenticated() ?? false);
     } else {
-      updateFilterOptions(); renderKPIs(); renderList(); updateSourceBadge();
-    };
-
-    const _user = AuthService.getUser();
-    if (_user?.role !== 'ADMIN') {
-      document.getElementById('ot-filter-area').style.display = 'none';
+      renderKPIs();
+      _updateGaugeFromSearch();
+      renderList();
     }
+
+    const user     = AuthService.getUser();
+    const isAdmin  = user?.role === 'ADMIN';
+    const topBar   = document.getElementById('ot-top-bar');
+    const grpPanel = document.getElementById('ot-grouping-panel');
+    if (topBar)   topBar.style.display   = isAdmin ? '' : 'none';
+    if (grpPanel) grpPanel.style.display = isAdmin ? '' : 'none';
   }
 
   // ══════════════════════════════════════════════════════════
-  // KPIs
+  // GAUGE — solo filtro de búsqueda, ignora filtros de KPI
+  // ══════════════════════════════════════════════════════════
+  function _updateGaugeFromSearch() {
+    if (!window.GaugeComponent) return;
+    const search = (OTStore.getFilters().search || '').toLowerCase().trim();
+    let rows = OTStore.getAll();
+    if (search) {
+      rows = rows.filter(o =>
+        (o.ID_Orden    || '').toLowerCase().includes(search) ||
+        (o.Descripcion || '').toLowerCase().includes(search) ||
+        (o.ITEM        || '').toLowerCase().includes(search) ||
+        (o.Sistema     || '').toLowerCase().includes(search) ||
+        (o.ID_EQUIPO   || '').toLowerCase().includes(search)
+      );
+    }
+    GaugeComponent.update(rows);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // KPIs — clickeables como filtros
+  // Los números se calculan sobre datos filtrados solo por búsqueda
   // ══════════════════════════════════════════════════════════
   function renderKPIs() {
-    const k = OTStore.getKPIs();
+    const search = (OTStore.getFilters().search || '').toLowerCase().trim();
+    let base = OTStore.getAll();
+    if (search) {
+      base = base.filter(o =>
+        (o.ID_Orden    || '').toLowerCase().includes(search) ||
+        (o.Descripcion || '').toLowerCase().includes(search) ||
+        (o.ITEM        || '').toLowerCase().includes(search) ||
+        (o.Sistema     || '').toLowerCase().includes(search) ||
+        (o.ID_EQUIPO   || '').toLowerCase().includes(search)
+      );
+    }
+
+    const k = {
+      total:      base.length,
+      programado: base.filter(o => o.Estatus === 'Programado').length,
+      enProceso:  base.filter(o => o.Estatus === 'En proceso').length,
+      completado: base.filter(o => o.Estatus === 'Completado').length,
+      sinSemana:  base.filter(o => !o.Semana).length,
+    };
+
     const bar = document.getElementById('ot-kpi-bar');
     if (!bar) return;
-    bar.innerHTML = [
-      kpiCard('total',  k.total,      'Total OTs'),
-      kpiCard('prog',   k.programado, 'Programadas'),
-      kpiCard('pend',   k.enProceso,  'En Proceso'),
-      kpiCard('done',   k.completado, 'Completadas'),
-      kpiCard('noasig', k.sinSemana,  'Sin semana'),
-    ].join('');
-    const sub = document.getElementById('ot-subtitle');
-    if (sub) sub.textContent = `${k.total} órdenes · ${OTStore.getAreas().length} áreas`;
+
+    const cards = [
+      { key: 'total',      val: k.total,      label: 'Total OTs',   cls: 'total',  filterKey: null,      filterVal: null         },
+      { key: 'programado', val: k.programado, label: 'Programadas', cls: 'prog',   filterKey: 'estatus', filterVal: 'Programado' },
+      { key: 'enProceso',  val: k.enProceso,  label: 'En Proceso',  cls: 'pend',   filterKey: 'estatus', filterVal: 'En proceso' },
+      { key: 'completado', val: k.completado, label: 'Completadas', cls: 'done',   filterKey: 'estatus', filterVal: 'Completado' },
+      { key: 'sinSemana',  val: k.sinSemana,  label: 'Sin Semana',  cls: 'noasig', filterKey: 'semana',  filterVal: '__noasig'   },
+    ];
+
+    bar.innerHTML = cards.map(c => {
+      const isActive = _activeKPI === c.key;
+      return `
+        <div class="ot-kpi${isActive ? ' kpi-active' : ''}"
+             onclick="OTComponent._filterByKPI('${c.key}','${c.filterKey||''}','${c.filterVal||''}')"
+             title="${isActive ? 'Clic para quitar filtro' : 'Clic para filtrar'}">
+          <span class="ot-kpi-dot ${c.cls}"></span>
+          <div class="ot-kpi-body">
+            <div class="ot-kpi-val">${c.val}</div>
+            <div class="ot-kpi-label">${c.label}</div>
+          </div>
+          ${isActive ? `<span class="ot-kpi-active-badge">✓</span>` : ''}
+        </div>`;
+    }).join('');
   }
 
-  function kpiCard(cls, val, label) {
-    return `<div class="ot-kpi"><span class="ot-kpi-dot ${cls}"></span>
-      <div class="ot-kpi-body"><div class="ot-kpi-val">${val}</div>
-      <div class="ot-kpi-label">${label}</div></div></div>`;
+  function _filterByKPI(kpiKey, filterKey, filterVal) {
+    if (_activeKPI === kpiKey) {
+      _activeKPI = null;
+      if (filterKey) OTStore.setFilter(filterKey, '');
+    } else {
+      if (_activeKPI) {
+        const prev = _getKPIFilterKey(_activeKPI);
+        if (prev) OTStore.setFilter(prev, '');
+      }
+      _activeKPI = kpiKey;
+      if (filterKey) OTStore.setFilter(filterKey, filterVal);
+    }
+    _currentPage = 0;
+    renderKPIs();
+    // El gauge NO se actualiza al cambiar KPI — solo búsqueda lo mueve
+    renderList();
+  }
+
+  function _getKPIFilterKey(kpiKey) {
+    return { programado:'estatus', enProceso:'estatus', completado:'estatus', sinSemana:'semana' }[kpiKey] || null;
   }
 
   function buildKPISkeleton() {
-    return ['Total','Programadas','En Proceso','Completadas','Sin semana'].map(l=>kpiCard('total','—',l)).join('');
-  }
-
-  // ══════════════════════════════════════════════════════════
-  // FILTROS
-  // ══════════════════════════════════════════════════════════
-  function updateFilterOptions() {
-    const ae = document.getElementById('ot-filter-area');
-    if (ae) {
-      const cur = ae.value;
-      ae.innerHTML = `<option value="">Todas las áreas</option>` +
-        OTStore.getAreas().map(a=>`<option value="${a}" ${a===cur?'selected':''}>${a}</option>`).join('');
-    }
-    const se = document.getElementById('ot-filter-semana');
-    if (se) {
-      const cur = se.value;
-      se.innerHTML = `<option value="">Todas las semanas</option>
-        <option value="__noasig" ${cur==='__noasig'?'selected':''}>Sin asignar</option>` +
-        OTStore.getSemanas().map(s=>
-          `<option value="${s}" ${String(s)===cur?'selected':''}>Semana ${String(s).padStart(2,'0')}</option>`
-        ).join('');
-    }
-  }
-
-  function updateSourceBadge() {
-    const b = document.getElementById('ot-source-badge');
-    const l = document.getElementById('ot-source-label');
-    if (!b||!l) return;
-    const src = OTStore.getSource();
-    b.className = `ot-source-badge ${src==='live'?'live':'demo'}`;
-    l.textContent = src==='live' ? 'Google Sheets' : 'Datos Demo';
+    return ['Total OTs','Programadas','En Proceso','Completadas','Sin Semana']
+      .map(l => `<div class="ot-kpi"><span class="ot-kpi-dot total"></span>
+        <div class="ot-kpi-body"><div class="ot-kpi-val">—</div>
+        <div class="ot-kpi-label">${l}</div></div></div>`).join('');
   }
 
   // ══════════════════════════════════════════════════════════
@@ -379,8 +340,6 @@ const OTComponent = (() => {
     if (!wrap) return;
 
     const data = OTStore.getFiltered();
-
-    // Actualizar caché del modal
     _rowCache.clear();
     data.forEach(row => _rowCache.set(String(row.ID_Orden), row));
 
@@ -396,7 +355,6 @@ const OTComponent = (() => {
       wrap.innerHTML = renderNodes(tree, 0);
     }
 
-    // Delegado de clicks en filas — se registra una sola vez
     if (!wrap._clickDelegate) {
       wrap._clickDelegate = true;
       wrap.addEventListener('click', e => {
@@ -409,34 +367,25 @@ const OTComponent = (() => {
   }
 
   // ══════════════════════════════════════════════════════════
-  // ÁRBOL — construcción
+  // ÁRBOL
   // ══════════════════════════════════════════════════════════
   function buildTree(rows, dims, depth) {
-    // Caso base: sin más niveles → devolver las filas tal cual
     if (depth >= dims.length) return rows;
-
-    const dim    = dims[depth];
-    const groups = {};
-    const order  = [];
-
+    const dim = dims[depth], groups = {}, order = [];
     rows.forEach(row => {
       const key = getDimKey(row, dim);
       if (!groups[key]) { groups[key] = []; order.push(key); }
       groups[key].push(row);
     });
-
     order.sort((a, b) => {
       if (a.startsWith('Sin ')) return 1;
       if (b.startsWith('Sin ')) return -1;
       return a.localeCompare(b, 'es', { numeric: true });
     });
-
     return order.map(key => ({
-      dim,
-      key,
+      dim, key,
       noAsig:   key.startsWith('Sin '),
       count:    groups[key].length,
-      // Recursión: puede devolver más nodos O las filas directamente
       children: buildTree(groups[key], dims, depth + 1),
     }));
   }
@@ -452,63 +401,44 @@ const OTComponent = (() => {
     }
   }
 
-  // ══════════════════════════════════════════════════════════
-  // ÁRBOL — render recursivo
-  // Detecta si children son nodos (tienen .dim) o filas de datos
-  // ══════════════════════════════════════════════════════════
   function renderNodes(nodes, level) {
     if (!nodes || nodes.length === 0) return '';
-
-    // ¿Los hijos son filas de datos (no nodos agrupadores)?
     const isDataLeaf = nodes[0] && nodes[0].dim === undefined;
     if (isDataLeaf) {
-      const tblId = safeUID(level, 'leaf', nodes.map(r=>r.ID_Orden).join('').slice(0,20));
+      const tblId = safeUID(level, 'leaf', nodes.map(r => r.ID_Orden).join('').slice(0, 20));
       return `<div class="ot-table-wrap">${buildTable(nodes, false, tblId)}</div>`;
     }
-
     return nodes.map(node => {
       const uid      = safeUID(level, node.dim, node.key);
       const dimLabel = ALL_DIMS.find(d => d.id === node.dim)?.label ?? node.dim;
-      // Renderizar los hijos de este nodo recursivamente
       const inner    = renderNodes(node.children, level + 1);
 
-      if (level === 0) {
-        return `
-          <div class="ot-group ${level === _activeDims.length - 1 ? 'collapsed' : ''}" id="${uid}">
-            <div class="ot-group-header dim-${node.dim}" onclick="OTComponent._toggle('${uid}')">
-              <svg class="ot-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-              <span class="ot-group-dim-badge badge-${node.dim}">${dimLabel}</span>
-              <span class="ot-group-key${node.noAsig?' no-asig':''}">${escH(node.key)}</span>
-              <span class="ot-group-count">${node.count} OT${node.count!==1?'s':''}</span>
-            </div>
-            <div class="ot-group-body">${inner}</div>
-          </div>`;
-      }
+      if (level === 0) return `
+        <div class="ot-group ${level === _activeDims.length - 1 ? 'collapsed' : ''}" id="${uid}">
+          <div class="ot-group-header dim-${node.dim}" onclick="OTComponent._toggle('${uid}')">
+            <svg class="ot-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            <span class="ot-group-dim-badge badge-${node.dim}">${dimLabel}</span>
+            <span class="ot-group-key${node.noAsig?' no-asig':''}">${escH(node.key)}</span>
+            <span class="ot-group-count">${node.count} OT${node.count!==1?'s':''}</span>
+          </div>
+          <div class="ot-group-body">${inner}</div>
+        </div>`;
 
-      if (level === 1) {
-        return `
-          <div class="ot-subgroup ${level === _activeDims.length - 1 ? 'collapsed' : ''}" id="${uid}">
-            <div class="ot-subgroup-header dim-${node.dim}" onclick="OTComponent._toggle('${uid}')">
-              <svg class="ot-subgroup-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-              <span class="ot-group-dim-badge badge-${node.dim}" style="font-size:0.57rem;padding:0.12rem 0.4rem;">${dimLabel}</span>
-              <span class="ot-subgroup-key${node.noAsig?' no-asig':''}">${escH(node.key)}</span>
-              <span class="ot-subgroup-cnt">${node.count} OTs</span>
-            </div>
-            <div class="ot-subgroup-body">${inner}</div>
-          </div>`;
-      }
+      if (level === 1) return `
+        <div class="ot-subgroup ${level === _activeDims.length - 1 ? 'collapsed' : ''}" id="${uid}">
+          <div class="ot-subgroup-header dim-${node.dim}" onclick="OTComponent._toggle('${uid}')">
+            <svg class="ot-subgroup-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            <span class="ot-group-dim-badge badge-${node.dim}" style="font-size:0.57rem;padding:0.12rem 0.4rem;">${dimLabel}</span>
+            <span class="ot-subgroup-key${node.noAsig?' no-asig':''}">${escH(node.key)}</span>
+            <span class="ot-subgroup-cnt">${node.count} OTs</span>
+          </div>
+          <div class="ot-subgroup-body">${inner}</div>
+        </div>`;
 
-      // Nivel 2+
       return `
         <div class="ot-sub2group ${level === _activeDims.length - 1 ? 'collapsed' : ''}" id="${uid}">
           <div class="ot-sub2group-header" onclick="OTComponent._toggle('${uid}')">
-            <svg class="ot-sub2group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
+            <svg class="ot-sub2group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             <span class="ot-sub2group-dim">${dimLabel}</span>
             <span class="ot-sub2group-key${node.noAsig?' no-asig':''}">${escH(node.key)}</span>
             <span class="ot-sub2group-cnt">${node.count} OTs</span>
@@ -519,15 +449,9 @@ const OTComponent = (() => {
   }
 
   function safeUID(level, dim, key) {
-    // Limpiamos el texto igual que antes, pero añadimos un sufijo aleatorio único
-    const cleanStr = ('g' + level + '_' + dim + '_' + key)
-      .replace(/\s+/g,'_')
-      .replace(/[^a-zA-Z0-9_-]/g,'')
-      .slice(0, 50); // Reducimos el slice para dar espacio al sufijo
-      
-    const randomSuffix = Math.random().toString(36).slice(2, 7);
-    
-    return `${cleanStr}_${randomSuffix}`;
+    const clean = ('g' + level + '_' + dim + '_' + key)
+      .replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,50);
+    return `${clean}_${Math.random().toString(36).slice(2,7)}`;
   }
 
   function _toggle(uid) {
@@ -538,72 +462,49 @@ const OTComponent = (() => {
   // TABLA
   // ══════════════════════════════════════════════════════════
   function buildTable(rows, showArea = false, tableId = 'tbl_' + Math.random().toString(36).slice(2,7)) {
-    if (!rows || rows.length === 0) {
+    if (!rows || rows.length === 0)
       return `<div style="padding:1rem 1.5rem;font-size:0.8rem;color:var(--text-muted);">Sin órdenes.</div>`;
-    }
-
-    // Guardar rows en cache para re-paginar sin reconstruir el árbol
     _tableCache.set(tableId, { rows, showArea });
-    const page  = _tablePages.get(tableId) ?? 0;
-    _tablePages.set(tableId, page);
-
-    return _renderTablePage(tableId, page);
+    _tablePages.set(tableId, _tablePages.get(tableId) ?? 0);
+    return _renderTablePage(tableId, _tablePages.get(tableId));
   }
 
   function _renderTablePage(tableId, page) {
     const cached = _tableCache.get(tableId);
     if (!cached) return '';
-
     const { rows, showArea } = cached;
-    const total    = rows.length;
-    const pages    = Math.ceil(total / PAGE_SIZE);
-    const start    = page * PAGE_SIZE;
-    const pageRows = rows.slice(start, start + PAGE_SIZE);
+    const total = rows.length, pages = Math.ceil(total / PAGE_SIZE);
+    const start = page * PAGE_SIZE, pageRows = rows.slice(start, start + PAGE_SIZE);
 
     const extraH = showArea ? '<th>Área</th><th>Equipo</th>' : '';
-    const thead  = `<tr>
+    const thead = `<tr>
       <th>ID Orden</th><th>Sistema</th><th>Descripción</th><th>Tipo Proceso</th>
       <th>Fecha Inicio</th><th>Semana</th><th>Estado</th><th>Compra</th>${extraH}
     </tr>`;
 
-    // — paginación igual que tienes ahora pero con tableId —
-    const WINDOW = 10;
-    const half   = Math.floor(WINDOW / 2);
+    const WINDOW = 10, half = Math.floor(WINDOW / 2);
     let winStart = Math.max(0, page - half);
     let winEnd   = Math.min(pages - 1, winStart + WINDOW - 1);
     if (winEnd - winStart < WINDOW - 1) winStart = Math.max(0, winEnd - WINDOW + 1);
-    const btnPages          = Array.from({ length: winEnd - winStart + 1 }, (_, i) => winStart + i);
-    const showLeftEllipsis  = winStart > 0;
-    const showRightEllipsis = winEnd < pages - 1;
+    const btnPages = Array.from({ length: winEnd - winStart + 1 }, (_, i) => winStart + i);
 
     const pagination = pages > 1 ? `
       <div class="ot-pagination">
         <span class="ot-pagination-info">
-          <strong>${start + 1}–${Math.min(start + PAGE_SIZE, total)}</strong>
+          <strong>${start+1}–${Math.min(start+PAGE_SIZE,total)}</strong>
           <span>de ${total} órdenes</span>
         </span>
         <div class="ot-pagination-btns">
-          <button class="ot-page-btn nav-btn" ${page === 0 ? 'disabled' : ''}
-            onclick="OTComponent._goTablePage('${tableId}',${page - 1})">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
+          <button class="ot-page-btn nav-btn" ${page===0?'disabled':''}
+            onclick="OTComponent._goTablePage('${tableId}',${page-1})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          ${showLeftEllipsis ? `
-            <button class="ot-page-btn" onclick="OTComponent._goTablePage('${tableId}',0)">1</button>
-            <span class="ot-page-ellipsis">…</span>` : ''}
-          ${btnPages.map(i => `
-            <button class="ot-page-btn ${i === page ? 'active' : ''}"
-              onclick="OTComponent._goTablePage('${tableId}',${i})">${i + 1}</button>
-          `).join('')}
-          ${showRightEllipsis ? `
-            <span class="ot-page-ellipsis">…</span>
-            <button class="ot-page-btn" onclick="OTComponent._goTablePage('${tableId}',${pages - 1})">${pages}</button>` : ''}
-          <button class="ot-page-btn nav-btn" ${page >= pages - 1 ? 'disabled' : ''}
-            onclick="OTComponent._goTablePage('${tableId}',${page + 1})">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
+          ${winStart>0?`<button class="ot-page-btn" onclick="OTComponent._goTablePage('${tableId}',0)">1</button><span class="ot-page-ellipsis">…</span>`:''}
+          ${btnPages.map(i=>`<button class="ot-page-btn${i===page?' active':''}" onclick="OTComponent._goTablePage('${tableId}',${i})">${i+1}</button>`).join('')}
+          ${winEnd<pages-1?`<span class="ot-page-ellipsis">…</span><button class="ot-page-btn" onclick="OTComponent._goTablePage('${tableId}',${pages-1})">${pages}</button>`:''}
+          <button class="ot-page-btn nav-btn" ${page>=pages-1?'disabled':''}
+            onclick="OTComponent._goTablePage('${tableId}',${page+1})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
       </div>` : '';
@@ -619,18 +520,12 @@ const OTComponent = (() => {
 
   function _goTablePage(tableId, page) {
     _tablePages.set(tableId, page);
-
     const wrap = document.getElementById(`tbl-wrap-${tableId}`);
     if (!wrap) return;
-
-    // Reemplazar solo el contenido de esa tabla, grupos intactos
     wrap.outerHTML = _renderTablePage(tableId, page);
-
-    // Scroll al inicio del contenedor padre del grupo, no de toda la página
-    const groupBody = document.getElementById(`tbl-wrap-${tableId}`)
-      ?.closest('.ot-group-body, .ot-subgroup-body, .ot-sub2group-body, .ot-flat-table-wrap');
-    
-    groupBody?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById(`tbl-wrap-${tableId}`)
+      ?.closest('.ot-group-body,.ot-subgroup-body,.ot-sub2group-body,.ot-flat-table-wrap')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function buildRow(row, showArea = false) {
@@ -659,169 +554,14 @@ const OTComponent = (() => {
       </tr>`;
   }
 
-  // ══════════════════════════════════════════════════════════
-  // MODAL
-  // ══════════════════════════════════════════════════════════
   function openModal(row) {
-    if (window.ModalComponent) {
-      ModalComponent.open(row);
-    } else {
-      console.error("ModalComponent no está cargado.");
-    }
-    /*const root = document.getElementById('ot-modal-root');
-    if (!root) return;
-
-    const sc   = statusToClass(row.Estatus);
-    const eIdx = ETAPA_IDX[row.TipoProceso] ?? 'x';
-    const sem  = row.Semana ? `Semana ${String(row.Semana).padStart(2,'0')}` : '—';
-
-    root.innerHTML = `
-      <div class="ot-modal-backdrop" id="ot-backdrop">
-        <div class="ot-modal" role="dialog" aria-modal="true">
-
-          <div class="ot-modal-header">
-            <div class="ot-modal-header-left">
-              <div class="ot-modal-id-badge">${escH(row.ID_Orden)}</div>
-              <div class="ot-modal-title">${escH(row.Descripcion)}</div>
-              <div class="ot-modal-area">
-                <span>${escH(row.Area)}</span>
-                <span class="ot-modal-area-sep">·</span>
-                <span>${escH(row.ID_EQUIPO)} — ${escH(row.ITEM)}</span>
-                <span class="ot-modal-area-sep">·</span>
-                <span>${escH(row.Sistema)}</span>
-              </div>
-            </div>
-            <div class="ot-modal-status-wrap">
-              <button class="btn-modal-close" id="btn-modal-close" aria-label="Cerrar">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-              <span class="ot-status ${sc}">
-                <span class="ot-status-dot"></span>${escH(row.Estatus)}
-              </span>
-            </div>
-          </div>
-
-          <div class="ot-modal-body">
-
-            <div class="ot-modal-section">
-              <div class="ot-modal-section-title">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/>
-                  <path d="M16 3H8v4h8V3z"/>
-                </svg>
-                Identificación
-              </div>
-              <div class="ot-modal-grid">
-                ${mf('ID de Orden',     row.ID_Orden)}
-                ${mf('Área',            row.Area)}
-                ${mf('Equipo (ID)',     row.ID_EQUIPO)}
-                ${mf('Item / Equipo',  row.ITEM)}
-                ${mf('Sistema',         row.Sistema)}
-                ${mf('Tipo de Proceso', '',
-                  `<span class="ot-etapa-chip etapa-${eIdx}">${ETAPA_SHORT[row.TipoProceso] ?? escH(row.TipoProceso||'—')}</span>`)}
-              </div>
-            </div>
-
-            <div class="ot-modal-section">
-              <div class="ot-modal-section-title">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                Planificación
-              </div>
-              <div class="ot-modal-grid">
-                ${mf('Estado', '',
-                  `<span class="ot-status ${sc}" style="font-size:0.72rem;"><span class="ot-status-dot"></span>${escH(row.Estatus)}</span>`)}
-                ${mf('Semana asignada',  sem)}
-                ${mf('Fecha de inicio',  row.FechaInicio)}
-                ${mf('Fecha conclusión', row.FechaConclusion)}
-              </div>
-            </div>
-
-            <div class="ot-modal-section">
-              <div class="ot-modal-section-title">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-                  <line x1="3" y1="6" x2="21" y2="6"/>
-                  <path d="M16 10a4 4 0 01-8 0"/>
-                </svg>
-                Compras y Materiales
-              </div>
-              <div class="ot-modal-grid">
-                ${mf('Tiene solicitud', row.TieneSolicitud)}
-                ${mf('N° Solicitud',    row.NSolicitud)}
-                ${mf('N° Orden Compra', row.NOrdenCompra)}
-                ${mf('Fecha entrega',   row.FechaEntrega)}
-              </div>
-            </div>
-
-            ${row.Observaciones ? `
-            <div class="ot-modal-section">
-              <div class="ot-modal-section-title">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                </svg>
-                Observaciones
-              </div>
-              <div style="font-size:0.85rem;color:var(--text-primary);line-height:1.7;
-                          background:var(--color-gray-50);padding:0.85rem 1rem;
-                          border-radius:var(--radius-md);border-left:3px solid var(--color-main-light);">
-                ${escH(row.Observaciones)}
-              </div>
-            </div>` : ''}
-
-          </div>
-
-          <div class="ot-modal-footer">
-            <button class="btn-modal-secondary" id="btn-modal-footer-close">Cerrar</button>
-          </div>
-        </div>
-      </div>`;
-
-    // Bind cierre
-    document.getElementById('btn-modal-close')?.addEventListener('click', closeModal);
-    document.getElementById('btn-modal-footer-close')?.addEventListener('click', closeModal);
-    document.getElementById('ot-backdrop')?.addEventListener('click', e => {
-      if (e.target === e.currentTarget) closeModal();
-    });
-    document.addEventListener('keydown', escHandler); */
+    if (window.ModalComponent) ModalComponent.open(row);
+    else console.error('ModalComponent no está cargado.');
   }
 
-  /*function closeModal() {
-    const root = document.getElementById('ot-modal-root');
-    const bd   = document.getElementById('ot-backdrop');
-    document.removeEventListener('keydown', escHandler);
-    if (bd) {
-      bd.style.transition = 'opacity 0.18s ease';
-      bd.style.opacity    = '0';
-      const m = bd.querySelector('.ot-modal');
-      if (m) { m.style.transition = 'all 0.18s ease'; m.style.transform = 'scale(0.95) translateY(8px)'; m.style.opacity = '0'; }
-      setTimeout(() => { if (root) root.innerHTML = ''; }, 200);
-    } else if (root) {
-      root.innerHTML = '';
-    }
-  }
-
-  function escHandler(e) { if (e.key === 'Escape') closeModal(); }*/
-
-  // ── Helpers ──────────────────────────────────────────────
   function statusToClass(s) {
     return { 'Programado':'status-programado','En proceso':'status-en-proceso',
              'Completado':'status-completado','Pendiente':'status-pendiente' }[s] ?? 'status-programado';
-  }
-
-  function mf(label, val, customHtml) {
-    const empty = !val || String(val).trim() === '';
-    const body  = customHtml
-      ? customHtml
-      : `<div class="ot-modal-val${empty?' empty':''}">${empty ? '—' : escH(String(val))}</div>`;
-    return `<div class="ot-modal-field"><div class="ot-modal-label">${label}</div>${body}</div>`;
   }
 
   function escH(s) {
@@ -835,13 +575,16 @@ const OTComponent = (() => {
   }
 
   function _goPage(page) {
-  _currentPage = page;
-  renderList();
-  // Scroll suave al inicio de la lista
-  document.getElementById('ot-list-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
+    _currentPage = page;
+    renderList();
+    document.getElementById('ot-list-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
-return { mount, onEnter, _toggle, _addDim, _removeDim, _moveDim,
-         _applyPreset, _clearGroups, _goPage, _goTablePage };
-})();
-
+  return {
+    mount, onEnter,
+    _toggle, _addDim, _removeDim, _moveDim,
+    _applyPreset, _clearGroups,
+    _goPage, _goTablePage,
+    _filterByKPI,
+  };
+})(); 

@@ -1,0 +1,230 @@
+/* ============================================================
+   CADASA TALLER — ordenes.patch.css
+   Parches sobre ordenes.css para el nuevo layout v4
+   Añade este archivo DESPUÉS de ordenes.css en el index.html
+   ============================================================ */
+ 
+/* ── 1. TOP BAR (búsqueda + reload) ─────────────────────── */
+.ot-top-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  margin-bottom: 0.75rem;
+}
+ 
+.ot-top-bar .ot-search-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+}
+ 
+.ot-top-bar .ot-search-wrap svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+ 
+.ot-top-bar .ot-search {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  color: var(--text);
+  outline: none;
+}
+ 
+.ot-top-bar .ot-search::placeholder {
+  color: var(--text-muted);
+}
+ 
+/* ── 2. KPIs CLICKEABLES ────────────────────────────────── */
+.ot-kpi {
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+ 
+.ot-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+}
+ 
+.ot-kpi.kpi-active {
+  border-color: var(--accent, #004643) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #004643) 20%, transparent) !important;
+  background: color-mix(in srgb, var(--accent, #004643) 6%, var(--surface)) !important;
+}
+ 
+.ot-kpi-active-badge {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--accent, #004643);
+  background: color-mix(in srgb, var(--accent, #004643) 12%, transparent);
+  border-radius: 99px;
+  padding: 0.1rem 0.35rem;
+  line-height: 1.4;
+}
+ 
+/* ── 3. PANEL AGRUPACIÓN SIMPLIFICADO ───────────────────── */
+.ot-grp-simple {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  padding: 0.65rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  margin-bottom: 0.75rem;
+}
+ 
+.ot-grp-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding-right: 0.25rem;
+  border-right: 1px solid var(--border);
+  margin-right: 0.25rem;
+  align-self: center;
+}
+ 
+.ot-grp-active,
+.ot-grp-available {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+ 
+.ot-grp-none {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+ 
+.ot-grp-arrow {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0.1rem;
+}
+ 
+.ot-grp-sep {
+  font-size: 1rem;
+  color: var(--text-muted);
+  padding: 0 0.15rem;
+  align-self: center;
+}
+ 
+/* Chip base */
+.ot-grp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.28rem 0.6rem;
+  border-radius: 99px;
+  border: 1.5px solid transparent;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+ 
+/* Chip activo */
+.ot-grp-chip.active {
+  background: color-mix(in srgb, var(--accent, #004643) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent, #004643) 35%, transparent);
+  color: var(--accent, #004643);
+}
+ 
+.ot-grp-chip.active button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 0.7rem;
+  padding: 0 0.1rem;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+.ot-grp-chip.active button:hover { opacity: 1; }
+.ot-grp-chip.active button.rm { color: var(--danger, #c0392b); opacity: 0.5; }
+.ot-grp-chip.active button.rm:hover { opacity: 1; }
+ 
+/* Chip disponible */
+.ot-grp-chip.avail {
+  background: var(--surface-alt, var(--bg));
+  border-color: var(--border);
+  color: var(--text-secondary, var(--text-muted));
+  cursor: pointer;
+}
+.ot-grp-chip.avail:hover {
+  border-color: var(--accent, #004643);
+  color: var(--accent, #004643);
+  background: color-mix(in srgb, var(--accent, #004643) 6%, var(--surface));
+}
+ 
+/* Presets */
+.ot-grp-presets {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-left: auto;         /* empuja los presets a la derecha */
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--border);
+}
+ 
+.ot-grp-preset {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.22rem 0.6rem;
+  border-radius: 99px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.ot-grp-preset:hover {
+  border-color: var(--accent, #004643);
+  color: var(--accent, #004643);
+}
+.ot-grp-preset.on {
+  background: var(--accent, #004643);
+  border-color: var(--accent, #004643);
+  color: #fff;
+}
+.ot-grp-preset.clear {
+  border-color: var(--danger, #c0392b);
+  color: var(--danger, #c0392b);
+}
+.ot-grp-preset.clear:hover {
+  background: var(--danger, #c0392b);
+  color: #fff;
+}
+ 
+/* Ocultar los paneles legacy que ya no se usan si quedan en el DOM */
+.ot-page-header,
+.ot-source-badge,
+.ot-toolbar,
+.ot-grouping-panel .ot-grouping-header,
+.ot-grouping-panel .ot-grouping-body,
+.ot-grouping-panel .ot-grouping-presets {
+  display: none !important;
+}
+ 
