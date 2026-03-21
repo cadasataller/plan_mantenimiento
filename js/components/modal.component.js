@@ -240,25 +240,41 @@ const ModalComponent = (() => {
   // GRÁFICAS
   // ══════════════════════════════════════════════════════════
   function renderCharts(ots) {
-    const kpis    = OTWorkStore.calcKPIs(ots);
-    // DESPUÉS — solo la OM actual
-    // DESPUÉS
+    const kpis        = OTWorkStore.calcKPIs(ots);
     const omsDelEquipo = OTStore.getAll().filter(o => o.ID_EQUIPO === _currentOM.ID_EQUIPO);
-    const equipos      = OTWorkStore.calcEquipoAvance(omsDelEquipo);
-    const equipo       = equipos[0];
+    const equipos     = OTWorkStore.calcEquipoAvance(omsDelEquipo);
+    const equipo      = equipos[0];
+
+    const pctColor = kpis.pctConcluida >= 75 ? '#2D8A4E'
+                   : kpis.pctConcluida >= 40 ? '#4caf50'
+                   : kpis.pctConcluida >  0  ? '#81c784'
+                   : '#B8B3A7';
 
     return `
-      <!-- KPIs resumen -->
-      <div class="ot-modal-kpis">
-        ${mkpi(kpis.total,         'Total OTs')}
-        ${mkpi(kpis.horasTotal.toFixed(1), 'Horas totales')}
-        ${mkpi(kpis.mecanicos,     'Mecánicos')}
-        ${mkpi(kpis.pctConcluida + '%', 'Concluido')}
+      <!-- 1. Hero: avance general -->
+      <div class="ot-chart-hero">
+        <div class="ot-chart-hero-left">
+          <div class="ot-chart-hero-label">Avance general</div>
+          <div class="ot-chart-hero-pct">
+            ${kpis.pctConcluida}<span>%</span>
+          </div>
+          <div class="ot-chart-hero-sub">
+            ${kpis.counts['Concluida'] ?? 0} completadas de ${kpis.total} órdenes
+          </div>
+        </div>
+        <div class="ot-chart-hero-bar-wrap">
+          <div class="ot-chart-hero-track">
+            <div class="ot-chart-hero-fill" style="width:${Math.max(kpis.pctConcluida, 2)}%;background:${pctColor};"></div>
+          </div>
+          <div class="ot-chart-hero-scale">
+            <span>0%</span><span>50%</span><span>100%</span>
+          </div>
+        </div>
       </div>
 
+      <!-- 2. Dona + Avance del equipo -->
       <div class="ot-charts-panel">
 
-        <!-- Dona de estados -->
         <div class="ot-chart-card">
           <div class="ot-chart-card-title">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -267,33 +283,39 @@ const ModalComponent = (() => {
           ${renderDonut(kpis)}
         </div>
 
-        <!-- Barras de avance de equipo -->
-        
         <div class="ot-chart-card">
           <div class="ot-chart-card-title">
             <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
             Avance del Equipo
           </div>
           ${equipo ? `
-            <div style="padding:0.75rem 0;">
-              <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.25rem;">
+            <div style="padding:0.5rem 0;">
+              <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.6rem;">
                 ${equipo.equipoId} — ${equipo.item}
               </div>
               <div style="display:flex;align-items:center;gap:0.75rem;">
                 <div style="flex:1;height:10px;background:var(--color-gray-100);border-radius:99px;overflow:hidden;">
-                  <div style="height:100%;width:${equipo.pct}%;background:var(--color-main);border-radius:99px;transition:width 0.4s ease;"></div>
+                  <div style="height:100%;width:${Math.max(equipo.pct, 2)}%;background:${pctColor};border-radius:99px;transition:width 0.4s ease;"></div>
                 </div>
-                <span style="font-family:var(--font-mono);font-size:0.85rem;font-weight:700;color:var(--color-main);min-width:36px;">
+                <span style="font-family:var(--font-mono);font-size:0.85rem;font-weight:700;color:${pctColor};min-width:36px;">
                   ${equipo.pct}%
                 </span>
               </div>
-              <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.35rem;">
+              <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.4rem;">
                 ${equipo.concluidas} de ${equipo.total} órdenes completadas
               </div>
-            </div>` 
-          : '<div style="font-size:0.8rem;color:var(--text-muted);">Sin datos de equipo.</div>'}
+            </div>`
+          : `<div style="font-size:0.8rem;color:var(--text-muted);">Sin datos de equipo.</div>`}
         </div>
 
+      </div>
+
+      <!-- 3. KPIs de soporte -->
+      <div class="ot-modal-kpis">
+        ${mkpi(kpis.total,                    'Total OTs')}
+        ${mkpi(kpis.horasTotal.toFixed(1),    'Horas totales')}
+        ${mkpi(kpis.mecanicos,                'Mecánicos')}
+        ${mkpi(kpis.pctConcluida + '%',       'Concluido')}
       </div>`;
   }
 
