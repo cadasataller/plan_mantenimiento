@@ -110,7 +110,7 @@ const OTStore = (() => {
       const user = AuthService.getUser();
 
       // Solo filtrar por área en la query si no es admin
-      const userArea = (authenticated && user?.role !== 'admin' && user?.area)
+      const userArea = (authenticated && user?.role !== 'ADMIN' && user?.area)
         ? user.area
         : null;
 
