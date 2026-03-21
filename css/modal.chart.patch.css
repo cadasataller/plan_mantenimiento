@@ -1,0 +1,71 @@
+/* ── Hero de avance general ── */
+.ot-chart-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: var(--color-gray-50);
+  border: 1px solid var(--color-gray-100);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.ot-chart-hero-left {
+  flex-shrink: 0;
+}
+
+.ot-chart-hero-label {
+  font-size: 0.67rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+  font-weight: 600;
+}
+
+.ot-chart-hero-pct {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.ot-chart-hero-pct span {
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.ot-chart-hero-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.ot-chart-hero-bar-wrap {
+  flex: 1;
+}
+
+.ot-chart-hero-track {
+  height: 12px;
+  background: var(--color-gray-100);
+  border-radius: 99px;
+  overflow: hidden;
+  border: 1px solid var(--color-gray-200);
+}
+
+.ot-chart-hero-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.5s cubic-bezier(.34,1.2,.64,1);
+}
+
+.ot-chart-hero-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+  padding: 0 2px;
+}
