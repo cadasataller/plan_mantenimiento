@@ -344,9 +344,15 @@ const OTComponent = (() => {
 
     // Etiqueta de filtro activo
     const ctx = document.getElementById('ot-gauge-ctx');
+    const label = document.querySelector('#ot-gauge-card .ot-gauge-label');
     if (ctx) {
       const q = OTStore.getFilters().search;
       ctx.textContent = q ? `Filtro de búsqueda: "${q}"` : '';
+      if (label) {
+        label.textContent = q
+          ? `AVANCE DE COMPLETADO PARA ${q.toUpperCase()}`
+          : 'AVANCE DE COMPLETADO';
+      }
     }
   }
 
