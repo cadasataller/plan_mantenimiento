@@ -70,15 +70,16 @@ const ModalComponent = (() => {
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               Información
             </div>
-            <div class="ot-modal-tab" data-tab="graficas">
-              <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-              Gráficas
-            </div>
             <div class="ot-modal-tab" data-tab="ots">
               <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
               Órdenes de Trabajo
               <span class="dash-tab-badge" id="modal-ot-badge" style="display:none"></span>
             </div>
+            <div class="ot-modal-tab" data-tab="graficas">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+              Gráficas
+            </div>
+            
           </div>
 
           <!-- Cuerpo con tabs -->
@@ -144,6 +145,15 @@ const ModalComponent = (() => {
 
             </div>
 
+            <!-- Tab: OTs -->
+            <div class="ot-modal-tab-panel" id="tab-ots">
+              <div id="ots-content">
+                <div class="ot-work-loading">
+                  <div class="spinner"></div> Cargando órdenes de trabajo…
+                </div>
+              </div>
+            </div>
+
             <!-- Tab: Gráficas -->
             <div class="ot-modal-tab-panel" id="tab-graficas">
               <div id="graficas-content">
@@ -153,14 +163,7 @@ const ModalComponent = (() => {
               </div>
             </div>
 
-            <!-- Tab: OTs -->
-            <div class="ot-modal-tab-panel" id="tab-ots">
-              <div id="ots-content">
-                <div class="ot-work-loading">
-                  <div class="spinner"></div> Cargando órdenes de trabajo…
-                </div>
-              </div>
-            </div>
+            
 
           </div>
 
