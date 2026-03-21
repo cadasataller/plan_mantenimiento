@@ -289,9 +289,8 @@ const OTComponent = (() => {
             },
           },
           pointer: {
-            icon: 'path://M12.8,0.7l12.3,29.4c1.3,3.2-1.4,6.4-4.8,5.5L0,28.1L12.8,0.7z',
-            length: '60%',
-            width: 14,
+            length: '65%',
+            width: 3,
             offsetCenter: [0, '-10%'],
             itemStyle: { color: '#2d3748' },
           },
@@ -306,6 +305,11 @@ const OTComponent = (() => {
             color: '#888',
             fontSize: 11,
             formatter: v => v + '%',
+          },
+          anchor: {
+            show: true,
+            size: 10,
+            itemStyle: { color: '#2d3748', borderWidth: 2, borderColor: '#fff' },
           },
           title: {
             offsetCenter: [0, '-28%'],
