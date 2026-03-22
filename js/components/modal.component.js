@@ -6,10 +6,10 @@
 const ModalComponent = (() => {
 
   const STATUS_COLORS = {
-    'Concluida':  { hex: '#2D8A4E', cls: 'color-concluida',  badge: 'status-completado' },
-    'En Proceso': { hex: '#1A6B9A', cls: 'color-en-proceso', badge: 'status-en-proceso' },
-    'Programado': { hex: '#B8B3A7', cls: 'color-programado', badge: 'status-programado' },
-    'Detenido':   { hex: '#C0392B', cls: 'color-detenido',   badge: 'status-pendiente'  },
+    'Concluida':  { hex: '#2D8A4E', badge: 'status-completado' },
+    'En Proceso': { hex: '#1A6B9A', badge: 'status-en-proceso' },
+    'Programado': { hex: '#B8B3A7', badge: 'status-programado' },
+    'Detenido':   { hex: '#C0392B', badge: 'status-pendiente'  },
   };
 
   const ESTADOS_EDIT = [
@@ -24,7 +24,7 @@ const ModalComponent = (() => {
   let _currentOM = null;
   let _activeTab = 'info';
   let _editMode  = false;
-  let _editState = {};
+  let _editState = {};   // espejo de los campos mientras se edita
   let _saving    = false;
 
   // ══════════════════════════════════════════════════════════
@@ -136,7 +136,7 @@ const ModalComponent = (() => {
   }
 
   // ══════════════════════════════════════════════════════════
-  // PANEL INFO (lectura / edición)
+  // PANEL INFO — lectura y edición
   // ══════════════════════════════════════════════════════════
   function _refreshInfoPanel() {
     const panel = document.getElementById('tab-info');
@@ -145,9 +145,14 @@ const ModalComponent = (() => {
     const om     = _currentOM;
     const omSC   = omStatusClass(om.Estatus);
     const eIdx   = ETAPA_IDX[om.TipoProceso] ?? 'x';
-    const sem    = om.Semana ? `Semana ${String(om.Semana).padStart(2,'0')}` : '—';
-    const curEst = _editMode ? (_editState.estatus ?? om.Estatus) : om.Estatus;
-    const curObs = _editMode ? (_editState.observaciones ?? om.Observaciones ?? '') : (om.Observaciones ?? '');
+
+    // Valores actuales (del estado de edición o del objeto real)
+    const v = (key, fallback = '') => _editMode
+      ? (_editState[key] ?? om[key] ?? fallback)
+      : (om[key] ?? fallback);
+
+    // Semana: mostrar como "Semana XX" o "—"
+    const semDisplay = om.Semana ? `Semana ${String(om.Semana).padStart(2,'0')}` : '—';
 
     panel.innerHTML = `
       ${_editMode ? `
@@ -159,6 +164,7 @@ const ModalComponent = (() => {
           Modo edición activo — modifica los campos y guarda los cambios
         </div>` : ''}
 
+      <!-- ── Identificación (solo lectura siempre) ── -->
       <div class="ot-modal-section">
         <div class="ot-modal-section-title">
           <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 3H8v4h8V3z"/></svg>
@@ -174,6 +180,7 @@ const ModalComponent = (() => {
         </div>
       </div>
 
+      <!-- ── Planificación (estatus + fechas editables) ── -->
       <div class="ot-modal-section">
         <div class="ot-modal-section-title">
           <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -181,31 +188,88 @@ const ModalComponent = (() => {
           ${_editMode ? '<span class="edit-section-tag">editable</span>' : ''}
         </div>
         <div class="ot-modal-grid">
-          <div class="ot-modal-field">
+
+          <!-- Estado -->
+          <div class="ot-modal-field" style="grid-column:1/-1;">
             <div class="ot-modal-label">Estado</div>
             ${_editMode
-              ? _renderStatusPicker(curEst)
+              ? _renderStatusPicker(v('estatus', om.Estatus))
               : `<span class="ot-status ${omSC}" style="font-size:0.72rem;"><span class="ot-status-dot"></span>${h(om.Estatus)}</span>`}
           </div>
-          ${mf('Semana asignada',  sem)}
-          ${mf('Fecha de inicio',  om.FechaInicio  || '—')}
-          ${mf('Fecha conclusión', om.FechaConclusion || '—')}
+
+          <!-- Semana (solo lectura, siempre) -->
+          ${mf('Semana asignada', '', `
+            <div class="ot-modal-val">${semDisplay}</div>
+            ${_editMode ? '<div class="edit-field-hint">Se recalcula al cambiar la fecha de inicio.</div>' : ''}
+          `)}
+
+          <!-- Fecha inicio (solo lectura, automática) -->
+          ${mf('Fecha de inicio', '', `
+            <div class="ot-modal-val${!om.FechaInicio || om.FechaInicio === '—' ? ' empty' : ''}">
+              ${om.FechaInicio || '—'}
+            </div>
+            ${_editMode ? '<div class="edit-field-hint">Se registra automáticamente al cambiar el estado a En Proceso.</div>' : ''}
+          `)}
+
+          <!-- Fecha conclusión (solo lectura, automática) -->
+          ${mf('Fecha conclusión', '', `
+            <div class="ot-modal-val${!om.FechaConclusion || om.FechaConclusion === '—' ? ' empty' : ''}">
+              ${om.FechaConclusion || '—'}
+            </div>
+            ${_editMode ? '<div class="edit-field-hint">Se completa automáticamente al marcar como Concluido.</div>' : ''}
+          `)}
+
         </div>
       </div>
 
+      <!-- ── Compras y Materiales (editables) ── -->
       <div class="ot-modal-section">
         <div class="ot-modal-section-title">
           <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
           Compras y Materiales
+          ${_editMode ? '<span class="edit-section-tag">editable</span>' : ''}
         </div>
         <div class="ot-modal-grid">
-          ${mf('Tiene solicitud', om.TieneSolicitud)}
-          ${mf('N° Solicitud',    om.NSolicitud)}
-          ${mf('N° Orden Compra', om.NOrdenCompra)}
-          ${mf('Fecha entrega',   om.FechaEntrega)}
+
+          <!-- Tiene solicitud (solo lectura, derivado) -->
+          ${mf('Tiene solicitud', '', `
+            <div class="ot-modal-val">${om.TieneSolicitud || 'No'}</div>
+            ${_editMode ? '<div class="edit-field-hint">Se actualiza automáticamente según el N° Solicitud.</div>' : ''}
+          `)}
+
+          <!-- N° Solicitud -->
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">N° Solicitud ${_editMode ? '<span class="edit-field-optional">editable</span>' : ''}</div>
+            ${_editMode
+              ? `<input type="text" id="edit-n-solicitud" class="edit-input"
+                   placeholder="Ej: SOL-2024-001"
+                   value="${h(v('nSolicitud', om.NSolicitud ?? ''))}" />`
+              : `<div class="ot-modal-val${!om.NSolicitud ? ' empty' : ''}">${om.NSolicitud || '—'}</div>`}
+          </div>
+
+          <!-- N° Orden de Compra -->
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">N° Orden Compra ${_editMode ? '<span class="edit-field-optional">editable</span>' : ''}</div>
+            ${_editMode
+              ? `<input type="text" id="edit-n-orden-compra" class="edit-input"
+                   placeholder="Ej: OC-2024-042"
+                   value="${h(v('nOrdenCompra', om.NOrdenCompra ?? ''))}" />`
+              : `<div class="ot-modal-val${!om.NOrdenCompra ? ' empty' : ''}">${om.NOrdenCompra || '—'}</div>`}
+          </div>
+
+          <!-- Fecha Entrega -->
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">Fecha entrega ${_editMode ? '<span class="edit-field-optional">editable</span>' : ''}</div>
+            ${_editMode
+              ? `<input type="date" id="edit-fecha-entrega" class="edit-input"
+                   value="${_isoDateValue(v('fechaEntrega', om.FechaEntrega))}" />`
+              : `<div class="ot-modal-val${!om.FechaEntrega ? ' empty' : ''}">${om.FechaEntrega || '—'}</div>`}
+          </div>
+
         </div>
       </div>
 
+      <!-- ── Observaciones ── -->
       <div class="ot-modal-section">
         <div class="ot-modal-section-title">
           <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
@@ -213,18 +277,36 @@ const ModalComponent = (() => {
           ${_editMode ? '<span class="edit-section-tag">editable</span>' : ''}
         </div>
         ${_editMode
-          ? `<textarea id="edit-observaciones" class="edit-textarea" placeholder="Escribe las observaciones aquí…" rows="4">${h(curObs)}</textarea>`
-          : (curObs
-              ? `<div style="font-size:0.85rem;color:var(--text-primary);line-height:1.7;background:var(--color-gray-50);padding:0.85rem 1rem;border-radius:var(--radius-md);border-left:3px solid var(--color-main-light);">${h(curObs)}</div>`
-              : `<div style="font-size:0.82rem;color:var(--color-gray-300);font-style:italic;padding:0.5rem 0;">Sin observaciones registradas.</div>`
+          ? `<textarea id="edit-observaciones" class="edit-textarea"
+               placeholder="Escribe las observaciones aquí…"
+               rows="4">${h(v('observaciones', om.Observaciones ?? ''))}</textarea>`
+          : (om.Observaciones
+              ? `<div style="font-size:0.85rem;color:var(--text-primary);line-height:1.7;
+                             background:var(--color-gray-50);padding:0.85rem 1rem;
+                             border-radius:var(--radius-md);border-left:3px solid var(--color-main-light);">
+                  ${h(om.Observaciones)}</div>`
+              : `<div style="font-size:0.82rem;color:var(--color-gray-300);font-style:italic;
+                             padding:0.5rem 0;">Sin observaciones registradas.</div>`
             )
         }
       </div>`;
 
+    // ── Bind de inputs en modo edición ───────────────────
     if (_editMode) {
+      // Status picker
       panel.addEventListener('click', _onStatusPick);
-      document.getElementById('edit-observaciones')?.addEventListener('input', e => {
-        _editState.observaciones = e.target.value;
+
+      // Inputs de texto y fecha
+      const binds = [
+        ['edit-n-solicitud',     'nSolicitud'],
+        ['edit-n-orden-compra',  'nOrdenCompra'],
+        ['edit-fecha-entrega',   'fechaEntrega'],
+        ['edit-observaciones',   'observaciones'],
+      ];
+      binds.forEach(([id, key]) => {
+        document.getElementById(id)?.addEventListener('input', e => {
+          _editState[key] = e.target.value;
+        });
       });
     }
   }
@@ -236,7 +318,7 @@ const ModalComponent = (() => {
     return `<div class="status-picker" id="status-picker">
       ${ESTADOS_EDIT.map(est => `
         <button
-          class="status-pick-btn ${est.value.toLowerCase().replace(' ', '-')} ${est.value === current ? 'active' : ''}"
+          class="status-pick-btn ${est.value.toLowerCase().replace(' ','-')} ${est.value === current ? 'active' : ''}"
           data-status-pick="${est.value}"
           type="button"
           title="${est.desc}"
@@ -271,7 +353,10 @@ const ModalComponent = (() => {
          </button>`
       : `<button class="btn-modal-secondary" id="btn-modal-footer-close">Cerrar</button>
          <button class="btn-modal-edit" id="btn-modal-edit">
-           <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+           <svg viewBox="0 0 24 24">
+             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+           </svg>
            Editar
          </button>
          <button class="btn-modal-primary" id="btn-ver-ots">
@@ -299,9 +384,13 @@ const ModalComponent = (() => {
   // ══════════════════════════════════════════════════════════
   function _enterEditMode() {
     _editMode  = true;
+    // Inicializar estado con los valores actuales del objeto
     _editState = {
       estatus:       _currentOM.Estatus,
-      observaciones: _currentOM.Observaciones ?? '',
+      observaciones: _currentOM.Observaciones    ?? '',
+      nSolicitud:    _currentOM.NSolicitud        ?? '',
+      nOrdenCompra:  _currentOM.NOrdenCompra      ?? '',
+      fechaEntrega:  _currentOM.FechaEntrega      ?? '',
     };
     _refreshInfoPanel();
     _refreshFooter();
@@ -314,7 +403,7 @@ const ModalComponent = (() => {
     _refreshFooter();
   }
 
-  // ── Guardar: delega completamente a OMService ────────────
+  // ── Guardar: solo recolecta cambios y delega a OMService ─
   async function _saveEdit() {
     if (_saving) return;
     _saving = true;
@@ -338,7 +427,7 @@ const ModalComponent = (() => {
   }
 
   // ══════════════════════════════════════════════════════════
-  // SWITCH TAB
+  // TABS
   // ══════════════════════════════════════════════════════════
   function switchTab(tabId) {
     _activeTab = tabId;
@@ -447,23 +536,22 @@ const ModalComponent = (() => {
       const dash  = pct * circum;
       const color = STATUS_COLORS[st]?.hex ?? '#ccc';
       paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="22"
-        stroke-dasharray="${dash} ${circum - dash}" stroke-dashoffset="${-offset}" stroke-linecap="butt"/>`;
+        stroke-dasharray="${dash} ${circum-dash}" stroke-dashoffset="${-offset}" stroke-linecap="butt"/>`;
       offset += dash;
       legend += `<div class="ot-legend-item">
         <span class="ot-legend-dot" style="background:${color}"></span>
         <span class="ot-legend-label">${st}</span>
         <span class="ot-legend-val">${cnt}</span>
-        <span class="ot-legend-pct">${Math.round(pct * 100)}%</span>
+        <span class="ot-legend-pct">${Math.round(pct*100)}%</span>
       </div>`;
     });
 
-    if (kpis.total === 0) {
+    if (kpis.total === 0)
       paths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--color-gray-200)" stroke-width="22"/>`;
-    }
 
     return `<div class="ot-donut-wrap">
       <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">
-        <svg class="ot-donut-svg" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+        <svg class="ot-donut-svg" viewBox="0 0 160 160">
           <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--color-gray-100)" stroke-width="22"/>
           ${paths}
         </svg>
@@ -494,14 +582,12 @@ const ModalComponent = (() => {
           <strong style="color:var(--text-primary);font-family:var(--font-mono);">${ots.length}</strong> OTs ·
           <strong style="color:var(--text-primary);font-family:var(--font-mono);">${totalHoras.toFixed(1)}h</strong> totales ·
           <strong style="color:var(--color-success);font-family:var(--font-mono);">${concluidas}</strong> concluidas
-          ${totalRetraso > 0
-            ? ` · <strong style="color:var(--color-danger);font-family:var(--font-mono);">${totalRetraso.toFixed(1)}h</strong> retraso acumulado`
-            : ''}
+          ${totalRetraso > 0 ? ` · <strong style="color:var(--color-danger);font-family:var(--font-mono);">${totalRetraso.toFixed(1)}h</strong> retraso` : ''}
         </div>
       </div>`;
 
     const cards = ots.map(ot => {
-      const stKey    = ot.Estatus?.replace(/\s/g, '-') ?? '';
+      const stKey    = ot.Estatus?.replace(/\s/g,'-') ?? '';
       const badgeCls = STATUS_COLORS[ot.Estatus]?.badge ?? 'status-programado';
       return `
         <div class="ot-work-card st-${stKey}">
@@ -518,7 +604,7 @@ const ModalComponent = (() => {
               </span>
               ${ot.Semana ? `<span class="ot-work-meta-item">
                 <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                S${String(ot.Semana).padStart(2, '0')}</span>` : ''}
+                S${String(ot.Semana).padStart(2,'0')}</span>` : ''}
               <span class="ot-status ${badgeCls}" style="font-size:0.63rem;">
                 <span class="ot-status-dot"></span>${h(ot.Estatus)}
               </span>
@@ -528,12 +614,10 @@ const ModalComponent = (() => {
           </div>
           <div class="ot-work-card-right">
             <div class="ot-work-horas">${ot.Duracion.toFixed(1)} <span>hrs</span></div>
-            ${ot.Retraso > 0
-              ? `<div class="ot-work-retraso">
-                  <svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" fill="none" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>+${ot.Retraso.toFixed(1)}h retraso</div>`
-              : ''}
+            ${ot.Retraso > 0 ? `<div class="ot-work-retraso">
+              <svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" fill="none" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>+${ot.Retraso.toFixed(1)}h retraso</div>` : ''}
           </div>
         </div>`;
     }).join('');
@@ -565,7 +649,7 @@ const ModalComponent = (() => {
   }
 
   // ══════════════════════════════════════════════════════════
-  // HELPERS INTERNOS
+  // HELPERS
   // ══════════════════════════════════════════════════════════
   function _refreshHeaderBadge() {
     const badge = document.getElementById('header-status-badge');
@@ -581,7 +665,7 @@ const ModalComponent = (() => {
 
   function mf(label, val, customHtml) {
     const empty = !val || String(val).trim() === '';
-    const body  = customHtml ?? `<div class="ot-modal-val${empty?' empty':''}">${empty ? '—' : h(String(val))}</div>`;
+    const body  = customHtml ?? `<div class="ot-modal-val${empty?' empty':''}">${empty?'—':h(String(val))}</div>`;
     return `<div class="ot-modal-field"><div class="ot-modal-label">${label}</div>${body}</div>`;
   }
 

@@ -3,22 +3,50 @@
 // Lógica de negocio para actualización de Órdenes de Mantenimiento.
 // Separado del componente modal para mantener responsabilidades claras.
 // Depende de: SupabaseClient, OTStore
+//
+// Campos editables:
+//   estatus, observaciones, nSolicitud, nOrdenCompra, fechaEntrega, fechaInicio
+//
+// Campos calculados automáticamente:
+//   TieneSolicitud  → 'Si' si nSolicitud tiene valor, 'No' si está vacío
+//   Semana          → ISO week number derivada de fechaInicio
+//   Fecha inicio    → se pone al pasar a "En Proceso" si estaba vacía
+//   Fecha conclusion→ se pone al pasar a "Concluida"
 // ============================================================
 
 const OMService = (() => {
 
-  // Nombre de la tabla en Supabase
   const TABLE = 'ORDEN_MANTENIMIENTO';
   const PK    = 'ID_Orden mantenimiento';
 
-  // ── Lógica de fechas automáticas ──────────────────────────
-  // Retorna un objeto con los campos de fecha que deben actualizarse
-  // según la transición de estado. No modifica nada, solo calcula.
-  function _calcFechasAutomaticas(omActual, nuevoEstatus) {
-    const hoy    = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  // ── Calcular ISO week number de una fecha ────────────────
+  // Devuelve el número de semana del año (1-53) según ISO 8601.
+  function _isoWeek(dateStr) {
+    if (!dateStr) return null;
+    const d  = new Date(dateStr);
+    if (isNaN(d)) return null;
+    // Copiar para no mutar
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    // Jueves de la semana ISO determina el año
+    date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  }
+
+  // ── Derivar TieneSolicitud ───────────────────────────────
+  function _derivarTieneSolicitud(nSolicitud) {
+    const val = (nSolicitud ?? '').toString().trim();
+    return val.length > 0 ? 'Si' : 'No';
+  }
+
+  // ── Fechas automáticas por transición de estado ──────────
+  function _calcFechasAutomaticas(omActual, cambios) {
+    const hoy    = new Date().toISOString().split('T')[0];
     const fechas = {};
 
-    // Cambia a "En Proceso" por primera vez → poner FechaInicio si está vacía
+    const nuevoEstatus = cambios.estatus;
+
+    // Fecha inicio automática al pasar a "En Proceso" si estaba vacía
     if (
       nuevoEstatus === 'En Proceso' &&
       omActual.Estatus !== 'En Proceso' &&
@@ -27,7 +55,7 @@ const OMService = (() => {
       fechas['Fecha inicio'] = hoy;
     }
 
-    // Cambia a "Concluida" → poner FechaConclusion siempre
+    // Fecha conclusión al pasar a "Concluida"
     if (nuevoEstatus === 'Concluida' && omActual.Estatus !== 'Concluida') {
       fechas['Fecha conclusion'] = hoy;
     }
@@ -35,20 +63,48 @@ const OMService = (() => {
     return fechas;
   }
 
-  // ── Construir payload para Supabase ──────────────────────
+  // ── Construir payload completo para Supabase ─────────────
   function _buildPayload(cambios, fechasAuto) {
     const payload = {};
 
+    // Estado
     if (cambios.estatus !== undefined) {
       payload['Estatus'] = cambios.estatus;
     }
 
+    // Observaciones
     if (cambios.observaciones !== undefined) {
-      payload['Observaciones'] = cambios.observaciones || null;
+      payload['Observaciones'] = cambios.observaciones?.trim() || null;
+    }
+
+    // N° Solicitud → también deriva TieneSolicitud
+    if (cambios.nSolicitud !== undefined) {
+      const val = cambios.nSolicitud?.trim() || null;
+      payload['N° solicitud']              = val;
+      payload['Tiene solicitud de compra?'] = val ? true : false;
+    }
+
+    // N° Orden de Compra
+    if (cambios.nOrdenCompra !== undefined) {
+      payload['N° Orden de compra'] = cambios.nOrdenCompra?.trim() || null;
+    }
+
+    // Fecha Entrega
+    if (cambios.fechaEntrega !== undefined) {
+      payload['Fecha Entrega'] = cambios.fechaEntrega?.trim() || null;
     }
 
     // Mezclar fechas automáticas
-    Object.assign(payload, fechasAuto);
+    for (const [key, val] of Object.entries(fechasAuto)) {
+      if (!(key in payload)) payload[key] = val;
+    }
+
+    // Semana: se recalcula si hay una fecha de inicio en el payload
+    const fechaInicioFinal = payload['Fecha inicio'];
+    if (fechaInicioFinal) {
+      const semana = _isoWeek(fechaInicioFinal);
+      if (semana !== null) payload['Semana'] = semana;
+    }
 
     return payload;
   }
@@ -56,43 +112,56 @@ const OMService = (() => {
   // ── Actualizar en Supabase ────────────────────────────────
   async function _updateSupabase(omId, payload) {
     const db = window.SupabaseClient;
-
     const { error } = await db
       .from(TABLE)
       .update(payload)
       .eq(PK, String(omId));
-
     if (error) throw new Error(error.message);
   }
 
-  // ── Sincronizar objeto local y OTStore en memoria ─────────
+  // ── Sincronizar objeto local y OTStore ────────────────────
   function _syncLocal(omActual, payload) {
-    // Actualizar propiedades del objeto OM en memoria
-    if (payload['Estatus'] !== undefined) {
-      omActual.Estatus = payload['Estatus'];
+
+    const map = {
+      'Estatus':                     (v) => { omActual.Estatus          = v; },
+      'Observaciones':               (v) => { omActual.Observaciones     = v; },
+      'N° solicitud':                (v) => { omActual.NSolicitud         = v; },
+      'N° Orden de compra':          (v) => { omActual.NOrdenCompra       = v; },
+      'Fecha Entrega':               (v) => { omActual.FechaEntrega       = v; },
+      'Tiene solicitud de compra?':  (v) => { omActual.TieneSolicitud     = v ? 'Si' : 'No'; },
+      'Semana':                      (v) => { omActual.Semana             = v; },
+      'Fecha inicio': (v) => {
+        omActual.FechaInicio = v
+          ? new Date(v + 'T00:00:00').toLocaleDateString('es-PA')
+          : null;
+      },
+      'Fecha conclusion': (v) => {
+        omActual.FechaConclusion = v
+          ? new Date(v + 'T00:00:00').toLocaleDateString('es-PA')
+          : null;
+      },
+    };
+
+    // Aplicar sobre el objeto actual
+    for (const [key, setter] of Object.entries(map)) {
+      if (key in payload) setter(payload[key]);
     }
 
-    if (payload['Observaciones'] !== undefined) {
-      omActual.Observaciones = payload['Observaciones'];
-    }
-
-    if (payload['Fecha inicio']) {
-      omActual.FechaInicio = new Date(payload['Fecha inicio']).toLocaleDateString('es-PA');
-    }
-
-    if (payload['Fecha conclusion']) {
-      omActual.FechaConclusion = new Date(payload['Fecha conclusion']).toLocaleDateString('es-PA');
-    }
-
-    // Propagar al store global
+    // Propagar al array del store
     const allOMs = OTStore.getAll();
     const idx    = allOMs.findIndex(o => o.ID_Orden === omActual.ID_Orden);
-
     if (idx !== -1) {
-      if (payload['Estatus'] !== undefined)      allOMs[idx].Estatus        = omActual.Estatus;
-      if (payload['Observaciones'] !== undefined) allOMs[idx].Observaciones  = omActual.Observaciones;
-      if (payload['Fecha inicio'])               allOMs[idx].FechaInicio    = omActual.FechaInicio;
-      if (payload['Fecha conclusion'])           allOMs[idx].FechaConclusion = omActual.FechaConclusion;
+      Object.assign(allOMs[idx], {
+        Estatus:          omActual.Estatus,
+        Observaciones:    omActual.Observaciones,
+        NSolicitud:       omActual.NSolicitud,
+        NOrdenCompra:     omActual.NOrdenCompra,
+        FechaEntrega:     omActual.FechaEntrega,
+        TieneSolicitud:   omActual.TieneSolicitud,
+        Semana:           omActual.Semana,
+        FechaInicio:      omActual.FechaInicio,
+        FechaConclusion:  omActual.FechaConclusion,
+      });
     }
   }
 
@@ -103,13 +172,16 @@ const OMService = (() => {
   /**
    * Actualiza una OM: persiste en Supabase y sincroniza el estado local.
    *
-   * @param {object} omActual   - Objeto OM actual (se muta con los nuevos valores)
-   * @param {object} cambios    - { estatus?, observaciones? }
+   * @param {object} omActual - Objeto OM actual (se muta in-place)
+   * @param {object} cambios  - {
+   *   estatus?, observaciones?,
+   *   nSolicitud?, nOrdenCompra?, fechaEntrega?
+   * }
    * @returns {Promise<{ ok: boolean, error?: string }>}
    */
   async function actualizar(omActual, cambios) {
     try {
-      const fechasAuto = _calcFechasAutomaticas(omActual, cambios.estatus);
+      const fechasAuto = _calcFechasAutomaticas(omActual, cambios);
       const payload    = _buildPayload(cambios, fechasAuto);
 
       await _updateSupabase(omActual.ID_Orden, payload);
