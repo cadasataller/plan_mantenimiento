@@ -6,16 +6,24 @@
 
 const OTTabComponent = (() => {
 
-  let _state = 'list'; // 'list' | 'create'
-  let _om    = null;
-  let _ots   = [];
-  let _el    = null;
+  let _state   = 'list'; // 'list' | 'create'
+  let _om      = null;
+  let _ots     = [];
+  let _el      = null;   // referencia al nodo contenedor — se guarda en init
+  let _bound   = false;  // ¿ya registramos el listener en _el?
 
   // ─────────────────────────────────────────────
   function init(containerId, om, ots) {
-    _om  = om;
-    _ots = ots;
-    _el  = document.getElementById(containerId);
+    // Si ya hay un componente activo, limpiar antes de reiniciar
+    if (_bound && _el) {
+      _el.removeEventListener('click', _handleClick);
+      _bound = false;
+    }
+
+    _om    = om;
+    _ots   = ots;
+    _state = 'list';
+    _el    = document.getElementById(containerId);
     if (!_el) return;
 
     _el.innerHTML = `
@@ -138,15 +146,12 @@ const OTTabComponent = (() => {
   }
 
   // ─────────────────────────────────────────────
+  // bindEvents: registra UNA sola vez sobre _el (guardado en init).
+  // Nunca sobre document — evita listeners huérfanos al cerrar el modal.
   function bindEvents() {
-    // Usamos delegación en el contenedor padre del modal
-    // para evitar listeners duplicados con document
-    const modalRoot = document.getElementById('ot-modal-root');
-    const target    = modalRoot ?? document;
-
-    // Limpiamos listeners previos clonando el nodo
-    // (simple y seguro para este patrón de re-render)
-    target.addEventListener('click', _handleClick);
+    if (!_el || _bound) return;   // ya registrado → no duplicar
+    _el.addEventListener('click', _handleClick);
+    _bound = true;
   }
 
   async function _handleClick(e) {
@@ -219,11 +224,13 @@ const OTTabComponent = (() => {
     }
   }
 
-  // Exponer destroy para limpiar el listener si el modal se cierra
+  // destroy: usar la referencia guardada _el, NO getElementById.
+  // El nodo ya puede haber sido eliminado del DOM cuando se llama esto.
   function destroy() {
-    const modalRoot = document.getElementById('ot-modal-root');
-    const target    = modalRoot ?? document;
-    target.removeEventListener('click', _handleClick);
+    if (_el && _bound) {
+      _el.removeEventListener('click', _handleClick);
+    }
+    _bound = false;
     _state = 'list';
     _om    = null;
     _ots   = [];
