@@ -461,7 +461,10 @@ const ModalComponent = (() => {
     if (badge) { badge.textContent = ots.length; badge.style.display = 'inline'; }
 
     const otsEl = document.getElementById('ots-content');
-    if (otsEl) otsEl.innerHTML = renderOTList(ots);
+    if (otsEl) {
+      OTTabComponent.init('ots-content', om, ots);
+      OTTabComponent.bindEvents();
+    }
 
     const grafEl = document.getElementById('graficas-content');
     if (grafEl) grafEl.innerHTML = renderCharts(ots);
@@ -708,7 +711,7 @@ const ModalComponent = (() => {
     'Ensamblaje y ajuste; pruebas finales': 'Ensamblaje',
   };
 
-  return { open, close };
+  return { open, close, renderOTList};
 })();
 
 window.ModalComponent = ModalComponent;

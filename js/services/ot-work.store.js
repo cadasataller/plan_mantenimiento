@@ -125,7 +125,9 @@ const OTWorkStore = (() => {
     _cache.clear();
   }
 
-  return { getForOM, calcKPIs, calcEquipoAvance, subscribe, clearCache };
+  return { getForOM, calcKPIs, calcEquipoAvance, subscribe, clearCache, _getCache: () => _cache,
+_notify: notify,
+_mapRow: _mapRow,};
 })();
 
 window.OTWorkStore = OTWorkStore;
