@@ -76,7 +76,7 @@ const OMService = (() => {
   }
 
   // ── Construir payload completo para Supabase ─────────────
-  function _buildPayload(cambios, fechasAuto) {
+  function _buildPayload(omActual, cambios, fechasAuto) {
     const payload = {};
 
     // Estado
@@ -114,9 +114,9 @@ const OMService = (() => {
     // Semana: se recalcula si hay fecha de inicio en el payload (nueva),
     // o si ya existía en el objeto pero la semana estaba vacía.
     const fechaInicioPayload   = payload['Fecha inicio'];
-    const fechaInicioExistente = omActual.FechaInicio && omActual.FechaInicio !== '—'
-      ? omActual.FechaInicio   // formato es-PA: dd/mm/yyyy
-      : null;
+    const fechaInicioExistente =omActual?.FechaInicio && omActual.FechaInicio !== '—'
+                                ? omActual.FechaInicio
+                                : null;
 
     const fechaParaSemana = fechaInicioPayload ?? _parsePaDate(fechaInicioExistente);
     if (fechaParaSemana) {
@@ -200,7 +200,7 @@ const OMService = (() => {
   async function actualizar(omActual, cambios) {
     try {
       const fechasAuto = _calcFechasAutomaticas(omActual, cambios);
-      const payload    = _buildPayload(cambios, fechasAuto);
+      const payload = _buildPayload(omActual, cambios, fechasAuto);
 
       await _updateSupabase(omActual.ID_Orden, payload);
       _syncLocal(omActual, payload);
