@@ -364,8 +364,8 @@ const OTComponent = (() => {
     const k = {
       total:      base.length,
       programado: base.filter(o => o.Estatus === 'Programado').length,
-      enProceso:  base.filter(o => o.Estatus === 'En proceso').length,
-      completado: base.filter(o => o.Estatus === 'Completado').length,
+      enProceso:  base.filter(o => o.Estatus === 'En Proceso').length,
+      completado: base.filter(o => o.Estatus === 'Concluida').length,
       sinSemana:  base.filter(o => !o.Semana).length,
     };
 
@@ -375,8 +375,8 @@ const OTComponent = (() => {
     const cards = [
       { key: 'total',      val: k.total,      label: 'Total OTs',   cls: 'total',  fk: null,       fv: null         },
       { key: 'programado', val: k.programado, label: 'Programadas', cls: 'prog',   fk: 'estatus',  fv: 'Programado' },
-      { key: 'enProceso',  val: k.enProceso,  label: 'En Proceso',  cls: 'pend',   fk: 'estatus',  fv: 'En proceso' },
-      { key: 'completado', val: k.completado, label: 'Completadas', cls: 'done',   fk: 'estatus',  fv: 'Completado' },
+      { key: 'enProceso',  val: k.enProceso,  label: 'En Proceso',  cls: 'pend',   fk: 'estatus',  fv: 'En Proceso' },
+      { key: 'completado', val: k.completado, label: 'Concluidas', cls: 'done',   fk: 'estatus',  fv: 'Concluida' },
       { key: 'sinSemana',  val: k.sinSemana,  label: 'Sin Semana',  cls: 'noasig', fk: 'semana',   fv: '__noasig'   },
     ];
 

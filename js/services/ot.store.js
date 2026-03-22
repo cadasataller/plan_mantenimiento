@@ -228,8 +228,8 @@ const OTStore = (() => {
     return {
       total:      all.length,
       programado: all.filter(o => o.Estatus === 'Programado').length,
-      enProceso:  all.filter(o => o.Estatus === 'En proceso').length,
-      completado: all.filter(o => o.Estatus === 'Completado').length,
+      enProceso:  all.filter(o => o.Estatus === 'En Proceso').length,
+      completado: all.filter(o => o.Estatus === 'Concluida').length,
       pendiente:  all.filter(o => o.Estatus === 'Pendiente').length,
       sinSemana:  all.filter(o => !o.Semana).length,
     };
@@ -243,12 +243,18 @@ const OTStore = (() => {
     return [...new Set(_allOrders.map(o => o.Semana).filter(Boolean))].sort((a, b) => a - b);
   }
 
+  function updateLocal() {
+    applyFilters();
+    notify('filtered');
+  }
+
   return {
     load, subscribe,
     setFilter, getFilters,
     getAll, getFiltered, getGrouped,
     isLoading, getSource,
     getKPIs, getAreas, getSemanas, getEtapas,empties,
+    updateLocal  
   };
 })();
 

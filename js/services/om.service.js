@@ -205,6 +205,10 @@ const OMService = (() => {
       await _updateSupabase(omActual.ID_Orden, payload);
       _syncLocal(omActual, payload);
 
+      if (window.OTStore?.updateLocal) {
+        OTStore.updateLocal();
+      }
+
       return { ok: true };
 
     } catch (err) {
