@@ -421,7 +421,9 @@ const ModalComponent = (() => {
     _saving = true;
     _refreshFooter();
 
-    const resultado = await OMService.actualizar(_currentOM, { ..._editState });
+    const omSnapshot      = _currentOM;
+    const cambiosSnapshot = { ..._editState };
+    const resultado = await OMService.actualizar(omSnapshot, cambiosSnapshot);
 
     _saving = false;
 
