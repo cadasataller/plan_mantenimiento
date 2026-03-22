@@ -12,6 +12,13 @@ const ModalComponent = (() => {
     'Detenido':   { hex: '#C0392B', badge: 'status-pendiente'  },
   };
 
+  const OT_COLORS = {
+    'Concluida':  '#2D8A4E',
+    'En Proceso': '#1A6B9A',
+    'Programado': '#B8B3A7',
+    'Ausencia':   '#E67E22',   // ← nuevo estado OT
+  };
+
   const ESTADOS_EDIT = [
     { value: 'Programado', label: 'PROGRAMADO', icon: '◷', desc: 'En espera de inicio' },
     { value: 'En Proceso', label: 'EN PROCESO', icon: '⚡', desc: 'Trabajo activo'      },
@@ -19,7 +26,7 @@ const ModalComponent = (() => {
     { value: 'Detenido',   label: 'DETENIDO',   icon: '⏸', desc: 'Trabajo pausado'     },
   ];
 
-  const DONUT_ORDER = ['Concluida', 'En Proceso', 'Programado', 'Detenido'];
+  const DONUT_ORDER = ['Concluida', 'En Proceso', 'Programado', 'Ausencia'];
 
   let _currentOM = null;
   let _activeTab = 'info';
@@ -577,30 +584,37 @@ const ModalComponent = (() => {
     const r = 62, cx = 80, cy = 80;
     const circum = 2 * Math.PI * r;
     let paths = '', offset = 0, legend = '';
-
+  
     DONUT_ORDER.forEach(st => {
       const cnt   = kpis.counts[st] ?? 0;
       const pct   = cnt / total;
       const dash  = pct * circum;
-      const color = STATUS_COLORS[st]?.hex ?? '#ccc';
-      paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="22"
-        stroke-dasharray="${dash} ${circum-dash}" stroke-dashoffset="${-offset}" stroke-linecap="butt"/>`;
+      const color = OT_COLORS[st] ?? '#ccc';   // ← usa OT_COLORS, no STATUS_COLORS
+  
+      paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+        stroke="${color}" stroke-width="22"
+        stroke-dasharray="${dash} ${circum - dash}"
+        stroke-dashoffset="${-offset}"
+        stroke-linecap="butt"/>`;
       offset += dash;
+  
       legend += `<div class="ot-legend-item">
         <span class="ot-legend-dot" style="background:${color}"></span>
         <span class="ot-legend-label">${st}</span>
         <span class="ot-legend-val">${cnt}</span>
-        <span class="ot-legend-pct">${Math.round(pct*100)}%</span>
+        <span class="ot-legend-pct">${Math.round(pct * 100)}%</span>
       </div>`;
     });
-
+  
     if (kpis.total === 0)
-      paths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--color-gray-200)" stroke-width="22"/>`;
-
+      paths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+        stroke="var(--color-gray-200)" stroke-width="22"/>`;
+  
     return `<div class="ot-donut-wrap">
       <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">
         <svg class="ot-donut-svg" viewBox="0 0 160 160">
-          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--color-gray-100)" stroke-width="22"/>
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+            stroke="var(--color-gray-100)" stroke-width="22"/>
           ${paths}
         </svg>
         <div class="ot-donut-center">
@@ -611,7 +625,6 @@ const ModalComponent = (() => {
       <div class="ot-donut-legend">${legend}</div>
     </div>`;
   }
-
   // ══════════════════════════════════════════════════════════
   // LISTA OTs
   // ══════════════════════════════════════════════════════════

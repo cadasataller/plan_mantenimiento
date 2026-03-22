@@ -112,6 +112,9 @@ const OTService = (() => {
     if (data.Fecha       !== undefined) out['Fecha']             = data.Fecha;
     if (data.Duracion    !== undefined) out['Duración (horas)']  = data.Duracion;
     if (data.Estatus     !== undefined) out['Estatus']           = data.Estatus;
+    if (data.Retraso    !== undefined) out['Retraso (horas)'] = data.Retraso;
+    if (data.Causa      !== undefined) out['Causa']           = data.Causa;
+    if (data.Comentario !== undefined) out['Comentario']      = data.Comentario;
     return out;
   }
 

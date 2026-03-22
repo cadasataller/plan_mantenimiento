@@ -80,7 +80,7 @@ const OTWorkStore = (() => {
   // ── KPIs de una lista de OTs ─────────────────────────────
   function calcKPIs(ots) {
     const total      = ots.length;
-    const counts     = { 'Concluida': 0, 'En Proceso': 0, 'Programado': 0, 'Detenido': 0 };
+    const counts = { 'Concluida': 0, 'En Proceso': 0, 'Programado': 0, 'Ausencia': 0 };
     let   horasTotal  = 0;
     let   horasRetraso = 0;
     const mecanicos   = new Set();
