@@ -311,6 +311,18 @@ const ModalComponent = (() => {
     }
   }
 
+  // Convierte "dd/mm/yyyy" → "yyyy-mm-dd" para input[type=date]
+  function _isoDateValue(val) {
+    if (!val || val === '—') return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    const parts = val.split('/');
+    if (parts.length === 3) {
+      const [d, m, y] = parts;
+      return `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    return '';
+  }
+
   // ══════════════════════════════════════════════════════════
   // STATUS PICKER
   // ══════════════════════════════════════════════════════════

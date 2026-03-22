@@ -19,6 +19,18 @@ const OMService = (() => {
   const TABLE = 'ORDEN_MANTENIMIENTO';
   const PK    = 'ID_Orden mantenimiento';
 
+  // ── Convertir fecha es-PA (dd/mm/yyyy) → ISO (yyyy-mm-dd) ─
+  function _parsePaDate(val) {
+    if (!val || val === '—') return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;   // ya es ISO
+    const parts = val.split('/');
+    if (parts.length === 3) {
+      const [d, m, y] = parts;
+      return `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    return null;
+  }
+
   // ── Calcular ISO week number de una fecha ────────────────
   // Devuelve el número de semana del año (1-53) según ISO 8601.
   function _isoWeek(dateStr) {
@@ -99,10 +111,16 @@ const OMService = (() => {
       if (!(key in payload)) payload[key] = val;
     }
 
-    // Semana: se recalcula si hay una fecha de inicio en el payload
-    const fechaInicioFinal = payload['Fecha inicio'];
-    if (fechaInicioFinal) {
-      const semana = _isoWeek(fechaInicioFinal);
+    // Semana: se recalcula si hay fecha de inicio en el payload (nueva),
+    // o si ya existía en el objeto pero la semana estaba vacía.
+    const fechaInicioPayload   = payload['Fecha inicio'];
+    const fechaInicioExistente = omActual.FechaInicio && omActual.FechaInicio !== '—'
+      ? omActual.FechaInicio   // formato es-PA: dd/mm/yyyy
+      : null;
+
+    const fechaParaSemana = fechaInicioPayload ?? _parsePaDate(fechaInicioExistente);
+    if (fechaParaSemana) {
+      const semana = _isoWeek(fechaParaSemana);
       if (semana !== null) payload['Semana'] = semana;
     }
 
