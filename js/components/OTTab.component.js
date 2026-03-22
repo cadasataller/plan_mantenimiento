@@ -18,8 +18,10 @@ const OTTabComponent = (() => {
     if (!el) return;
 
     el.innerHTML = `
-      <div class="ot-tab-wrapper">
-        <div class="ot-tab-inner" id="ot-tab-inner"></div>
+      <div class="ot-tabs"> <!-- 👈 nuevo contenedor visual -->
+        <div class="ot-tab-wrapper">
+          <div class="ot-tab-inner" id="ot-tab-inner"></div>
+        </div>
       </div>
     `;
 
@@ -33,7 +35,6 @@ const OTTabComponent = (() => {
 
     inner.classList.remove('slide-left', 'slide-right');
 
-    // Trigger animation direction
     if (_state === 'create') {
       inner.classList.add('slide-left');
     } else {
@@ -41,10 +42,10 @@ const OTTabComponent = (() => {
     }
 
     inner.innerHTML = `
-      <div class="ot-view ${_state === 'list' ? 'active' : ''}">
+      <div class="ot-view ot-tab-panel ${_state === 'list' ? 'active' : ''}">
         ${_renderList()}
       </div>
-      <div class="ot-view ${_state === 'create' ? 'active' : ''}">
+      <div class="ot-view ot-tab-panel ${_state === 'create' ? 'active' : ''}">
         ${_renderForm()}
       </div>
     `;
@@ -53,12 +54,18 @@ const OTTabComponent = (() => {
   // ─────────────────────────────────────────────
   function _renderList() {
     return `
-      <div class="ot-tab-header">
-        <div class="ot-tab-title">Órdenes de Trabajo</div>
-        <button class="btn-primary" id="btn-add-ot">+ Nueva OT</button>
+      <div class="ot-tab-header ot-modal-section">
+        
+        <div class="ot-tab-title ot-modal-section-title">
+          Órdenes de Trabajo
+        </div>
+
+        <button class="btn-modal-primary" id="btn-add-ot">
+          + Nueva OT
+        </button>
       </div>
 
-      <div class="ot-tab-content">
+      <div class="ot-tab-content ot-work-list">
         ${ModalComponent.renderOTList(_ots)}
       </div>
     `;
@@ -67,31 +74,64 @@ const OTTabComponent = (() => {
   // ─────────────────────────────────────────────
   function _renderForm() {
     return `
-      <div class="ot-tab-header">
-        <button class="btn-back" id="btn-back-list">← Volver</button>
-        <div class="ot-tab-title">Nueva Orden de Trabajo</div>
+      <div class="ot-tab-header ot-modal-section">
+
+        <button class="btn-modal-secondary" id="btn-back-list">
+          ← Volver
+        </button>
+
+        <div class="ot-tab-title ot-modal-section-title">
+          Nueva Orden de Trabajo
+        </div>
       </div>
 
-      <div class="ot-form">
-        <div class="ot-form-grid">
+      <div class="ot-form ot-chart-card">
+        <div class="ot-form-grid ot-modal-grid">
 
-          <input type="text" id="ot-desc" placeholder="Descripción" />
-          <input type="text" id="ot-mec" placeholder="Mecánico" />
-          <input type="date" id="ot-fecha" />
-          <input type="number" id="ot-duracion" placeholder="Horas" />
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">Descripción</div>
+            <input type="text" id="ot-desc" />
+          </div>
 
-          <select id="ot-status">
-            <option>Programado</option>
-            <option>En Proceso</option>
-            <option>Concluida</option>
-            <option>Detenido</option>
-          </select>
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">Mecánico</div>
+            <input type="text" id="ot-mec" />
+          </div>
+
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">Fecha</div>
+            <input type="date" id="ot-fecha" />
+          </div>
+
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">Horas</div>
+            <input type="number" id="ot-duracion" />
+          </div>
+
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">Estado</div>
+            <select id="ot-status">
+              <option>Programado</option>
+              <option>En Proceso</option>
+              <option>Concluida</option>
+              <option>Detenido</option>
+            </select>
+          </div>
 
         </div>
 
-        <div class="ot-form-actions">
-          <button class="btn-secondary" id="btn-cancel">Cancelar</button>
-          <button class="btn-primary" id="btn-save">Guardar OT</button>
+        <div class="ot-form-actions ot-modal-footer">
+          <div></div>
+
+          <div class="ot-modal-footer-right">
+            <button class="btn-modal-secondary" id="btn-cancel">
+              Cancelar
+            </button>
+
+            <button class="btn-modal-primary" id="btn-save">
+              Guardar OT
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -120,14 +160,10 @@ const OTTabComponent = (() => {
           Estatus: document.getElementById('ot-status').value,
         };
 
-        // 👉 Aquí irá OTService después
         const res = await OTService.crearOT(_om.ID_Orden, nueva);
 
         if (res.ok) {
-            // actualizar lista local
             _ots.unshift(res.data);
-
-            // volver a lista
             _state = 'list';
             _render();
         } else {
