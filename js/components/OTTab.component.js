@@ -156,12 +156,28 @@ const OTTabComponent = (() => {
     const isEdit = ot !== null;
     const h = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-    let fechaVal = '';
-    if (ot?.Fecha && ot.Fecha !== '—') {
-      const p = ot.Fecha.split('/');
-      if (p.length === 3) fechaVal = `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
-      else if (/^\d{4}-\d{2}-\d{2}$/.test(ot.Fecha)) fechaVal = ot.Fecha;
+    // Convierte cualquier formato de fecha a yyyy-mm-dd para input[type=date]
+    // Maneja: 'dd/mm/yyyy', 'yyyy-mm-dd', 'yyyy-mm-ddTHH:MM:SS', timestamp ISO completo
+    function _toInputDate(val) {
+      if (!val || val === '—') return '';
+      // ISO con tiempo: '2025-03-15T00:00:00...' → tomar solo la parte de fecha
+      if (/^\d{4}-\d{2}-\d{2}[T ]/.test(val)) return val.slice(0, 10);
+      // ISO puro: '2025-03-15'
+      if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+      // Locale 'dd/mm/yyyy' o 'd/m/yyyy' (es-PA puede omitir ceros)
+      const p = val.split('/');
+      if (p.length === 3) {
+        const [d, m, y] = p;
+        return `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+      }
+      // Fallback: intentar parsear con Date
+      try {
+        const dt = new Date(val);
+        if (!isNaN(dt)) return dt.toISOString().slice(0, 10);
+      } catch(_) {}
+      return '';
     }
+    const fechaVal = _toInputDate(ot?.Fecha);
 
     const opts = OT_ESTADOS.map(e =>
       `<option value="${e.value}" ${(ot?.Estatus ?? 'Programado') === e.value ? 'selected' : ''}>${e.label}</option>`
