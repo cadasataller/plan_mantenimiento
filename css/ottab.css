@@ -39,3 +39,100 @@
   display: flex;
   gap: 0.5rem;
 }
+
+/* ============================================================
+   CADASA — TAB COMPONENT (REUTILIZABLE)
+   ============================================================ */
+
+.ot-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+
+  background: var(--color-gray-50);
+  border-bottom: 1px solid var(--color-gray-100);
+
+  padding: 0 1.25rem;
+  overflow-x: auto;
+}
+
+/* Scroll horizontal elegante */
+.ot-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+.ot-tabs::-webkit-scrollbar-thumb {
+  background: var(--color-gray-300);
+  border-radius: var(--radius-full);
+}
+
+/* ── Tab individual ── */
+.ot-tab {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  padding: 0.75rem 1rem;
+
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+/* Iconos */
+.ot-tab svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+
+/* Hover */
+.ot-tab:hover {
+  color: var(--text-secondary);
+  background: var(--color-gray-100);
+}
+
+/* Activo */
+.ot-tab.active {
+  color: var(--color-main);
+  font-weight: 600;
+  background: var(--color-white);
+}
+
+/* Línea inferior (indicador activo) */
+.ot-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-main);
+  border-radius: var(--radius-full);
+}
+
+/* ── Panel ── */
+.ot-tab-panels {
+  width: 100%;
+}
+
+.ot-tab-panel {
+  display: none;
+  padding: 1.25rem;
+}
+
+.ot-tab-panel.active {
+  display: block;
+}
