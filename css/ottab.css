@@ -1,6 +1,7 @@
 .ot-tab-wrapper {
   position: relative;
   overflow: hidden;
+  width: 100%;
 }
 
 .ot-tab-inner {
