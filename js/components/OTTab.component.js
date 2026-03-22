@@ -8,29 +8,28 @@ const OTTabComponent = (() => {
   let _state = 'list'; // 'list' | 'create'
   let _om = null;
   let _ots = [];
+  let _el = null;
 
   // ─────────────────────────────────────────────
   function init(containerId, om, ots) {
     _om = om;
     _ots = ots;
 
-    const el = document.getElementById(containerId);
-    if (!el) return;
+    _el = document.getElementById(containerId); // 👈 guardar referencia
+    if (!_el) return;
 
-    el.innerHTML = `
-      <div class="ot-tabs"> <!-- 👈 nuevo contenedor visual -->
-        <div class="ot-tab-wrapper">
-          <div class="ot-tab-inner" id="ot-tab-inner"></div>
-        </div>
-      </div>
-    `;
+    _el.innerHTML = `
+                <div class="ot-tab-wrapper">
+                <div class="ot-tab-inner" id="ot-tab-inner"></div>
+                </div>
+            `;
 
     _render();
   }
 
   // ─────────────────────────────────────────────
   function _render() {
-    const inner = document.getElementById('ot-tab-inner');
+    const inner = _el ? _el.querySelector('#ot-tab-inner') : document.getElementById('ot-tab-inner');
     if (!inner) return;
 
     inner.classList.remove('slide-left', 'slide-right');
