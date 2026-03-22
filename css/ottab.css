@@ -1,139 +1,186 @@
+/* ============================================================
+   CADASA TALLER — OT TAB COMPONENT CSS
+   FIX: Reemplaza el sistema width:200%+translateX por
+        visibilidad con opacity+translate, compatible con
+        contenedores de altura dinámica (modal overflow-y:auto)
+   ============================================================ */
+
+/* ── Wrapper: altura dinámica, sin overflow:hidden ── */
 .ot-tab-wrapper {
   position: relative;
-  overflow: hidden;
   width: 100%;
+  /* SIN overflow:hidden — era la causa del colapso */
 }
 
+/* ── Inner: una sola columna, sin flex horizontal ── */
 .ot-tab-inner {
-  display: flex;
-  width: 200%;
-  transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+  width: 100%;
+  /* SIN display:flex ni width:200% — ya no se necesitan */
 }
 
-.ot-tab-inner.slide-left {
-  transform: translateX(-50%);
-}
-
-.ot-tab-inner.slide-right {
-  transform: translateX(0%);
-}
-
+/* ── Vistas: apiladas, cada una ocupa su espacio natural ── */
 .ot-view {
-  width: 50%;
-  padding: 0.5rem;
+  width: 100%;
+  /* Animación de entrada/salida */
+  transition:
+    opacity 0.28s cubic-bezier(.4,0,.2,1),
+    transform 0.28s cubic-bezier(.4,0,.2,1);
 }
 
+/* Vista visible (activa) */
+.ot-view.active {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Vista oculta → sale hacia la izquierda (lista) */
+.ot-tab-inner.slide-left  .ot-view:not(.active) {
+  display: none;
+}
+
+/* Vista oculta → sale hacia la derecha (form) */
+.ot-tab-inner.slide-right .ot-view:not(.active) {
+  display: none;
+}
+
+/* Animación de entrada para la vista activa */
+@keyframes ot-view-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+.ot-view.active {
+  animation: ot-view-in 0.28s cubic-bezier(.4,0,.2,1) both;
+}
+
+/* ── Cabecera del tab (título + botón) ── */
 .ot-tab-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  /* Reutiliza .ot-modal-section para el borde inferior */
 }
 
+/* ── Formulario de nueva OT ── */
 .ot-form-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 0.75rem;
 }
 
-.ot-form-actions {
-  margin-top: 1rem;
-  display: flex;
-  gap: 0.5rem;
+.ot-form-grid .ot-modal-field input,
+.ot-form-grid .ot-modal-field select {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.82rem;
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  background: var(--color-white);
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  line-height: 1.4;
 }
 
-/* ============================================================
-   CADASA — TAB COMPONENT (REUTILIZABLE)
-   ============================================================ */
+.ot-form-grid .ot-modal-field input:focus,
+.ot-form-grid .ot-modal-field select:focus {
+  border-color: var(--color-main);
+  box-shadow: 0 0 0 3px rgba(var(--color-main-rgb, 26, 107, 83), 0.12);
+}
 
+.ot-form-grid .ot-modal-field input::placeholder {
+  color: var(--color-gray-300);
+}
+
+/* ── Acciones del formulario ── */
+.ot-form-actions {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.85rem 0 0;
+  border-top: 1px solid var(--color-gray-100);
+}
+
+/* ── Botón volver (reaprovechar btn-modal-secondary con icono) ── */
+#btn-back-list {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* ── Tabs de navegación superior (barra reutilizable) ── */
 .ot-tabs {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-
   background: var(--color-gray-50);
   border-bottom: 1px solid var(--color-gray-100);
-
   padding: 0 1.25rem;
   overflow-x: auto;
 }
 
-/* Scroll horizontal elegante */
-.ot-tabs::-webkit-scrollbar {
-  height: 4px;
-}
-.ot-tabs::-webkit-scrollbar-thumb {
+.ot-tabs::-webkit-scrollbar        { height: 4px; }
+.ot-tabs::-webkit-scrollbar-thumb  {
   background: var(--color-gray-300);
   border-radius: var(--radius-full);
 }
 
-/* ── Tab individual ── */
+/* Tab individual */
 .ot-tab {
   position: relative;
-
   display: flex;
   align-items: center;
   gap: 0.4rem;
-
   padding: 0.75rem 1rem;
-
   font-size: 0.78rem;
   font-weight: 500;
   color: var(--text-muted);
-
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
-
   border-radius: var(--radius-md) var(--radius-md) 0 0;
-  transition: 
+  transition:
     color var(--transition-fast),
     background var(--transition-fast);
 }
 
-/* Iconos */
 .ot-tab svg {
-  width: 14px;
-  height: 14px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
+  width: 14px; height: 14px;
+  stroke: currentColor; fill: none; stroke-width: 2;
+  flex-shrink: 0;
 }
 
-/* Hover */
-.ot-tab:hover {
-  color: var(--text-secondary);
-  background: var(--color-gray-100);
-}
+.ot-tab:hover  { color: var(--text-secondary); background: var(--color-gray-100); }
 
-/* Activo */
 .ot-tab.active {
   color: var(--color-main);
   font-weight: 600;
   background: var(--color-white);
 }
 
-/* Línea inferior (indicador activo) */
 .ot-tab.active::after {
   content: '';
   position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
+  bottom: -1px; left: 0; right: 0;
   height: 2px;
   background: var(--color-main);
   border-radius: var(--radius-full);
 }
 
-/* ── Panel ── */
-.ot-tab-panels {
-  width: 100%;
-}
+/* Panel de tabs (uso genérico) */
+.ot-tab-panels { width: 100%; }
 
-.ot-tab-panel {
-  display: none;
-  padding: 1.25rem;
-}
+.ot-tab-panel          { display: none; padding: 1.25rem; }
+.ot-tab-panel.active   { display: block; }
 
-.ot-tab-panel.active {
-  display: block;
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .ot-form-grid {
+    grid-template-columns: 1fr;
+  }
 }

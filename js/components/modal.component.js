@@ -652,6 +652,8 @@ const ModalComponent = (() => {
     const root = document.getElementById('ot-modal-root');
     const bd   = document.getElementById('ot-backdrop');
     document.removeEventListener('keydown', _escHandler);
+
+     OTTabComponent.destroy();
     _currentOM = null; _editMode = false; _editState = {};
     if (bd) {
       bd.style.transition = 'opacity 0.18s ease'; bd.style.opacity = '0';
