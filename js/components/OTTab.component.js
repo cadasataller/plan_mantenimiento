@@ -10,20 +10,22 @@ const OTTabComponent = (() => {
   let _om      = null;
   let _ots     = [];
   let _el      = null;   // referencia al nodo contenedor — se guarda en init
-  let _bound   = false;  // ¿ya registramos el listener en _el?
+  let _bound        = false;  // ¿ya registramos el listener en _el?
+  let _onOTsChange  = null;  // callback → notifica al modal cuando cambian las OTs
 
   // ─────────────────────────────────────────────
-  function init(containerId, om, ots) {
+  function init(containerId, om, ots, onOTsChange) {
     // Si ya hay un componente activo, limpiar antes de reiniciar
     if (_bound && _el) {
       _el.removeEventListener('click', _handleClick);
       _bound = false;
     }
 
-    _om    = om;
-    _ots   = ots;
-    _state = 'list';
-    _el    = document.getElementById(containerId);
+    _om          = om;
+    _ots         = [...ots];   // copia defensiva — evita mutar el cache del store
+    _state       = 'list';
+    _onOTsChange = onOTsChange ?? null;
+    _el          = document.getElementById(containerId);
     if (!_el) return;
 
     _el.innerHTML = `
@@ -206,9 +208,13 @@ const OTTabComponent = (() => {
         const res = await OTService.crearOT(_om.ID_Orden, nueva);
 
         if (res.ok) {
+          // _ots es copia local (ver init). Cache del store ahora inmutable.
+          // Seguro agregar aquí sin riesgo de duplicados.
           _ots.unshift(res.data);
           _state = 'list';
           _render();
+          // Notificar al modal para que actualice las gráficas
+          _onOTsChange?.([..._ots]);
         } else {
           if (saveBtn) {
             saveBtn.disabled  = false;
@@ -230,11 +236,12 @@ const OTTabComponent = (() => {
     if (_el && _bound) {
       _el.removeEventListener('click', _handleClick);
     }
-    _bound = false;
-    _state = 'list';
-    _om    = null;
-    _ots   = [];
-    _el    = null;
+    _bound       = false;
+    _state       = 'list';
+    _om          = null;
+    _ots         = [];
+    _el          = null;
+    _onOTsChange = null;
   }
 
   return { init, bindEvents, destroy };

@@ -456,19 +456,32 @@ const ModalComponent = (() => {
   // ══════════════════════════════════════════════════════════
   async function loadOTs(om, authenticated) {
     const ots = await OTWorkStore.getForOM(om.ID_Orden, om, authenticated);
-
+  
+    // Badge del tab
     const badge = document.getElementById('modal-ot-badge');
     if (badge) { badge.textContent = ots.length; badge.style.display = 'inline'; }
-
+  
+    // Tab de OTs — se pasa el callback onOTsChange para que las
+    // gráficas se actualicen cada vez que se agregue una OT nueva
     const otsEl = document.getElementById('ots-content');
     if (otsEl) {
-      OTTabComponent.init('ots-content', om, ots);
+      OTTabComponent.init('ots-content', om, ots, _refreshGraficas);
       OTTabComponent.bindEvents();
     }
-
-    const grafEl = document.getElementById('graficas-content');
-    if (grafEl) grafEl.innerHTML = renderCharts(ots);
+  
+    // Render inicial de gráficas con los datos cargados
+    _refreshGraficas(ots);
   }
+  
+  // ── Nueva función auxiliar ───────────────────────────────────
+  // Recibe el array actualizado de OTs y re-renderiza el panel
+  // de gráficas sin tocar los otros tabs ni el estado del modal.
+  function _refreshGraficas(ots) {
+    const grafEl = document.getElementById('graficas-content');
+    if (!grafEl) return;
+    grafEl.innerHTML = renderCharts(ots);
+  }
+ 
 
   // ══════════════════════════════════════════════════════════
   // GRÁFICAS
