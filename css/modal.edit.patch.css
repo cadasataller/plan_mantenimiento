@@ -1,0 +1,305 @@
+/* ============================================================
+   CADASA TALLER — MODAL EDIT PATCH
+   Estilos para el modo de edición inline del modal OM
+   Agregar a: css/modal.css  (al final) o como modal.edit.patch.css
+   ============================================================ */
+
+/* ── Banner de modo edición ── */
+.edit-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: linear-gradient(135deg, rgba(26,107,154,0.08) 0%, rgba(26,107,154,0.04) 100%);
+  border: 1px solid rgba(26,107,154,0.2);
+  border-left: 3px solid var(--color-info, #1A6B9A);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 1rem;
+  font-size: 0.78rem;
+  color: var(--color-info, #1A6B9A);
+  font-weight: 500;
+  margin-bottom: 1.25rem;
+  animation: banner-slide-in 0.22s ease both;
+}
+@keyframes banner-slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.edit-mode-banner svg {
+  width: 14px; height: 14px;
+  stroke: currentColor; fill: none; stroke-width: 2;
+  flex-shrink: 0;
+}
+
+/* ── Tag "editable" en secciones ── */
+.edit-section-tag {
+  display: inline-block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: rgba(26,107,154,0.1);
+  color: var(--color-info, #1A6B9A);
+  border: 1px solid rgba(26,107,154,0.2);
+  border-radius: 99px;
+  padding: 0.15rem 0.55rem;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+/* ── Textarea para observaciones ── */
+.edit-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.85rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: var(--color-white);
+  border: 1.5px solid rgba(26,107,154,0.3);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  outline: none;
+  line-height: 1.6;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  box-sizing: border-box;
+}
+.edit-textarea:focus {
+  border-color: var(--color-info, #1A6B9A);
+  box-shadow: 0 0 0 3px rgba(26,107,154,0.12);
+}
+.edit-textarea::placeholder {
+  color: var(--color-gray-300);
+  font-style: italic;
+}
+
+/* ════════════════════════════════
+   STATUS PICKER — selector visual
+   ════════════════════════════════ */
+.status-picker {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+}
+
+.status-pick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--radius-md);
+  border: 2px solid transparent;
+  background: var(--color-gray-50);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: var(--font-body);
+  min-width: 80px;
+  position: relative;
+  overflow: hidden;
+}
+.status-pick-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.status-pick-btn:hover::before { opacity: 1; }
+
+.spb-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+.status-pick-btn:hover .spb-icon { transform: scale(1.15); }
+
+.spb-label {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+
+/* ── Estado: PROGRAMADO ── */
+.status-pick-btn.programado {
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-500, #888);
+}
+.status-pick-btn.programado::before {
+  background: rgba(184,179,167,0.1);
+}
+.status-pick-btn.programado:hover {
+  border-color: #B8B3A7;
+  color: #777;
+  background: rgba(184,179,167,0.08);
+}
+.status-pick-btn.programado.active {
+  border-color: #B8B3A7;
+  background: rgba(184,179,167,0.14);
+  color: #666;
+  box-shadow: 0 0 0 3px rgba(184,179,167,0.2);
+}
+.status-pick-btn.programado.active .spb-icon {
+  filter: none;
+}
+
+/* ── Estado: EN PROCESO ── */
+.status-pick-btn.en-proceso {
+  border-color: rgba(26,107,154,0.25);
+  color: rgba(26,107,154,0.7);
+}
+.status-pick-btn.en-proceso::before {
+  background: rgba(26,107,154,0.06);
+}
+.status-pick-btn.en-proceso:hover {
+  border-color: #1A6B9A;
+  color: #1A6B9A;
+  background: rgba(26,107,154,0.06);
+}
+.status-pick-btn.en-proceso.active {
+  border-color: #1A6B9A;
+  background: rgba(26,107,154,0.1);
+  color: #1A6B9A;
+  box-shadow: 0 0 0 3px rgba(26,107,154,0.15);
+}
+
+/* ── Estado: CONCLUIDO ── */
+.status-pick-btn.concluida {
+  border-color: rgba(45,138,78,0.25);
+  color: rgba(45,138,78,0.7);
+}
+.status-pick-btn.concluida::before {
+  background: rgba(45,138,78,0.06);
+}
+.status-pick-btn.concluida:hover {
+  border-color: #2D8A4E;
+  color: #2D8A4E;
+  background: rgba(45,138,78,0.06);
+}
+.status-pick-btn.concluida.active {
+  border-color: #2D8A4E;
+  background: rgba(45,138,78,0.1);
+  color: #2D8A4E;
+  box-shadow: 0 0 0 3px rgba(45,138,78,0.18);
+}
+
+/* ── Estado: DETENIDO ── */
+.status-pick-btn.detenido {
+  border-color: rgba(192,57,43,0.25);
+  color: rgba(192,57,43,0.7);
+}
+.status-pick-btn.detenido::before {
+  background: rgba(192,57,43,0.06);
+}
+.status-pick-btn.detenido:hover {
+  border-color: #C0392B;
+  color: #C0392B;
+  background: rgba(192,57,43,0.06);
+}
+.status-pick-btn.detenido.active {
+  border-color: #C0392B;
+  background: rgba(192,57,43,0.1);
+  color: #C0392B;
+  box-shadow: 0 0 0 3px rgba(192,57,43,0.18);
+}
+
+/* Check mark en el botón activo */
+.status-pick-btn.active::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+/* ════════════════════════════════
+   BOTONES DE FOOTER (edit mode)
+   ════════════════════════════════ */
+.btn-modal-edit {
+  padding: 0.5rem 1.1rem;
+  border: 1.5px solid rgba(26,107,154,0.3);
+  border-radius: var(--radius-md);
+  background: rgba(26,107,154,0.06);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-info, #1A6B9A);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.18s ease;
+}
+.btn-modal-edit svg {
+  width: 13px; height: 13px;
+  stroke: currentColor; fill: none; stroke-width: 2;
+}
+.btn-modal-edit:hover {
+  background: rgba(26,107,154,0.12);
+  border-color: var(--color-info, #1A6B9A);
+}
+
+.btn-modal-save {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #2D8A4E 0%, #3aaa63 100%);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 8px rgba(45,138,78,0.25);
+  letter-spacing: 0.01em;
+}
+.btn-modal-save svg {
+  width: 14px; height: 14px;
+  stroke: currentColor; fill: none; stroke-width: 2.5;
+}
+.btn-modal-save:hover:not(:disabled) {
+  background: linear-gradient(135deg, #246e3e 0%, #2D8A4E 100%);
+  box-shadow: 0 3px 12px rgba(45,138,78,0.35);
+  transform: translateY(-1px);
+}
+.btn-modal-save:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Spinner pequeño para el botón guardar ── */
+.spinner-sm {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ── */
+@media (max-width: 520px) {
+  .status-picker {
+    gap: 0.4rem;
+  }
+  .status-pick-btn {
+    min-width: 64px;
+    padding: 0.5rem 0.6rem;
+  }
+  .spb-label {
+    font-size: 0.52rem;
+  }
+}
