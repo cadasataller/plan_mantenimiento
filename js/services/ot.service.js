@@ -1,4 +1,4 @@
-/// ============================================================
+// ============================================================
 // CADASA TALLER — OT SERVICE
 // Maneja CRUD de Órdenes de Trabajo (backend + store)
 // ============================================================
@@ -102,7 +102,6 @@ const OTService = (() => {
       'Duración (horas)':       data.Duracion ?? 0,
       'Estatus':                data.Estatus ?? 'Programado',
       'Retraso (horas)':        0,
-      'Cantidad':               1,
     };
   }
 

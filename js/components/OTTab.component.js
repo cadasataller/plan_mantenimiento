@@ -129,7 +129,7 @@ const OTTabComponent = (() => {
               <option value="Programado">Programado</option>
               <option value="En Proceso">En Proceso</option>
               <option value="Concluida">Concluida</option>
-              <option value="Detenido">Detenido</option>
+              <option value="Ausencia">Ausencia</option>
             </select>
           </div>
 
@@ -215,6 +215,9 @@ const OTTabComponent = (() => {
           _render();
           // Notificar al modal para que actualice las gráficas
           _onOTsChange?.([..._ots]);
+          // Actualizar badge del tab con el nuevo total
+          const badge = document.getElementById('modal-ot-badge');
+          if (badge) { badge.textContent = _ots.length; badge.style.display = 'inline'; }
         } else {
           if (saveBtn) {
             saveBtn.disabled  = false;

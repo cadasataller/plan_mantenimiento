@@ -355,27 +355,42 @@ const ModalComponent = (() => {
   function _refreshFooter() {
     const footerRight = document.getElementById('modal-footer-actions');
     if (!footerRight) return;
-
-    footerRight.innerHTML = _editMode
-      ? `<button class="btn-modal-secondary" id="btn-cancel-edit">Cancelar</button>
-         <button class="btn-modal-save" id="btn-save-edit" ${_saving ? 'disabled' : ''}>
-           ${_saving
-             ? `<div class="spinner-sm"></div> Guardando…`
-             : `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Guardar cambios`}
-         </button>`
-      : `<button class="btn-modal-secondary" id="btn-modal-footer-close">Cerrar</button>
-         <button class="btn-modal-edit" id="btn-modal-edit">
-           <svg viewBox="0 0 24 24">
-             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-           </svg>
-           Editar
-         </button>
-         <button class="btn-modal-primary" id="btn-ver-ots">
-           <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-           Ver OTs
-         </button>`;
-
+  
+    const enTabInfo = _activeTab === 'info';
+    const enTabOTs  = _activeTab === 'ots';
+  
+    if (_editMode) {
+      // Modo edición: siempre mostrar Cancelar + Guardar
+      footerRight.innerHTML = `
+        <button class="btn-modal-secondary" id="btn-cancel-edit">Cancelar</button>
+        <button class="btn-modal-save" id="btn-save-edit" ${_saving ? 'disabled' : ''}>
+          ${_saving
+            ? `<div class="spinner-sm"></div> Guardando…`
+            : `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Guardar cambios`}
+        </button>`;
+    } else {
+      footerRight.innerHTML = `
+        <button class="btn-modal-secondary" id="btn-modal-footer-close">Cerrar</button>
+  
+        ${enTabInfo ? `
+          <button class="btn-modal-edit" id="btn-modal-edit">
+            <svg viewBox="0 0 24 24">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Editar
+          </button>` : ''}
+  
+        ${!enTabOTs ? `
+          <button class="btn-modal-primary" id="btn-ver-ots">
+            <svg viewBox="0 0 24 24">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            Ver OTs
+          </button>` : ''}`;
+    }
+  
     footerRight.removeEventListener('click', _onFooterClick);
     footerRight.addEventListener('click', _onFooterClick);
   }
@@ -449,6 +464,9 @@ const ModalComponent = (() => {
       t.classList.toggle('active', t.dataset.tab === tabId));
     document.querySelectorAll('.ot-modal-tab-panel').forEach(p =>
       p.classList.toggle('active', p.id === `tab-${tabId}`));
+  
+    // Refrescar footer según el tab activo
+    _refreshFooter();
   }
 
   // ══════════════════════════════════════════════════════════
