@@ -1,6 +1,7 @@
 // ============================================================
-// CADASA TALLER — OT SERVICE
-// Maneja CRUD de Órdenes de Trabajo (backend + store)
+// CADASA TALLER — OT SERVICE  (v4)
+// Añade: Semana, Area, Sistema, ID_Equipo, Item
+// Fix:   _mapFromDB expone todos los campos nuevos
 // ============================================================
 
 const OTService = (() => {
@@ -25,7 +26,6 @@ const OTService = (() => {
       if (error) throw new Error(error.message);
 
       const nuevaOT = _mapFromDB(inserted);
-
       _updateStoreCache(omId, nuevaOT);
 
       return { ok: true, data: nuevaOT };
@@ -80,7 +80,6 @@ const OTService = (() => {
       if (error) throw new Error(error.message);
 
       _removeFromCache(id, omId);
-
       return { ok: true };
 
     } catch (err) {
@@ -98,27 +97,43 @@ const OTService = (() => {
       'ID_Orden mantenimiento': String(omId),
       'Descripcion':            data.Descripcion ?? '',
       'ID_Mecanico':            data.ID_Mecanico ?? '',
-      'Fecha':                  data.Fecha || new Date().toISOString(),
+      // Fecha siempre llega como 'yyyy-MM-dd' desde el componente
+      'Fecha':                  data.Fecha || new Date().toISOString().slice(0,10),
       'Duración (horas)':       data.Duracion ?? 0,
       'Estatus':                data.Estatus ?? 'Programado',
-      'Retraso (horas)':        0,
+      'Retraso (horas)':        data.Retraso ?? 0,
+      'Causa':                  data.Causa ?? '',
+      'Comentario':             data.Comentario ?? '',
+      // Semana calculada en el componente
+      'Semana':                 data.Semana ?? null,
+      // Datos heredados de la OM
+      'Area':                   data.Area ?? '',
+      'Sistema':                data.Sistema ?? '',
+      'ID_Equipo':              data.ID_Equipo ?? '',
+      'Item':                   data.Item ?? '',
     };
   }
 
   function _mapToDBUpdate(data) {
     const out = {};
-    if (data.Descripcion !== undefined) out['Descripcion']       = data.Descripcion;
-    if (data.ID_Mecanico !== undefined) out['ID_Mecanico']       = data.ID_Mecanico;
-    if (data.Fecha       !== undefined) out['Fecha']             = data.Fecha;
-    if (data.Duracion    !== undefined) out['Duración (horas)']  = data.Duracion;
-    if (data.Estatus     !== undefined) out['Estatus']           = data.Estatus;
-    if (data.Retraso    !== undefined) out['Retraso (horas)'] = data.Retraso;
-    if (data.Causa      !== undefined) out['Causa']           = data.Causa;
-    if (data.Comentario !== undefined) out['Comentario']      = data.Comentario;
+    if (data.Descripcion !== undefined) out['Descripcion']        = data.Descripcion;
+    if (data.ID_Mecanico !== undefined) out['ID_Mecanico']        = data.ID_Mecanico;
+    if (data.Fecha       !== undefined) out['Fecha']              = data.Fecha;
+    if (data.Duracion    !== undefined) out['Duración (horas)']   = data.Duracion;
+    if (data.Estatus     !== undefined) out['Estatus']            = data.Estatus;
+    if (data.Retraso     !== undefined) out['Retraso (horas)']    = data.Retraso;
+    if (data.Causa       !== undefined) out['Causa']              = data.Causa;
+    if (data.Comentario  !== undefined) out['Comentario']         = data.Comentario;
+    if (data.Semana      !== undefined) out['Semana']             = data.Semana;
+    if (data.Area        !== undefined) out['Area']               = data.Area;
+    if (data.Sistema     !== undefined) out['Sistema']            = data.Sistema;
+    if (data.ID_Equipo   !== undefined) out['ID_Equipo']          = data.ID_Equipo;
+    if (data.Item        !== undefined) out['Item']               = data.Item;
     return out;
   }
 
   function _mapFromDB(row) {
+    // Delegar al store si tiene su propio mapper extendido
     if (window.OTWorkStore?._mapRow) {
       return window.OTWorkStore._mapRow(row);
     }
@@ -130,8 +145,15 @@ const OTService = (() => {
       Fecha:        row['Fecha'],
       Duracion:     row['Duración (horas)'],
       Estatus:      row['Estatus'],
-      Retraso:      row['Retraso (horas)'] || 0,
-      Cantidad:     row['Cantidad'] || 1,
+      Retraso:      row['Retraso (horas)']  || 0,
+      Causa:        row['Causa']            || '',
+      Comentario:   row['Comentario']       || '',
+      Cantidad:     row['Cantidad']         || 1,
+      Semana:       row['Semana']           ?? null,
+      Area:         row['Area']             || '',
+      Sistema:      row['Sistema']          || '',
+      ID_Equipo:    row['ID_Equipo']        || '',
+      Item:         row['Item']             || '',
     };
   }
 
@@ -140,19 +162,12 @@ const OTService = (() => {
   // ═════════════════════════════════════════════
 
   function _updateStoreCache(omId, nuevaOT) {
-    const key = String(omId);
+    const key   = String(omId);
     const cache = window.OTWorkStore?._getCache?.();
     if (!cache) return;
 
     const list = cache.get(key) || [];
-
-    // ✅ Reemplazar con NUEVO array, no mutar el existente.
-    // Si mutamos con unshift(), cualquier variable externa que
-    // tenga referencia al mismo array (ej: _ots en OTTabComponent)
-    // verá el item nuevo, y cuando luego se haga otro unshift/reload
-    // el item aparece duplicado.
     cache.set(key, [nuevaOT, ...list]);
-
     window.OTWorkStore._notify(key);
   }
 
@@ -163,9 +178,8 @@ const OTService = (() => {
     cache.forEach((list, key) => {
       const idx = list.findIndex(o => o.ID_RowNumber === updated.ID_RowNumber);
       if (idx !== -1) {
-        // Nuevo array con el item reemplazado
         const newList = [...list];
-        newList[idx] = updated;
+        newList[idx]  = updated;
         cache.set(key, newList);
         window.OTWorkStore._notify(key);
       }
@@ -179,7 +193,6 @@ const OTService = (() => {
     const key      = String(omId);
     const list     = cache.get(key) || [];
     const filtered = list.filter(o => o.ID_RowNumber !== id);
-
     cache.set(key, filtered);
     window.OTWorkStore._notify(key);
   }

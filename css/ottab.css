@@ -1,33 +1,26 @@
 /* ============================================================
-   CADASA TALLER — OT TAB COMPONENT CSS
-   FIX: Reemplaza el sistema width:200%+translateX por
-        visibilidad con opacity+translate, compatible con
-        contenedores de altura dinámica (modal overflow-y:auto)
+   CADASA TALLER — OT TAB COMPONENT CSS  (v4)
+   Añade: popup cambiador de estado, chips de datos OM,
+          banner de datos heredados, badge de semana
    ============================================================ */
 
-/* ── Wrapper: altura dinámica, sin overflow:hidden ── */
+/* ── Wrapper y transiciones (sin cambios) ── */
 .ot-tab-wrapper {
   position: relative;
   width: 100%;
-  /* SIN overflow:hidden — era la causa del colapso */
 }
 
-/* ── Inner: una sola columna, sin flex horizontal ── */
 .ot-tab-inner {
   width: 100%;
-  /* SIN display:flex ni width:200% — ya no se necesitan */
 }
 
-/* ── Vistas: apiladas, cada una ocupa su espacio natural ── */
 .ot-view {
   width: 100%;
-  /* Animación de entrada/salida */
   transition:
     opacity 0.28s cubic-bezier(.4,0,.2,1),
     transform 0.28s cubic-bezier(.4,0,.2,1);
 }
 
-/* Vista visible (activa) */
 .ot-view.active {
   display: block;
   opacity: 1;
@@ -35,17 +28,11 @@
   pointer-events: auto;
 }
 
-/* Vista oculta → sale hacia la izquierda (lista) */
-.ot-tab-inner.slide-left  .ot-view:not(.active) {
-  display: none;
-}
-
-/* Vista oculta → sale hacia la derecha (form) */
+.ot-tab-inner.slide-left  .ot-view:not(.active),
 .ot-tab-inner.slide-right .ot-view:not(.active) {
   display: none;
 }
 
-/* Animación de entrada para la vista activa */
 @keyframes ot-view-in {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0);    }
@@ -55,16 +42,15 @@
   animation: ot-view-in 0.28s cubic-bezier(.4,0,.2,1) both;
 }
 
-/* ── Cabecera del tab (título + botón) ── */
+/* ── Cabecera del tab ── */
 .ot-tab-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
-  /* Reutiliza .ot-modal-section para el borde inferior */
 }
 
-/* ── Formulario de nueva OT ── */
+/* ── Formulario ── */
 .ot-form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -96,7 +82,6 @@
   color: var(--color-gray-300);
 }
 
-/* ── Acciones del formulario ── */
 .ot-form-actions {
   margin-top: 1.25rem;
   display: flex;
@@ -106,14 +91,215 @@
   border-top: 1px solid var(--color-gray-100);
 }
 
-/* ── Botón volver (reaprovechar btn-modal-secondary con icono) ── */
 #btn-back-list {
   display: flex;
   align-items: center;
   gap: 0.35rem;
 }
 
-/* ── Tabs de navegación superior (barra reutilizable) ── */
+/* ── Banner datos heredados de la OM ── */
+.ot-om-inherited-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.55rem 0.85rem;
+  background: rgba(var(--color-main-rgb, 26, 107, 83), 0.06);
+  border: 1px solid rgba(var(--color-main-rgb, 26, 107, 83), 0.15);
+  border-radius: var(--radius-md);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 0.85rem;
+}
+
+.ot-om-inherited-banner svg {
+  flex-shrink: 0;
+  color: var(--color-main);
+  margin-right: 0.2rem;
+}
+
+.ot-om-inherited-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.5rem;
+  font-size: 0.69rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.ot-om-inherited-chip strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── Chips de datos OM en las cards ── */
+.ot-om-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: var(--color-gray-100);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.4rem;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.ot-om-chip--equipo {
+  background: rgba(var(--color-main-rgb, 26, 107, 83), 0.07);
+  border-color: rgba(var(--color-main-rgb, 26, 107, 83), 0.18);
+  color: var(--color-main);
+}
+
+.ot-om-chip--equipo svg {
+  width: 10px;
+  height: 10px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+
+/* ── Badge semana en meta ── */
+.ot-semana-badge {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  background: rgba(var(--color-main-rgb, 26, 107, 83), 0.1);
+  color: var(--color-main);
+  border: 1px solid rgba(var(--color-main-rgb, 26, 107, 83), 0.2);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.45rem;
+  font-size: 0.63rem;
+}
+
+/* ── Acciones de la card (estado + editar) ── */
+.ot-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* Botón cambiador de estado */
+.btn-ot-status-change {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0.45rem 0.25rem 0.3rem;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  cursor: pointer;
+  font-size: 0;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-ot-status-change:hover {
+  border-color: var(--color-main);
+  background: var(--color-gray-50);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* Botón editar */
+.btn-ot-edit {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-gray-200);
+  background: var(--color-white);
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all var(--transition-fast);
+}
+
+.btn-ot-edit:hover {
+  border-color: var(--color-main);
+  color: var(--color-main);
+  background: var(--color-gray-50);
+}
+
+/* ── Popup de selección de estado ── */
+.ot-status-popup {
+  position: absolute;
+  z-index: 9999;
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg, 0 8px 32px rgba(0,0,0,0.16)), 0 0 0 1px rgba(0,0,0,0.04);
+  padding: 0.35rem;
+  min-width: 160px;
+  animation: popup-in 0.16s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+@keyframes popup-in {
+  from { opacity: 0; transform: scale(0.92) translateY(-6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.ot-status-popup-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.ot-status-popup-item:hover {
+  background: var(--color-gray-50);
+  color: var(--text-primary);
+}
+
+.ot-status-popup-item--active {
+  color: var(--color-main);
+  font-weight: 600;
+  background: rgba(var(--color-main-rgb, 26, 107, 83), 0.06);
+}
+
+.ot-status-popup-item--active:hover {
+  background: rgba(var(--color-main-rgb, 26, 107, 83), 0.1);
+}
+
+.ot-status-popup-item svg {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Dot de estado pequeño para el popup */
+.ot-status-dot-sm {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Separador opcional entre items del popup */
+.ot-status-popup-sep {
+  height: 1px;
+  background: var(--color-gray-100);
+  margin: 0.25rem 0;
+}
+
+/* ── Tabs de navegación (reutilizable) ── */
 .ot-tabs {
   display: flex;
   align-items: center;
@@ -130,7 +316,6 @@
   border-radius: var(--radius-full);
 }
 
-/* Tab individual */
 .ot-tab {
   position: relative;
   display: flex;
@@ -172,9 +357,7 @@
   border-radius: var(--radius-full);
 }
 
-/* Panel de tabs (uso genérico) */
 .ot-tab-panels { width: 100%; }
-
 .ot-tab-panel          { display: none; padding: 1.25rem; }
 .ot-tab-panel.active   { display: block; }
 
@@ -182,5 +365,15 @@
 @media (max-width: 600px) {
   .ot-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ot-card-actions {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .ot-status-popup {
+    right: 0.5rem;
+    left: auto !important;
   }
 }
