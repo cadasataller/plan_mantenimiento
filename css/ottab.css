@@ -1,10 +1,8 @@
 /* ============================================================
-   CADASA TALLER — OT TAB COMPONENT CSS  (v4)
-   Añade: popup cambiador de estado, chips de datos OM,
-          banner de datos heredados, badge de semana
+   CADASA TALLER — OT TAB COMPONENT CSS  (v4.1)
    ============================================================ */
 
-/* ── Wrapper y transiciones (sin cambios) ── */
+/* ── Wrapper y transiciones ── */
 .ot-tab-wrapper {
   position: relative;
   width: 100%;
@@ -16,9 +14,7 @@
 
 .ot-view {
   width: 100%;
-  transition:
-    opacity 0.28s cubic-bezier(.4,0,.2,1),
-    transform 0.28s cubic-bezier(.4,0,.2,1);
+  transition: opacity 0.28s cubic-bezier(.4,0,.2,1), transform 0.28s cubic-bezier(.4,0,.2,1);
 }
 
 .ot-view.active {
@@ -37,7 +33,6 @@
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0);    }
 }
-
 .ot-view.active {
   animation: ot-view-in 0.28s cubic-bezier(.4,0,.2,1) both;
 }
@@ -82,6 +77,16 @@
   color: var(--color-gray-300);
 }
 
+/* Preview de semana bajo el campo fecha */
+.ot-semana-hint {
+  margin-top: 0.3rem;
+  font-size: 0.67rem;
+  font-weight: 600;
+  color: var(--color-main);
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+}
+
 .ot-form-actions {
   margin-top: 1.25rem;
   display: flex;
@@ -97,75 +102,7 @@
   gap: 0.35rem;
 }
 
-/* ── Banner datos heredados de la OM ── */
-.ot-om-inherited-banner {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  padding: 0.55rem 0.85rem;
-  background: rgba(var(--color-main-rgb, 26, 107, 83), 0.06);
-  border: 1px solid rgba(var(--color-main-rgb, 26, 107, 83), 0.15);
-  border-radius: var(--radius-md);
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-bottom: 0.85rem;
-}
-
-.ot-om-inherited-banner svg {
-  flex-shrink: 0;
-  color: var(--color-main);
-  margin-right: 0.2rem;
-}
-
-.ot-om-inherited-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  background: var(--color-white);
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-sm);
-  padding: 0.15rem 0.5rem;
-  font-size: 0.69rem;
-  color: var(--text-secondary);
-  font-weight: 400;
-}
-
-.ot-om-inherited-chip strong {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-/* ── Chips de datos OM en las cards ── */
-.ot-om-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  background: var(--color-gray-100);
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-sm);
-  padding: 0.1rem 0.4rem;
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-.ot-om-chip--equipo {
-  background: rgba(var(--color-main-rgb, 26, 107, 83), 0.07);
-  border-color: rgba(var(--color-main-rgb, 26, 107, 83), 0.18);
-  color: var(--color-main);
-}
-
-.ot-om-chip--equipo svg {
-  width: 10px;
-  height: 10px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-}
-
-/* ── Badge semana en meta ── */
+/* ── Badge semana en las cards ── */
 .ot-semana-badge {
   font-family: var(--font-mono);
   font-weight: 700;
@@ -177,35 +114,40 @@
   font-size: 0.63rem;
 }
 
-/* ── Acciones de la card (estado + editar) ── */
+/* ── Acciones de la card ── */
 .ot-card-actions {
   display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-top: 0.35rem;
   flex-direction: column;
   align-items: flex-end;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
 }
 
 /* Botón cambiador de estado */
 .btn-ot-status-change {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.25rem 0.45rem 0.25rem 0.3rem;
+  gap: 0;
+  padding: 0;
   border: 1.5px solid var(--color-gray-200);
   border-radius: var(--radius-sm);
   background: var(--color-white);
   cursor: pointer;
-  font-size: 0;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   white-space: nowrap;
+  overflow: hidden;
 }
 
 .btn-ot-status-change:hover {
   border-color: var(--color-main);
-  background: var(--color-gray-50);
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* El span .ot-status interno ocupa el espacio del badge */
+.btn-ot-status-change .ot-status {
+  border-radius: 0;
+  border: none;
+  padding: 0.22rem 0.5rem 0.22rem 0.4rem;
 }
 
 /* Botón editar */
@@ -231,12 +173,10 @@
 
 /* ── Popup de selección de estado ── */
 .ot-status-popup {
-  position: absolute;
-  z-index: 9999;
   background: var(--color-white);
   border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg, 0 8px 32px rgba(0,0,0,0.16)), 0 0 0 1px rgba(0,0,0,0.04);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.04);
   padding: 0.35rem;
   min-width: 160px;
   animation: popup-in 0.16s cubic-bezier(0.34,1.56,0.64,1) both;
@@ -244,7 +184,7 @@
 
 @keyframes popup-in {
   from { opacity: 0; transform: scale(0.92) translateY(-6px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
 }
 
 .ot-status-popup-item {
@@ -279,12 +219,6 @@
   background: rgba(var(--color-main-rgb, 26, 107, 83), 0.1);
 }
 
-.ot-status-popup-item svg {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-/* Dot de estado pequeño para el popup */
 .ot-status-dot-sm {
   width: 8px;
   height: 8px;
@@ -292,14 +226,7 @@
   flex-shrink: 0;
 }
 
-/* Separador opcional entre items del popup */
-.ot-status-popup-sep {
-  height: 1px;
-  background: var(--color-gray-100);
-  margin: 0.25rem 0;
-}
-
-/* ── Tabs de navegación (reutilizable) ── */
+/* ── Tabs reutilizables ── */
 .ot-tabs {
   display: flex;
   align-items: center;
@@ -309,12 +236,8 @@
   padding: 0 1.25rem;
   overflow-x: auto;
 }
-
 .ot-tabs::-webkit-scrollbar        { height: 4px; }
-.ot-tabs::-webkit-scrollbar-thumb  {
-  background: var(--color-gray-300);
-  border-radius: var(--radius-full);
-}
+.ot-tabs::-webkit-scrollbar-thumb  { background: var(--color-gray-300); border-radius: var(--radius-full); }
 
 .ot-tab {
   position: relative;
@@ -329,25 +252,11 @@
   user-select: none;
   white-space: nowrap;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
-  transition:
-    color var(--transition-fast),
-    background var(--transition-fast);
+  transition: color var(--transition-fast), background var(--transition-fast);
 }
-
-.ot-tab svg {
-  width: 14px; height: 14px;
-  stroke: currentColor; fill: none; stroke-width: 2;
-  flex-shrink: 0;
-}
-
+.ot-tab svg { width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0; }
 .ot-tab:hover  { color: var(--text-secondary); background: var(--color-gray-100); }
-
-.ot-tab.active {
-  color: var(--color-main);
-  font-weight: 600;
-  background: var(--color-white);
-}
-
+.ot-tab.active { color: var(--color-main); font-weight: 600; background: var(--color-white); }
 .ot-tab.active::after {
   content: '';
   position: absolute;
@@ -358,22 +267,11 @@
 }
 
 .ot-tab-panels { width: 100%; }
-.ot-tab-panel          { display: none; padding: 1.25rem; }
-.ot-tab-panel.active   { display: block; }
+.ot-tab-panel        { display: none; padding: 1.25rem; }
+.ot-tab-panel.active { display: block; }
 
 /* ── Responsive ── */
 @media (max-width: 600px) {
-  .ot-form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .ot-card-actions {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .ot-status-popup {
-    right: 0.5rem;
-    left: auto !important;
-  }
+  .ot-form-grid { grid-template-columns: 1fr; }
+  .ot-card-actions { flex-direction: row; align-items: center; }
 }

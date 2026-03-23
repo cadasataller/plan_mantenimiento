@@ -1,23 +1,21 @@
 // ============================================================
-// CADASA TALLER — OT TAB COMPONENT  (v4)
-// Cambios:
-//  + Botón cambiador de estado rápido en cada card
-//  + Datos de OM heredados: Area, Sistema, ID_Equipo, Item
-//  + Semana calculada automáticamente desde la fecha
-//  + Fix date format: yyyy-MM-dd (era dd-MM-yyyy en algunos casos)
+// CADASA TALLER — OT TAB COMPONENT  (v4.1)
+// Fix:
+//  - Popup: se cierra al seleccionar y actualiza la card in-place
+//  - Datos heredados: solo se insertan en DB, sin mostrarse
+//  - Columnas del schema: Área, ID_#EQUIPO, ITEM, Sistema, Semana
+//  - Log de fecha tras formatear
 // ============================================================
 
 const OTTabComponent = (() => {
 
-  let _state        = 'list'; // 'list' | 'create' | 'edit'
+  let _state        = 'list';
   let _om           = null;
   let _ots          = [];
   let _editingOT    = null;
   let _el           = null;
   let _bound        = false;
   let _onOTsChange  = null;
-
-  // Popup de cambio de estado
   let _statusPopup  = null;
 
   const OT_ESTADOS = [
@@ -34,54 +32,57 @@ const OTTabComponent = (() => {
     'Ausencia':   { hex: '#E67E22', badge: 'status-pendiente'  },
   };
 
-  // ── Utilidades de fecha ──────────────────────────────────
+  // ── Utilidades de fecha ───────────────────────────────────
 
-  /**
-   * Convierte CUALQUIER formato recibido → 'yyyy-MM-dd' para input[type=date]
-   * Casos manejados:
-   *   'dd/MM/yyyy'  'dd-MM-yyyy'  → invertir partes
-   *   'yyyy-MM-dd'                → usar tal cual
-   *   'yyyy-MM-ddTHH:MM:SS...'   → recortar
-   *   timestamp ISO completo      → recortar
-   */
   function _toInputDate(val) {
     if (!val || val === '—') return '';
 
     // ISO con tiempo: '2025-03-15T00:00:00...'
-    if (/^\d{4}-\d{2}-\d{2}[T ]/.test(val)) return val.slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}[T ]/.test(val)) {
+      const result = val.slice(0, 10);
+      console.log('[OTTab] _toInputDate ISO+time:', val, '→', result);
+      return result;
+    }
 
     // ISO puro: '2025-03-15'
-    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+      console.log('[OTTab] _toInputDate ISO puro:', val, '→', val);
+      return val;
+    }
 
-    // Locale con separador '/' o '-': puede ser dd/MM/yyyy o d/M/yyyy
+    // Con separador '/' o '-'
     const sep = val.includes('/') ? '/' : val.includes('-') ? '-' : null;
     if (sep) {
       const p = val.split(sep);
       if (p.length === 3) {
-        // Determinar si el primer segmento es año (>= 1000) o día
+        let result;
         if (p[0].length === 4 && Number(p[0]) >= 1000) {
-          // ya es yyyy-MM-dd con otro separador
-          return `${p[0].padStart(4,'0')}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`;
+          // yyyy-sep-MM-sep-dd con otro separador
+          result = `${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`;
         } else {
-          // dd/MM/yyyy  →  yyyy-MM-dd
+          // dd/MM/yyyy → yyyy-MM-dd
           const [d, m, y] = p;
-          return `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+          result = `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
         }
+        console.log('[OTTab] _toInputDate separador:', val, '→', result);
+        return result;
       }
     }
 
-    // Fallback: intentar parsear con Date
+    // Fallback: Date parse
     try {
       const dt = new Date(val);
-      if (!isNaN(dt)) return dt.toISOString().slice(0, 10);
+      if (!isNaN(dt)) {
+        const result = dt.toISOString().slice(0, 10);
+        console.log('[OTTab] _toInputDate fallback Date:', val, '→', result);
+        return result;
+      }
     } catch(_) {}
 
+    console.warn('[OTTab] _toInputDate: no pudo parsear:', val);
     return '';
   }
 
-  /**
-   * Calcula el número de semana ISO (lunes=inicio) para una fecha 'yyyy-MM-dd'
-   */
   function _isoWeek(dateStr) {
     if (!dateStr) return null;
     const d = new Date(dateStr + 'T12:00:00');
@@ -96,7 +97,8 @@ const OTTabComponent = (() => {
   // ── Init ──────────────────────────────────────────────────
   function init(containerId, om, ots, onOTsChange) {
     if (_bound && _el) {
-      _el.removeEventListener('click', _handleClick);
+      _el.removeEventListener('click',  _handleClick);
+      _el.removeEventListener('change', _handleChange);
       _bound = false;
     }
     _closeStatusPopup();
@@ -115,7 +117,7 @@ const OTTabComponent = (() => {
     _render();
   }
 
-  // ── Render ────────────────────────────────────────────────
+  // ── Render completo ───────────────────────────────────────
   function _render() {
     const inner = _el?.querySelector('#ot-tab-inner')
                 ?? document.getElementById('ot-tab-inner');
@@ -126,6 +128,36 @@ const OTTabComponent = (() => {
                : _state === 'create' ? _renderForm(null)
                :                       _renderForm(_editingOT);
     inner.innerHTML = `<div class="ot-view active">${html}</div>`;
+  }
+
+  // ── Actualizar una sola card in-place ─────────────────────
+  // Evita re-render completo (no pierde scroll, no parpadea)
+  function _updateCardInPlace(ot) {
+    const card = _el?.querySelector(`.ot-work-card[data-ot-id="${ot.ID_RowNumber}"]`);
+    if (!card) { _render(); return; } // fallback
+
+    const h      = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Programado'];
+    const stKey  = (ot.Estatus ?? '').replace(/\s/g,'-');
+    const id     = h(ot.ID_RowNumber);
+
+    // Actualizar clase de borde izquierdo
+    card.className = card.className.replace(/\bst-\S+/g, '').trim();
+    card.classList.add(`st-${stKey}`);
+
+    // Actualizar el botón cambiador de estado
+    const statusBtn = card.querySelector('.btn-ot-status-change');
+    if (statusBtn) {
+      statusBtn.dataset.currentStatus = ot.Estatus;
+      statusBtn.innerHTML = `
+        <span class="ot-status ${colors.badge}" style="font-size:0.63rem;pointer-events:none;">
+          <span class="ot-status-dot"></span>${h(ot.Estatus)}
+        </span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             width="10" height="10" style="margin-left:3px;flex-shrink:0;opacity:0.6;pointer-events:none;">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>`;
+    }
   }
 
   // ── Lista ─────────────────────────────────────────────────
@@ -159,9 +191,9 @@ const OTTabComponent = (() => {
     if (!_ots.length)
       return `<div class="ot-bar-chart-empty">No hay órdenes de trabajo registradas para esta OM.</div>`;
 
-    const totalH  = _ots.reduce((s,o) => s + (o.Duracion||0), 0);
-    const totalR  = _ots.reduce((s,o) => s + (o.Retraso||0),  0);
-    const concl   = _ots.filter(o => o.Estatus === 'Concluida').length;
+    const totalH = _ots.reduce((s,o) => s + (o.Duracion||0), 0);
+    const totalR = _ots.reduce((s,o) => s + (o.Retraso||0),  0);
+    const concl  = _ots.filter(o => o.Estatus === 'Concluida').length;
 
     const summary = `
       <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;padding:0.75rem 1rem;
@@ -178,12 +210,6 @@ const OTTabComponent = (() => {
       const stKey  = (ot.Estatus ?? '').replace(/\s/g,'-');
       const id     = h(ot.ID_RowNumber);
 
-      // Datos heredados de la OM
-      const area    = h(ot.Area    || _om?.Area    || '');
-      const sistema = h(ot.Sistema || _om?.Sistema || '');
-      const equipo  = h(ot.ID_Equipo || _om?.ID_Equipo || '');
-      const item    = h(ot.Item    || _om?.Item    || '');
-
       return `
         <div class="ot-work-card st-${stKey}" data-ot-id="${id}">
           <div class="ot-work-card-main">
@@ -198,10 +224,6 @@ const OTTabComponent = (() => {
                 ${h(ot.Fecha || '—')}
               </span>
               ${ot.Semana ? `<span class="ot-work-meta-item ot-semana-badge">S${String(ot.Semana).padStart(2,'0')}</span>` : ''}
-              ${equipo  ? `<span class="ot-work-meta-item ot-om-chip ot-om-chip--equipo" title="Equipo"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>${equipo}</span>` : ''}
-              ${area    ? `<span class="ot-work-meta-item ot-om-chip" title="Área">${area}</span>` : ''}
-              ${sistema ? `<span class="ot-work-meta-item ot-om-chip" title="Sistema">${sistema}</span>` : ''}
-              ${item    ? `<span class="ot-work-meta-item ot-om-chip" title="Item">Ítem: ${item}</span>` : ''}
             </div>
             ${ot.Causa      ? `<div class="ot-work-causa">⚠ ${h(ot.Causa)}</div>` : ''}
             ${ot.Comentario ? `<div style="font-size:0.74rem;color:var(--text-muted);margin-top:0.3rem;font-style:italic;">${h(ot.Comentario)}</div>` : ''}
@@ -210,17 +232,16 @@ const OTTabComponent = (() => {
             <div class="ot-work-horas">${(ot.Duracion||0).toFixed(1)} <span>hrs</span></div>
             ${ot.Retraso > 0 ? `<div class="ot-work-retraso">+${ot.Retraso.toFixed(1)}h retraso</div>` : ''}
             <div class="ot-card-actions">
-              <!-- Cambiador de estado rápido -->
               <button class="btn-ot-status-change" data-ot-id="${id}" data-current-status="${h(ot.Estatus)}"
                 title="Cambiar estado">
                 <span class="ot-status ${colors.badge}" style="font-size:0.63rem;pointer-events:none;">
                   <span class="ot-status-dot"></span>${h(ot.Estatus)}
                 </span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10" style="margin-left:3px;flex-shrink:0;opacity:0.6;pointer-events:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     width="10" height="10" style="margin-left:3px;flex-shrink:0;opacity:0.6;pointer-events:none;">
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </button>
-              <!-- Editar -->
               <button class="btn-ot-edit" data-ot-id="${id}" title="Editar OT">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
                   <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
@@ -244,36 +265,41 @@ const OTTabComponent = (() => {
     popup.dataset.popupFor = otId;
 
     popup.innerHTML = OT_ESTADOS.map(e => {
-      const colors  = OT_STATUS_COLORS[e.value] ?? OT_STATUS_COLORS['Programado'];
-      const active  = e.value === currentStatus ? ' ot-status-popup-item--active' : '';
+      const colors = OT_STATUS_COLORS[e.value] ?? OT_STATUS_COLORS['Programado'];
+      const active = e.value === currentStatus ? ' ot-status-popup-item--active' : '';
       return `
         <button class="ot-status-popup-item${active}" data-status-val="${e.value}" data-ot-id="${otId}">
           <span class="ot-status-dot-sm" style="background:${colors.hex};"></span>
           ${e.label}
-          ${active ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+          ${active ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="11" height="11" style="margin-left:auto;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
         </button>`;
     }).join('');
 
-    // Posicionar debajo del botón
-    const rect = btn.getBoundingClientRect();
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
-    const scrollX = window.scrollX || document.documentElement.scrollLeft;
-    popup.style.top  = (rect.bottom + scrollY + 4) + 'px';
-    popup.style.left = (rect.left   + scrollX)     + 'px';
+    // Posición bajo el botón, usando coordenadas absolutas de página
+    const rect  = btn.getBoundingClientRect();
+    const scrollY = window.scrollY ?? document.documentElement.scrollTop;
+    const scrollX = window.scrollX ?? document.documentElement.scrollLeft;
+    popup.style.cssText = `
+      position:absolute;
+      top:${rect.bottom + scrollY + 4}px;
+      left:${rect.left  + scrollX}px;
+      z-index:9999;
+    `;
 
     document.body.appendChild(popup);
     _statusPopup = popup;
 
-    // Cerrar al hacer click fuera
-    setTimeout(() => {
-      document.addEventListener('click', _onDocClickClosePopup, { once: true });
-    }, 0);
+    // Listener de cierre diferido para no capturar el click que lo abrió
+    requestAnimationFrame(() => {
+      document.addEventListener('click', _onDocClickClosePopup);
+    });
   }
 
   function _closeStatusPopup() {
     if (_statusPopup) {
       _statusPopup.remove();
       _statusPopup = null;
+      document.removeEventListener('click', _onDocClickClosePopup);
     }
   }
 
@@ -289,12 +315,6 @@ const OTTabComponent = (() => {
     const h = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
     const fechaVal = _toInputDate(ot?.Fecha);
-
-    // Datos heredados de la OM (solo lectura en el form)
-    const area    = _om?.Area      ?? ot?.Area      ?? '';
-    const sistema = _om?.Sistema   ?? ot?.Sistema   ?? '';
-    const equipo  = _om?.ID_Equipo ?? ot?.ID_Equipo ?? '';
-    const item    = _om?.Item      ?? ot?.Item      ?? '';
 
     const opts = OT_ESTADOS.map(e =>
       `<option value="${e.value}" ${(ot?.Estatus ?? 'Programado') === e.value ? 'selected' : ''}>${e.label}</option>`
@@ -315,17 +335,6 @@ const OTTabComponent = (() => {
       </div>
 
       <div class="ot-form ot-chart-card">
-
-        ${(area || sistema || equipo || item) ? `
-        <div class="ot-om-inherited-banner">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
-          Datos heredados de la OM:
-          ${equipo  ? `<span class="ot-om-inherited-chip"><strong>Equipo:</strong> ${h(equipo)}</span>` : ''}
-          ${area    ? `<span class="ot-om-inherited-chip"><strong>Área:</strong> ${h(area)}</span>` : ''}
-          ${sistema ? `<span class="ot-om-inherited-chip"><strong>Sistema:</strong> ${h(sistema)}</span>` : ''}
-          ${item    ? `<span class="ot-om-inherited-chip"><strong>Ítem:</strong> ${h(item)}</span>` : ''}
-        </div>` : ''}
-
         <div class="ot-form-grid">
 
           <div class="ot-modal-field" style="grid-column:1/-1;">
@@ -341,8 +350,8 @@ const OTTabComponent = (() => {
           <div class="ot-modal-field">
             <div class="ot-modal-label">Fecha</div>
             <input type="date" id="ot-fecha" value="${fechaVal}" />
-            <div class="ot-modal-label" style="margin-top:0.3rem;font-size:0.6rem;color:var(--text-muted);" id="ot-semana-preview">
-              ${fechaVal ? `Semana ${_isoWeek(fechaVal) ?? '—'}` : 'Semana se calculará al guardar'}
+            <div class="ot-semana-hint" id="ot-semana-preview">
+              ${fechaVal ? `Semana ${_isoWeek(fechaVal) ?? '—'}` : 'La semana se calculará al guardar'}
             </div>
           </div>
 
@@ -390,8 +399,7 @@ const OTTabComponent = (() => {
   // ── Eventos ───────────────────────────────────────────────
   function bindEvents() {
     if (!_el || _bound) return;
-    _el.addEventListener('click', _handleClick);
-    // Live preview de semana en el formulario
+    _el.addEventListener('click',  _handleClick);
     _el.addEventListener('change', _handleChange);
     _bound = true;
   }
@@ -400,7 +408,7 @@ const OTTabComponent = (() => {
     if (e.target?.id === 'ot-fecha') {
       const preview = document.getElementById('ot-semana-preview');
       if (preview) {
-        const dateStr = e.target.value; // ya en yyyy-MM-dd porque es input[type=date]
+        const dateStr = e.target.value;
         const w = _isoWeek(dateStr);
         preview.textContent = w ? `Semana ${w}` : 'Fecha inválida';
       }
@@ -408,25 +416,26 @@ const OTTabComponent = (() => {
   }
 
   async function _handleClick(e) {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-
-    // ── Cambiador de estado rápido ──
-    if (btn.classList.contains('btn-ot-status-change')) {
+    // ── Item del popup ── (primero, antes de cerrar por doc-click)
+    const popupItem = e.target.closest('.ot-status-popup-item');
+    if (popupItem) {
       e.stopPropagation();
-      const otId         = btn.dataset.otId;
-      const currentStatus = btn.dataset.currentStatus;
-      _openStatusPopup(btn, otId, currentStatus);
+      const newStatus = popupItem.dataset.statusVal;
+      const otId      = popupItem.dataset.otId;
+      _closeStatusPopup();                        // cerrar popup inmediatamente
+      await _handleStatusChange(otId, newStatus); // luego actualizar
       return;
     }
 
-    // ── Item del popup de estado ──
-    if (btn.classList.contains('ot-status-popup-item')) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    // ── Abrir popup de estado ──
+    if (btn.classList.contains('btn-ot-status-change')) {
       e.stopPropagation();
-      const newStatus = btn.dataset.statusVal;
-      const otId      = btn.dataset.otId;
-      _closeStatusPopup();
-      await _handleStatusChange(otId, newStatus);
+      const otId          = btn.dataset.otId;
+      const currentStatus = btn.dataset.currentStatus;
+      _openStatusPopup(btn, otId, currentStatus);
       return;
     }
 
@@ -447,11 +456,7 @@ const OTTabComponent = (() => {
         _editingOT = null; _state = 'list'; _render(); break;
 
       case 'btn-save':
-        await _handleSave(
-          btn.dataset.edit === 'true',
-          btn.dataset.otId,
-          btn
-        );
+        await _handleSave(btn.dataset.edit === 'true', btn.dataset.otId, btn);
         break;
     }
   }
@@ -461,37 +466,65 @@ const OTTabComponent = (() => {
     const ot = _ots.find(o => String(o.ID_RowNumber) === String(otId));
     if (!ot || ot.Estatus === newStatus) return;
 
-    // Optimistic UI: actualizar localmente primero
     const oldStatus = ot.Estatus;
+
+    // Optimistic: actualizar array local + card in-place
     ot.Estatus = newStatus;
-    _render();
+    _updateCardInPlace(ot);
 
     const res = await OTService.actualizarOT(otId, { Estatus: newStatus });
 
     if (res.ok) {
       const idx = _ots.findIndex(o => String(o.ID_RowNumber) === String(otId));
       if (idx !== -1) _ots[idx] = res.data;
-      _render();
+      _updateCardInPlace(res.data);       // reflejar datos confirmados del server
       _onOTsChange?.([..._ots]);
-      ToastService?.show(`Estado actualizado: ${newStatus}`, 'success');
+      ToastService?.show(`Estado: ${newStatus}`, 'success');
     } else {
-      // Revertir si falla
+      // Revertir
       ot.Estatus = oldStatus;
-      _render();
-      ToastService?.show('Error al cambiar estado. Intenta de nuevo.', 'danger');
+      _updateCardInPlace(ot);
+      ToastService?.show('Error al cambiar estado.', 'danger');
+    }
+  }
+
+  // ── Actualizar card in-place ──────────────────────────────
+  function _updateCardInPlace(ot) {
+    const card = _el?.querySelector(`.ot-work-card[data-ot-id="${ot.ID_RowNumber}"]`);
+    if (!card) { _render(); return; }
+
+    const h      = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Programado'];
+    const stKey  = (ot.Estatus ?? '').replace(/\s/g,'-');
+
+    // Clase de borde
+    card.className = card.className.replace(/\bst-\S+/g, '').trim() + ` st-${stKey}`;
+
+    // Botón de estado
+    const statusBtn = card.querySelector('.btn-ot-status-change');
+    if (statusBtn) {
+      statusBtn.dataset.currentStatus = ot.Estatus;
+      statusBtn.innerHTML = `
+        <span class="ot-status ${colors.badge}" style="font-size:0.63rem;pointer-events:none;">
+          <span class="ot-status-dot"></span>${h(ot.Estatus)}
+        </span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             width="10" height="10" style="margin-left:3px;flex-shrink:0;opacity:0.6;pointer-events:none;">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>`;
     }
   }
 
   // ── Guardar OT ────────────────────────────────────────────
   async function _handleSave(isEdit, otId, saveBtn) {
-    const desc       = document.getElementById('ot-desc')?.value?.trim()        ?? '';
-    const mec        = document.getElementById('ot-mec')?.value?.trim()         ?? '';
-    const fechaRaw   = document.getElementById('ot-fecha')?.value               ?? '';
+    const desc       = document.getElementById('ot-desc')?.value?.trim()         ?? '';
+    const mec        = document.getElementById('ot-mec')?.value?.trim()          ?? '';
+    const fechaRaw   = document.getElementById('ot-fecha')?.value                ?? '';
     const duracion   = parseFloat(document.getElementById('ot-duracion')?.value) || 0;
     const retraso    = parseFloat(document.getElementById('ot-retraso')?.value)  || 0;
-    const status     = document.getElementById('ot-status')?.value              ?? 'Programado';
-    const causa      = document.getElementById('ot-causa')?.value?.trim()       ?? '';
-    const comentario = document.getElementById('ot-comentario')?.value?.trim()  ?? '';
+    const status     = document.getElementById('ot-status')?.value               ?? 'Programado';
+    const causa      = document.getElementById('ot-causa')?.value?.trim()        ?? '';
+    const comentario = document.getElementById('ot-comentario')?.value?.trim()   ?? '';
 
     if (!desc) {
       const inp = document.getElementById('ot-desc');
@@ -499,17 +532,19 @@ const OTTabComponent = (() => {
       return;
     }
 
-    // Normalizar fecha a yyyy-MM-dd (input[type=date] ya lo entrega así, pero por si acaso)
+    // Normalizar fecha → yyyy-MM-dd  (input[type=date] ya lo entrega así, pero por si acaso)
     const fecha = _toInputDate(fechaRaw);
+    console.log('[OTTab] fecha raw:', fechaRaw, '→ normalizada:', fecha);
 
-    // Calcular semana automáticamente
-    const semana = _isoWeek(fecha) ?? null;
+    // Calcular semana
+    const semana = fecha ? String(_isoWeek(fecha) ?? '') : '';
+    console.log('[OTTab] semana calculada:', semana);
 
-    // Datos heredados de la OM
-    const area    = _om?.Area      ?? '';
+    // Datos heredados de la OM (solo van al DB, no se muestran)
+    const area    = _om?.Area      ?? _om?.Área    ?? '';
+    const equipo  = _om?.ID_Equipo ?? _om?.['ID_#EQUIPO'] ?? '';
+    const item    = _om?.Item      ?? _om?.ITEM    ?? '';
     const sistema = _om?.Sistema   ?? '';
-    const equipo  = _om?.ID_Equipo ?? '';
-    const item    = _om?.Item      ?? '';
 
     saveBtn.disabled  = true;
     saveBtn.innerHTML = `<div class="spinner-sm"></div> Guardando…`;
@@ -524,11 +559,10 @@ const OTTabComponent = (() => {
       Causa:       causa,
       Comentario:  comentario,
       Semana:      semana,
-      // Datos de OM
       Area:        area,
-      Sistema:     sistema,
       ID_Equipo:   equipo,
       Item:        item,
+      Sistema:     sistema,
     };
 
     const res = isEdit
@@ -547,13 +581,10 @@ const OTTabComponent = (() => {
       _state     = 'list';
       _render();
 
-      // Badge
       const badge = document.getElementById('modal-ot-badge');
       if (badge) { badge.textContent = _ots.length; badge.style.display = 'inline'; }
 
-      // Gráficas
       _onOTsChange?.([..._ots]);
-
       ToastService?.show(isEdit ? 'OT actualizada correctamente.' : 'OT creada correctamente.', 'success');
 
     } else {
@@ -570,7 +601,7 @@ const OTTabComponent = (() => {
   function destroy() {
     _closeStatusPopup();
     if (_el && _bound) {
-      _el.removeEventListener('click', _handleClick);
+      _el.removeEventListener('click',  _handleClick);
       _el.removeEventListener('change', _handleChange);
     }
     _bound = false; _state = 'list'; _om = null;
