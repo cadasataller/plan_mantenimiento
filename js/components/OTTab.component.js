@@ -37,49 +37,36 @@ const OTTabComponent = (() => {
   function _toInputDate(val) {
     if (!val || val === '—') return '';
 
-    // ISO con tiempo: '2025-03-15T00:00:00...'
-    if (/^\d{4}-\d{2}-\d{2}[T ]/.test(val)) {
-      const result = val.slice(0, 10);
-      console.log('[OTTab] _toInputDate ISO+time:', val, '→', result);
+    const raw = String(val).trim();
+
+    // ① ISO con tiempo: '2026-03-31T00:00:00' o '2026-03-31 00:00:00'
+    //   → tomar solo los primeros 10 chars, que YA son yyyy-MM-dd
+    if (/^\d{4}-\d{2}-\d{2}[T ]/.test(raw)) {
+      const result = raw.slice(0, 10);
+      console.log('[OTTab] _toInputDate ①ISO+time :', raw, '→', result);
       return result;
     }
 
-    // ISO puro: '2025-03-15'
-    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
-      console.log('[OTTab] _toInputDate ISO puro:', val, '→', val);
-      return val;
+    // ② ISO puro: '2026-03-31'
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      console.log('[OTTab] _toInputDate ②ISO puro :', raw, '→', raw);
+      return raw;
     }
 
-    // Con separador '/' o '-'
-    const sep = val.includes('/') ? '/' : val.includes('-') ? '-' : null;
-    if (sep) {
-      const p = val.split(sep);
+    // ③ Locale con '/': acepta 'd/M/yyyy' o 'dd/MM/yyyy'
+    if (raw.includes('/')) {
+      const p = raw.split('/');
       if (p.length === 3) {
-        let result;
-        if (p[0].length === 4 && Number(p[0]) >= 1000) {
-          // yyyy-sep-MM-sep-dd con otro separador
-          result = `${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`;
-        } else {
-          // dd/MM/yyyy → yyyy-MM-dd
-          const [d, m, y] = p;
-          result = `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-        }
-        console.log('[OTTab] _toInputDate separador:', val, '→', result);
+        const [d, m, y] = p;
+        const result = `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+        console.log('[OTTab] _toInputDate ③dd/MM/yyyy:', raw, '→', result);
         return result;
       }
     }
 
-    // Fallback: Date parse
-    try {
-      const dt = new Date(val);
-      if (!isNaN(dt)) {
-        const result = dt.toISOString().slice(0, 10);
-        console.log('[OTTab] _toInputDate fallback Date:', val, '→', result);
-        return result;
-      }
-    } catch(_) {}
-
-    console.warn('[OTTab] _toInputDate: no pudo parsear:', val);
+    // ④ NO usar new Date() — convierte a UTC y puede cambiar el día según timezone.
+    //   Si llegamos aquí, el formato es desconocido; logear y devolver vacío.
+    console.warn('[OTTab] _toInputDate ④formato desconocido, no se parsea:', raw);
     return '';
   }
 
@@ -275,15 +262,33 @@ const OTTabComponent = (() => {
         </button>`;
     }).join('');
 
-    // Posición bajo el botón, usando coordenadas absolutas de página
-    const rect  = btn.getBoundingClientRect();
-    const scrollY = window.scrollY ?? document.documentElement.scrollTop;
-    const scrollX = window.scrollX ?? document.documentElement.scrollLeft;
+    // ── POSICIÓN: usar fixed + coords de viewport (getBoundingClientRect)
+    // NO usar scrollY/scrollX — el modal es position:fixed y el popup
+    // debe anclarse al viewport, no al documento.
+    const rect = btn.getBoundingClientRect();
+
+    // Calcular si hay espacio abajo o hay que abrir hacia arriba
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const popupH     = OT_ESTADOS.length * 42; // estimación conservadora
+
+    let topVal, transformVal;
+    if (spaceBelow < popupH + 8) {
+      // Abrir hacia arriba
+      topVal      = rect.top - 4;
+      transformVal = 'translateY(-100%)';
+    } else {
+      // Abrir hacia abajo (normal)
+      topVal      = rect.bottom + 4;
+      transformVal = 'none';
+    }
+
     popup.style.cssText = `
-      position:absolute;
-      top:${rect.bottom + scrollY + 4}px;
-      left:${rect.left  + scrollX}px;
-      z-index:9999;
+      position: fixed;
+      top: ${topVal}px;
+      left: ${rect.left}px;
+      transform: ${transformVal};
+      z-index: 99999;
+      min-width: max(160px, ${rect.width}px);
     `;
 
     document.body.appendChild(popup);
@@ -351,7 +356,7 @@ const OTTabComponent = (() => {
             <div class="ot-modal-label">Fecha</div>
             <input type="date" id="ot-fecha" value="${fechaVal}" />
             <div class="ot-semana-hint" id="ot-semana-preview">
-              ${fechaVal ? `Semana ${_isoWeek(fechaVal) ?? '—'}` : 'La semana se calculará al guardar'}
+              ${fechaVal ? `Semana ${_isoWeek(fechaVal) ?? '—'}` : ''}
             </div>
           </div>
 
