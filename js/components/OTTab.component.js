@@ -182,6 +182,10 @@ const OTTabComponent = (() => {
     const totalR = _ots.reduce((s,o) => s + (o.Retraso||0),  0);
     const concl  = _ots.filter(o => o.Estatus === 'Concluida').length;
 
+    // ── Separar listas ──
+    const activas    = _ots.filter(o => o.Estatus !== 'Concluida');
+    const concluidas = _ots.filter(o => o.Estatus === 'Concluida');
+
     const summary = `
       <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;padding:0.75rem 1rem;
                   background:var(--color-gray-50);border-radius:var(--radius-md);
@@ -192,55 +196,77 @@ const OTTabComponent = (() => {
         ${totalR > 0 ? ` · <strong style="color:var(--color-danger);font-family:var(--font-mono);">${totalR.toFixed(1)}h</strong> retraso` : ''}
       </div>`;
 
-    const cards = _ots.map(ot => {
-      const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Programado'];
-      const stKey  = (ot.Estatus ?? '').replace(/\s/g,'-');
-      const id     = h(ot.ID_RowNumber);
+    // ── Cards activas ──
+    const cardsActivas = activas.length
+      ? activas.map(ot => _renderCard(ot, h)).join('')
+      : `<div class="ot-bar-chart-empty" style="padding:1rem 0;">No hay órdenes activas.</div>`;
 
-      return `
-        <div class="ot-work-card st-${stKey}" data-ot-id="${id}">
-          <div class="ot-work-card-main">
-            <div class="ot-work-desc">${h(ot.Descripcion)}</div>
-            <div class="ot-work-meta">
-              <span class="ot-work-meta-item">
-                <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                ${h(ot.ID_Mecanico || '—')}
-              </span>
-              <span class="ot-work-meta-item">
-                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                ${h(ot.Fecha || '—')}
-              </span>
-              ${ot.Semana ? `<span class="ot-work-meta-item ot-semana-badge">S${String(ot.Semana).padStart(2,'0')}</span>` : ''}
-            </div>
-            ${ot.Causa      ? `<div class="ot-work-causa">⚠ ${h(ot.Causa)}</div>` : ''}
-            ${ot.Comentario ? `<div style="font-size:0.74rem;color:var(--text-muted);margin-top:0.3rem;font-style:italic;">${h(ot.Comentario)}</div>` : ''}
-          </div>
-          <div class="ot-work-card-right">
-            <div class="ot-work-horas">${(ot.Duracion||0).toFixed(1)} <span>hrs</span></div>
-            ${ot.Retraso > 0 ? `<div class="ot-work-retraso">+${ot.Retraso.toFixed(1)}h retraso</div>` : ''}
-            <div class="ot-card-actions">
-              <button class="btn-ot-status-change" data-ot-id="${id}" data-current-status="${h(ot.Estatus)}"
-                title="Cambiar estado">
-                <span class="ot-status ${colors.badge}" style="font-size:0.63rem;pointer-events:none;">
-                  <span class="ot-status-dot"></span>${h(ot.Estatus)}
-                </span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     width="10" height="10" style="margin-left:3px;flex-shrink:0;opacity:0.6;pointer-events:none;">
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              </button>
-              <button class="btn-ot-edit" data-ot-id="${id}" title="Editar OT">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
-                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
+    // ── Sección concluidas con toggle ──
+    const seccionConcluidas = concluidas.length ? `
+      <div class="ot-concluidas-toggle" id="btn-toggle-concluidas" data-open="false">
+        <div class="ot-concluidas-toggle-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+          <span>Concluidas</span>
+          <span class="ot-concluidas-badge">${concluidas.length}</span>
+        </div>
+        <span class="ot-concluidas-toggle-hint">Mostrar</span>
+      </div>
+      <div class="ot-concluidas-list" id="ot-concluidas-list" style="display:none;">
+        ${concluidas.map(ot => _renderCard(ot, h)).join('')}
+      </div>` : '';
 
-    return summary + `<div class="ot-work-list">${cards}</div>`;
+    return summary
+      + `<div class="ot-work-list">${cardsActivas}</div>`
+      + seccionConcluidas;
+  }
+
+  function _renderCard(ot, h) {
+    const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Programado'];
+    const stKey  = (ot.Estatus ?? '').replace(/\s/g,'-');
+    const id     = h(ot.ID_RowNumber);
+
+    return `
+      <div class="ot-work-card st-${stKey}" data-ot-id="${id}">
+        <div class="ot-work-card-main">
+          <div class="ot-work-desc">${h(ot.Descripcion)}</div>
+          <div class="ot-work-meta">
+            <span class="ot-work-meta-item">
+              <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              ${h(ot.ID_Mecanico || '—')}
+            </span>
+            <span class="ot-work-meta-item">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              ${h(ot.Fecha || '—')}
+            </span>
+            ${ot.Semana ? `<span class="ot-work-meta-item ot-semana-badge">S${String(ot.Semana).padStart(2,'0')}</span>` : ''}
+          </div>
+          ${ot.Causa      ? `<div class="ot-work-causa">⚠ ${h(ot.Causa)}</div>` : ''}
+          ${ot.Comentario ? `<div style="font-size:0.74rem;color:var(--text-muted);margin-top:0.3rem;font-style:italic;">${h(ot.Comentario)}</div>` : ''}
+        </div>
+        <div class="ot-work-card-right">
+          <div class="ot-work-horas">${(ot.Duracion||0).toFixed(1)} <span>hrs</span></div>
+          ${ot.Retraso > 0 ? `<div class="ot-work-retraso">+${ot.Retraso.toFixed(1)}h retraso</div>` : ''}
+          <div class="ot-card-actions">
+            <button class="btn-ot-status-change" data-ot-id="${id}" data-current-status="${h(ot.Estatus)}" title="Cambiar estado">
+              <span class="ot-status ${colors.badge}" style="font-size:0.63rem;pointer-events:none;">
+                <span class="ot-status-dot"></span>${h(ot.Estatus)}
+              </span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  width="10" height="10" style="margin-left:3px;flex-shrink:0;opacity:0.6;pointer-events:none;">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <button class="btn-ot-edit" data-ot-id="${id}" title="Editar OT">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>`;
   }
 
   // ── Status Popup ─────────────────────────────────────────
@@ -441,6 +467,21 @@ const OTTabComponent = (() => {
       if (_editingOT) { _state = 'edit'; _render(); }
       return;
     }
+
+        // ── Toggle concluidas ──
+    if (btn.id === 'btn-toggle-concluidas') {
+      const list   = document.getElementById('ot-concluidas-list');
+      const isOpen = btn.dataset.open === 'true';
+      const hint   = btn.querySelector('.ot-concluidas-toggle-hint');
+      const icon   = btn.querySelector('svg');
+
+      btn.dataset.open    = !isOpen;
+      list.style.display  = isOpen ? 'none' : 'flex';
+      hint.textContent    = isOpen ? 'Mostrar' : 'Ocultar';
+      icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+      return;
+    }
+
     switch (btn.id) {
       case 'btn-add-ot':    _editingOT = null; _state = 'create'; _render(); break;
       case 'btn-back-list':
