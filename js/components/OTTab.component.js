@@ -743,67 +743,104 @@ const OTTabComponent = (() => {
   function _updateCardInPlace(ot) { _updateCardBadge(ot); }
 
   // ── Guardar OT ────────────────────────────────────────────
-  async function _handleSave(isEdit, otId, saveBtn) {
-    const mec        = document.getElementById('ot-mec')?.value?.trim()          ?? '';
-    const fechaRaw   = document.getElementById('ot-fecha')?.value                ?? '';
-    const duracion   = parseFloat(document.getElementById('ot-duracion')?.value) || 0;
-    const status = document.getElementById('ot-status')?.value ?? 'Retrasada';
-    const comentario = document.getElementById('ot-comentario')?.value?.trim()   ?? '';
+ // ── Guardar OT ────────────────────────────────────────────
+  async function _handleSave(isEdit, otId, saveBtn) {
+    const mec         = document.getElementById('ot-mec')?.value?.trim()          ?? '';
+    const fechaRaw    = document.getElementById('ot-fecha')?.value                ?? '';
+    const duracionStr = document.getElementById('ot-duracion')?.value?.trim()     ?? '';
+    const status      = document.getElementById('ot-status')?.value               ?? 'Retrasada';
+    const comentario  = document.getElementById('ot-comentario')?.value?.trim()   ?? '';
 
-    // Causa y Retraso solo si aplica
-    const isRetrasado = status === 'Retrasada'; 
-    const retraso  = isRetrasado ? (parseFloat(document.getElementById('ot-retraso')?.value)  || 0) : 0;
-    const causa    = isRetrasado ? (document.getElementById('ot-causa')?.value?.trim()        ?? '') : '';
+    // Causa y Retraso solo si aplica
+    const isRetrasado = status === 'Retrasada'; 
+    const retrasoStr  = document.getElementById('ot-retraso')?.value?.trim()      ?? '';
+    const causa       = document.getElementById('ot-causa')?.value?.trim()        ?? '';
 
-    const fecha  = _toInputDate(fechaRaw);
-    const semana = fecha ? String(_isoWeek(fecha) ?? '') : '';
+    const fecha  = _toInputDate(fechaRaw);
+    const semana = fecha ? String(_isoWeek(fecha) ?? '') : '';
 
-    console.log('[OTTab] fecha raw:', fechaRaw, '→ normalizada:', fecha, '| semana:', semana);
+    // ── 1. Lógica de Validación ──
+    let errorMsg = '';
+    if (!mec) errorMsg = 'El Mecánico es obligatorio.';
+    else if (!fecha) errorMsg = 'La Fecha es obligatoria.';
+    else if (!semana) errorMsg = 'La fecha ingresada no es válida.';
+    else if (!duracionStr || parseFloat(duracionStr) < 0) errorMsg = 'La Duración (horas) es obligatoria.';
+    else if (isRetrasado) {
+      if (!retrasoStr || parseFloat(retrasoStr) <= 0) errorMsg = 'Si está Retrasada, debe indicar las horas de retraso.';
+      else if (!causa) errorMsg = 'Debe indicar la causa del retraso.';
+    }
 
-    saveBtn.disabled  = true;
-    saveBtn.innerHTML = `<div class="spinner-sm"></div> Guardando…`;
+    // ── 2. Mostrar Error en UI ──
+    let errorContainer = document.getElementById('ot-form-error');
+    if (errorMsg) {
+      if (!errorContainer) {
+        errorContainer = document.createElement('div');
+        errorContainer.id = 'ot-form-error';
+        errorContainer.className = 'ot-form-error-msg';
+        const actions = document.querySelector('.ot-form-actions');
+        actions.parentNode.insertBefore(errorContainer, actions);
+      }
+      errorContainer.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg> 
+        ${errorMsg}`;
+      errorContainer.style.display = 'flex';
+      return; // Detiene el guardado si hay error
+    } else if (errorContainer) {
+      errorContainer.style.display = 'none'; // Ocultar si ya no hay errores
+    }
 
-    // Solo columnas del schema (sin Descripcion, Area, etc.)
-    const datos = {
-      ID_Mecanico:  mec,
-      Fecha:        fecha,
-      Duracion:     duracion,
-      Retraso:      retraso,
-      Estatus:      status,
-      Causa:        causa,
-      Comentario:   comentario,
-      Semana:       semana,
-    };
+    // ── 3. Preparar datos validados ──
+    const duracion   = parseFloat(duracionStr) || 0;
+    const retraso    = isRetrasado ? (parseFloat(retrasoStr) || 0) : 0;
+    const causaFinal = isRetrasado ? causa : '';
 
-    const res = isEdit
-      ? await OTService.actualizarOT(otId, datos)
-      : await OTService.crearOT(_om.ID_Orden, datos);
+    console.log('[OTTab] fecha raw:', fechaRaw, '→ normalizada:', fecha, '| semana:', semana);
 
-    if (res.ok) {
-      if (isEdit) {
-        const idx = _ots.findIndex(o => String(o.ID_RowNumber) === String(otId));
-        if (idx !== -1) _ots[idx] = res.data; else _ots.unshift(res.data);
-      } else {
-        _ots.unshift(res.data);
-      }
+    saveBtn.disabled  = true;
+    saveBtn.innerHTML = `<div class="spinner-sm"></div> Guardando…`;
 
-      _editingOT = null; _state = 'list'; _render();
+    const datos = {
+      ID_Mecanico:  mec,
+      Fecha:        fecha,
+      Duracion:     duracion,
+      Retraso:      retraso,
+      Estatus:      status,
+      Causa:        causaFinal,
+      Comentario:   comentario,
+      Semana:       semana,
+    };
 
-      const badge = document.getElementById('modal-ot-badge');
-      if (badge) { badge.textContent = _ots.length; badge.style.display = 'inline'; }
+    const res = isEdit
+      ? await OTService.actualizarOT(otId, datos)
+      : await OTService.crearOT(_om.ID_Orden, datos);
 
-      _onOTsChange?.([..._ots]);
-      ToastService?.show(isEdit ? 'OT actualizada correctamente.' : 'OT creada correctamente.', 'success');
+    if (res.ok) {
+      if (isEdit) {
+        const idx = _ots.findIndex(o => String(o.ID_RowNumber) === String(otId));
+        if (idx !== -1) _ots[idx] = res.data; else _ots.unshift(res.data);
+      } else {
+        _ots.unshift(res.data);
+      }
 
-    } else {
-      saveBtn.disabled  = false;
-      saveBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg> ${isEdit ? 'Guardar cambios' : 'Crear OT'}`;
-      ToastService?.show('Error al guardar. Intenta de nuevo.', 'danger');
-    }
-  }
+      _editingOT = null; _state = 'list'; _render();
+
+      const badge = document.getElementById('modal-ot-badge');
+      if (badge) { badge.textContent = _ots.length; badge.style.display = 'inline'; }
+
+      _onOTsChange?.([..._ots]);
+      ToastService?.show(isEdit ? 'OT actualizada correctamente.' : 'OT creada correctamente.', 'success');
+
+    } else {
+      saveBtn.disabled  = false;
+      saveBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg> ${isEdit ? 'Guardar cambios' : 'Crear OT'}`;
+      ToastService?.show('Error al guardar. Intenta de nuevo.', 'danger');
+    }
+  }
 
   // ── Destroy ───────────────────────────────────────────────
   function destroy() {

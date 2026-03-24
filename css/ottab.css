@@ -444,3 +444,24 @@
 .ot-status-btn.active .dot {
   background: white;
 }
+
+.ot-form-error-msg { 
+    display: flex; 
+    align-items: center; 
+    gap: 0.45rem; 
+    padding: 0.6rem 0.8rem;
+    margin-top: 1rem;
+    background: rgba(220, 53, 69, 0.08);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    border-radius: var(--radius-md);
+    color: #d32f2f;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: var(--font-body);
+    animation: popup-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+} 
+.ot-form-error-msg svg { 
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}

@@ -206,25 +206,19 @@ const ModalComponent = (() => {
 
           <!-- Semana (solo lectura, siempre) -->
           ${mf('Semana asignada', '', `
-            <div class="ot-modal-val">${semDisplay}</div>
-            ${_editMode ? '<div class="edit-field-hint">Se recalcula al cambiar la fecha de inicio.</div>' : ''}
-          `)}
+            <div class="ot-modal-val">${semDisplay}</div> `)}
 
           <!-- Fecha inicio (solo lectura, automática) -->
           ${mf('Fecha de inicio', '', `
             <div class="ot-modal-val${!om.FechaInicio || om.FechaInicio === '—' ? ' empty' : ''}">
               ${om.FechaInicio || '—'}
-            </div>
-            ${_editMode ? '<div class="edit-field-hint">Se registra automáticamente al cambiar el estado a En Proceso.</div>' : ''}
-          `)}
+            </div>`)}
 
           <!-- Fecha conclusión (solo lectura, automática) -->
           ${mf('Fecha conclusión', '', `
             <div class="ot-modal-val${!om.FechaConclusion || om.FechaConclusion === '—' ? ' empty' : ''}">
               ${om.FechaConclusion || '—'}
-            </div>
-            ${_editMode ? '<div class="edit-field-hint">Se completa automáticamente al marcar como Concluido.</div>' : ''}
-          `)}
+            </div>`)}
 
         </div>
       </div>
@@ -240,9 +234,7 @@ const ModalComponent = (() => {
 
           <!-- Tiene solicitud (solo lectura, derivado) -->
           ${mf('Tiene solicitud', '', `
-            <div class="ot-modal-val">${om.TieneSolicitud || 'No'}</div>
-            ${_editMode ? '<div class="edit-field-hint">Se actualiza automáticamente según el N° Solicitud.</div>' : ''}
-          `)}
+            <div class="ot-modal-val">${om.TieneSolicitud || 'No'}</div>`)}
 
           <!-- N° Solicitud -->
           <div class="ot-modal-field">
