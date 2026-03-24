@@ -328,7 +328,78 @@
   margin-top: 0.5rem;
 }
 
-/* ── Botones de selección de estado en formulario ── */
+/* ── Banner de datos de la OM en el formulario ── */
+.ot-om-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin-bottom: 1rem;
+  padding: 0.7rem 1rem;
+  background: var(--color-gray-50);
+  border: 1px solid var(--color-gray-100);
+  border-left: 3px solid var(--color-main);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.ot-om-banner-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+.ot-om-banner-desc {
+  white-space: normal;   /* descripción puede romper línea */
+  flex-basis: 100%;      /* ocupa toda la fila */
+}
+
+.ot-om-banner-label {
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+/* ── Banner de datos de la OM (visible en formulario crear/editar OT) ── */
+.ot-om-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.85rem;
+  background: var(--color-gray-50);
+  border: 1px solid var(--color-gray-100);
+  border-left: 3px solid var(--color-main);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.ot-om-banner-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.ot-om-banner-item.ot-om-banner-desc {
+  /* Descripción puede ocupar toda la fila */
+  flex-basis: 100%;
+  white-space: normal;
+}
+
+.ot-om-banner-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 .ot-status-buttons {
   display: flex;
   gap: 0.4rem;
