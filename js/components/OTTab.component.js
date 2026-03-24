@@ -453,7 +453,7 @@ const OTTabComponent = (() => {
 
   async function _handleClick(e) {
     // popupItem ya no se maneja aquí — lo maneja _handleDocClick
-    const btn = e.target.closest('button');
+    const btn = e.target.closest('button, #btn-toggle-concluidas');
     if (!btn) return;
 
     if (btn.classList.contains('btn-ot-status-change')) {
