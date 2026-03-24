@@ -457,7 +457,13 @@ const ModalComponent = (() => {
       _refreshFooter();
       _refreshHeaderBadge();
     } else {
-      ToastService?.show('Error al guardar. Intenta de nuevo.', 'danger');
+
+      if(resultado.error){
+        ToastService?.show(resultado.error, 'danger');
+      }else{
+
+        ToastService?.show('Error al guardar. Intenta de nuevo.', 'danger');
+      }
       _refreshFooter();
     }
   }
