@@ -28,11 +28,11 @@ const OTTabComponent = (() => {
   ];
 
   const OT_STATUS_COLORS = {
-    'Concluida':  { hex: '#2D8A4E', badge: 'status-completado' },
-    'En Proceso': { hex: '#1A6B9A', badge: 'status-en-proceso' },
-    'Retrasado':  { hex: '#B8B3A7', badge: 'status-programado' },
-    'Ausencia':   { hex: '#E67E22', badge: 'status-pendiente'  },
-  };
+    'Concluida':  { hex: '#2D8A4E', badge: 'status-completado' },
+    'En Proceso': { hex: '#1A6B9A', badge: 'status-en-proceso' },
+    'Retrasada':  { hex: '#B8B3A7', badge: 'status-programado' }, // ✅ Cambiar a 'Retrasada'
+    'Ausencia':   { hex: '#E67E22', badge: 'status-pendiente'  },
+  };
 
   // ── Utilidades de fecha ───────────────────────────────────
 
@@ -288,8 +288,8 @@ const OTTabComponent = (() => {
     const isEdit       = ot !== null;
     const h            = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const fechaVal     = _toInputDate(ot?.Fecha);
-    const estadoActual = ot?.Estatus ?? 'Retrasado';
-    const showRetrasoFields = estadoActual === 'Retrasado';
+    const estadoActual = ot?.Estatus ?? 'Retrasada';
+    const showRetrasoFields = estadoActual === 'Retrasada';
 
     // ── Banner con datos de la OM ──
     const omBanner = _om ? `
@@ -474,7 +474,7 @@ const OTTabComponent = (() => {
       if (hidden) hidden.value = newVal;
 
       // Mostrar/ocultar campos de retraso según el estado elegido
-      _toggleRetrasoFields(newVal === 'Retrasado');
+      _toggleRetrasoFields(newVal === 'Retrasada');
       return;
     }
 
@@ -518,8 +518,8 @@ const OTTabComponent = (() => {
     if (!ot || ot.Estatus === newStatus) return;
 
     // Retrasado → abrir formulario para capturar causa y horas
-    if (newStatus === 'Retrasado') {
-      _editingOT = { ...ot, Estatus: 'Retrasado' };
+    if (newStatus === 'Retrasada') {
+      _editingOT = { ...ot, Estatus: 'Retrasada' };
       _state     = 'edit';
       _render();
       return;
@@ -747,11 +747,11 @@ const OTTabComponent = (() => {
     const mec        = document.getElementById('ot-mec')?.value?.trim()          ?? '';
     const fechaRaw   = document.getElementById('ot-fecha')?.value                ?? '';
     const duracion   = parseFloat(document.getElementById('ot-duracion')?.value) || 0;
-    const status     = document.getElementById('ot-status')?.value               ?? 'Retrasado';
+    const status = document.getElementById('ot-status')?.value ?? 'Retrasada';
     const comentario = document.getElementById('ot-comentario')?.value?.trim()   ?? '';
 
     // Causa y Retraso solo si aplica
-    const isRetrasado = status === 'Retrasado';
+    const isRetrasado = status === 'Retrasada'; 
     const retraso  = isRetrasado ? (parseFloat(document.getElementById('ot-retraso')?.value)  || 0) : 0;
     const causa    = isRetrasado ? (document.getElementById('ot-causa')?.value?.trim()        ?? '') : '';
 

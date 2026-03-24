@@ -9,16 +9,16 @@ const ModalComponent = (() => {
     'Concluida':  { hex: '#2D8A4E', badge: 'status-completado' },
     'En Proceso': { hex: '#1A6B9A', badge: 'status-en-proceso' },
     'Programado': { hex: '#B8B3A7', badge: 'status-programado' },
+    'Retrasada':  { hex: '#B8B3A7', badge: 'status-programado' }, // 👈 AGREGAR ESTO AQUÍ
     'Detenido':   { hex: '#C0392B', badge: 'status-pendiente'  },
   };
 
   const OT_COLORS = {
-    'Concluida':  '#2D8A4E',
-    'En Proceso': '#1A6B9A',
-    'Retrasado': '#B8B3A7',
-    'Ausencia':   '#E67E22',   // ← nuevo estado OT
-  };
-
+    'Concluida':  '#2D8A4E',
+    'En Proceso': '#1A6B9A',
+    'Retrasada':  '#B8B3A7', // ✅ Cambiar a 'Retrasada'
+    'Ausencia':   '#E67E22',
+  };
   const ESTADOS_EDIT = [
     { value: 'Programado', label: 'PROGRAMADO', icon: '◷', desc: 'En espera de inicio' },
     { value: 'En Proceso', label: 'EN PROCESO', icon: '⚡', desc: 'Trabajo activo'      },
@@ -26,7 +26,7 @@ const ModalComponent = (() => {
     { value: 'Detenido',   label: 'DETENIDO',   icon: '⏸', desc: 'Trabajo pausado'     },
   ];
 
-  const DONUT_ORDER = ['Concluida', 'En Proceso', 'Programado', 'Ausencia'];
+  const DONUT_ORDER = ['Concluida', 'En Proceso', 'Retrasada', 'Ausencia']; // ✅ 'Retrasada'
 
   let _currentOM = null;
   let _activeTab = 'info';
