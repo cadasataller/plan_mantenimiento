@@ -482,7 +482,7 @@ const OTTabComponent = (() => {
       return;
     }
 
-    if (id === 'btn-add-ot') {
+    if (btn.id === 'btn-add-ot') {
       // NUEVA VALIDACIÓN: Verificar estado de la OM actual
       if (_om.Estatus === 'Concluida') {
         // Usar el ToastService para mostrar el error
