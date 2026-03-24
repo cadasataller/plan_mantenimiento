@@ -1,5 +1,5 @@
 /* ============================================================
-   CADASA TALLER — OT TAB COMPONENT CSS  (v4.1)
+   CADASA TALLER — OT TAB COMPONENT CSS  (v4.3)
    ============================================================ */
 
 /* ── Wrapper y transiciones ── */
@@ -143,7 +143,6 @@
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 
-/* El span .ot-status interno ocupa el espacio del badge */
 .btn-ot-status-change .ot-status {
   border-radius: 0;
   border: none;
@@ -329,29 +328,27 @@
   margin-top: 0.5rem;
 }
 
+/* ── Botones de selección de estado en formulario ── */
 .ot-status-buttons {
   display: flex;
   gap: 0.4rem;
-  flex-wrap: nowrap;        /* 🔥 evita que se vayan en vertical */
-  overflow-x: auto;         /* opcional si no caben */
+  flex-wrap: wrap;   /* se acomodan en varias filas si no caben */
 }
 
 .ot-status-btn {
-  flex: 0 0 auto;           /* 🔥 evita que crezcan a 100% */
+  flex: 1 1 auto;    /* crecen para llenar el espacio disponible */
+  min-width: 90px;   /* ancho mínimo para que no queden muy chicos */
   padding: 0.45rem 0.75rem;
   border-radius: 999px;
   border: 1px solid var(--color-gray-200);
   background: white;
   font-size: 0.7rem;
   cursor: pointer;
-
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-
-  white-space: nowrap;      /* 🔥 evita que el texto rompa línea */
-
+  white-space: nowrap;
   transition: all 0.2s ease;
 }
 
@@ -360,6 +357,7 @@
   height: 6px;
   border-radius: 50%;
   background: var(--st-color);
+  flex-shrink: 0;
 }
 
 .ot-status-btn:hover {

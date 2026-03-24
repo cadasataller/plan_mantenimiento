@@ -288,7 +288,7 @@ const OTTabComponent = (() => {
     const isEdit      = ot !== null;
     const h           = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const fechaVal    = _toInputDate(ot?.Fecha);
-    const estadoActual = ot?.Estatus ?? 'Retrasado';
+    const estadoActual = ot?.Estatus ?? 'En Proceso';
 
     // Mostrar campos de retraso solo si el estado es 'Retrasado'
     const showRetrasoFields = estadoActual === 'Retrasado';
@@ -328,7 +328,7 @@ const OTTabComponent = (() => {
             <input type="number" id="ot-duracion" placeholder="0.0" min="0" step="0.5" value="${ot?.Duracion ?? ''}" />
           </div>
 
-          <div class="ot-modal-field">
+          <div class="ot-modal-field" style="grid-column:1/-1;">
             <div class="ot-modal-label">Estado</div>
             <div class="ot-status-buttons" id="ot-status-buttons">
               ${OT_ESTADOS.map(e => {
