@@ -15,7 +15,7 @@ const ModalComponent = (() => {
   const OT_COLORS = {
     'Concluida':  '#2D8A4E',
     'En Proceso': '#1A6B9A',
-    'Programado': '#B8B3A7',
+    'Retrasado': '#B8B3A7',
     'Ausencia':   '#E67E22',   // ← nuevo estado OT
   };
 
