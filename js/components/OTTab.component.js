@@ -21,7 +21,7 @@ const OTTabComponent = (() => {
   let _statusPopup  = null;
 
   const OT_ESTADOS = [
-    { value: 'Retrasado',  label: 'Retrasado'  },
+    { value: 'Retrasada',  label: 'Retrasada'  },
     { value: 'En Proceso', label: 'En Proceso' },
     { value: 'Concluida',  label: 'Concluida'  },
     { value: 'Ausencia',   label: 'Ausencia'   },
@@ -285,13 +285,21 @@ const OTTabComponent = (() => {
 
   // ── Formulario crear/editar ───────────────────────────────
   function _renderForm(ot) {
-    const isEdit      = ot !== null;
-    const h           = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    const fechaVal    = _toInputDate(ot?.Fecha);
-    const estadoActual = ot?.Estatus ?? 'En Proceso';
-
-    // Mostrar campos de retraso solo si el estado es 'Retrasado'
+    const isEdit       = ot !== null;
+    const h            = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const fechaVal     = _toInputDate(ot?.Fecha);
+    const estadoActual = ot?.Estatus ?? 'Retrasado';
     const showRetrasoFields = estadoActual === 'Retrasado';
+
+    // ── Banner con datos de la OM ──
+    const omBanner = _om ? `
+      <div class="ot-om-banner">
+        ${_om.Area        ? `<span class="ot-om-banner-item"><span class="ot-om-banner-label">Área</span>${h(_om.Area)}</span>` : ''}
+        ${_om.ID_EQUIPO   ? `<span class="ot-om-banner-item"><span class="ot-om-banner-label">Equipo</span>${h(_om.ID_EQUIPO)}</span>` : ''}
+        ${_om.ITEM        ? `<span class="ot-om-banner-item"><span class="ot-om-banner-label">Item</span>${h(_om.ITEM)}</span>` : ''}
+        ${_om.Sistema     ? `<span class="ot-om-banner-item"><span class="ot-om-banner-label">Sistema</span>${h(_om.Sistema)}</span>` : ''}
+        ${_om.Descripcion ? `<span class="ot-om-banner-item ot-om-banner-desc"><span class="ot-om-banner-label">Descripción</span>${h(_om.Descripcion)}</span>` : ''}
+      </div>` : '';
 
     return `
       <div class="ot-tab-header ot-modal-section">
@@ -306,6 +314,8 @@ const OTTabComponent = (() => {
           ${isEdit ? 'Editar Orden de Trabajo' : 'Nueva Orden de Trabajo'}
         </div>
       </div>
+
+      ${omBanner}
 
       <div class="ot-form ot-chart-card">
         <div class="ot-form-grid">
@@ -690,7 +700,7 @@ const OTTabComponent = (() => {
         }
       }
 
-      // Insertar en lista de activas
+      // Insertar en lista de activas (debajo del summary, no encima)
       let listaActivas = _el?.querySelector('.ot-work-list');
       if (!listaActivas) { _render(); return; }
 
@@ -703,6 +713,8 @@ const OTTabComponent = (() => {
       const newCard = tempDiv.firstElementChild;
       newCard.style.opacity   = '0';
       newCard.style.transform = 'translateY(8px)';
+      // prepend dentro de .ot-work-list — el summary vive FUERA de este div
+      // así que la card queda correctamente debajo del summary
       listaActivas.prepend(newCard);
 
       requestAnimationFrame(() => {
