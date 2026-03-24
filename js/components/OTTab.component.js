@@ -357,10 +357,6 @@ const OTTabComponent = (() => {
       <div class="ot-form ot-chart-card">
         <div class="ot-form-grid">
 
-          <div class="ot-modal-field" style="grid-column:1/-1;">
-            <div class="ot-modal-label">Descripción</div>
-            <input type="text" id="ot-desc" placeholder="Descripción de la orden…" value="${h(ot?.Descripcion ?? '')}" />
-          </div>
 
           <div class="ot-modal-field">
             <div class="ot-modal-label">Mecánico</div>
@@ -387,16 +383,36 @@ const OTTabComponent = (() => {
 
           <div class="ot-modal-field">
             <div class="ot-modal-label">Estado</div>
-            <select id="ot-status">${opts}</select>
+            <div class="ot-status-buttons" id="ot-status-buttons">
+              ${OT_ESTADOS.map(e => {
+                const active = (ot?.Estatus ?? 'Programado') === e.value ? 'active' : '';
+                const colors = OT_STATUS_COLORS[e.value] ?? OT_STATUS_COLORS['Programado'];
+
+                return `
+                  <button 
+                    type="button"
+                    class="ot-status-btn ${active}"
+                    data-value="${e.value}"
+                    style="--st-color:${colors.hex};"
+                  >
+                    <span class="dot"></span>
+                    ${e.label}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+
+            <!-- hidden input para mantener compatibilidad -->
+            <input type="hidden" id="ot-status" value="${ot?.Estatus ?? 'Programado'}" />
           </div>
 
           <div class="ot-modal-field" style="grid-column:1/-1;">
-            <div class="ot-modal-label">Causa (opcional)</div>
+            <div class="ot-modal-label">Causa</div>
             <input type="text" id="ot-causa" placeholder="Causa de retraso o parada…" value="${h(ot?.Causa ?? '')}" />
           </div>
 
           <div class="ot-modal-field" style="grid-column:1/-1;">
-            <div class="ot-modal-label">Comentario (opcional)</div>
+            <div class="ot-modal-label">Comentario</div>
             <input type="text" id="ot-comentario" placeholder="Observaciones adicionales…" value="${h(ot?.Comentario ?? '')}" />
           </div>
 
@@ -465,6 +481,25 @@ const OTTabComponent = (() => {
       const otId = btn.dataset.otId;
       _editingOT = _ots.find(o => String(o.ID_RowNumber) === String(otId)) ?? null;
       if (_editingOT) { _state = 'edit'; _render(); }
+      return;
+    }
+
+    // ── Selector de estado tipo botones ──
+    const statusBtn = e.target.closest('.ot-status-btn');
+    if (statusBtn) {
+      const container = document.getElementById('ot-status-buttons');
+      const hidden    = document.getElementById('ot-status');
+
+      // quitar active a todos
+      container.querySelectorAll('.ot-status-btn')
+        .forEach(b => b.classList.remove('active'));
+
+      // activar el seleccionado
+      statusBtn.classList.add('active');
+
+      // guardar valor (mantiene tu lógica intacta)
+      if (hidden) hidden.value = statusBtn.dataset.value;
+
       return;
     }
 
@@ -564,7 +599,7 @@ const OTTabComponent = (() => {
 
   // ── Guardar OT ────────────────────────────────────────────
   async function _handleSave(isEdit, otId, saveBtn) {
-    const desc       = document.getElementById('ot-desc')?.value?.trim()         ?? '';
+    
     const mec        = document.getElementById('ot-mec')?.value?.trim()          ?? '';
     const fechaRaw   = document.getElementById('ot-fecha')?.value                ?? '';
     const duracion   = parseFloat(document.getElementById('ot-duracion')?.value) || 0;
@@ -573,11 +608,6 @@ const OTTabComponent = (() => {
     const causa      = document.getElementById('ot-causa')?.value?.trim()        ?? '';
     const comentario = document.getElementById('ot-comentario')?.value?.trim()   ?? '';
 
-    if (!desc) {
-      const inp = document.getElementById('ot-desc');
-      if (inp) { inp.style.borderColor = 'var(--color-danger)'; inp.focus(); setTimeout(() => inp.style.borderColor = '', 2000); }
-      return;
-    }
 
     // Normalizar fecha → yyyy-MM-dd  (input[type=date] ya lo entrega así, pero por si acaso)
     const fecha = _toInputDate(fechaRaw);
@@ -587,17 +617,12 @@ const OTTabComponent = (() => {
     const semana = fecha ? String(_isoWeek(fecha) ?? '') : '';
     console.log('[OTTab] semana calculada:', semana);
 
-    // Datos heredados de la OM (solo van al DB, no se muestran)
-    const area    = _om?.Area      ?? _om?.Área    ?? '';
-    const equipo  = _om?.ID_Equipo ?? _om?.['ID_#EQUIPO'] ?? '';
-    const item    = _om?.Item      ?? _om?.ITEM    ?? '';
-    const sistema = _om?.Sistema   ?? '';
+    
 
     saveBtn.disabled  = true;
     saveBtn.innerHTML = `<div class="spinner-sm"></div> Guardando…`;
 
     const datos = {
-      Descripcion: desc,
       ID_Mecanico: mec,
       Fecha:       fecha,
       Duracion:    duracion,
@@ -606,10 +631,6 @@ const OTTabComponent = (() => {
       Causa:       causa,
       Comentario:  comentario,
       Semana:      semana,
-      Area:        area,
-      ID_Equipo:   equipo,
-      Item:        item,
-      Sistema:     sistema,
     };
 
     const res = isEdit
