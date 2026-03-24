@@ -29,7 +29,7 @@ const OTWorkStore = (() => {
       Sistema:       row['Sistema']                      ?? '',
       Descripcion:   row['Descripcion']                  ?? '',
       Fecha:         row['Fecha']
-                       ? new Date(row['Fecha']).toLocaleDateString('es-PA')
+                       ? new Date(row['Fecha'])
                        : '',
       ID_Mecanico:   row['ID_Mecanico']                  ?? '',
       EquipoTrabajo: row['Equipo de trabajo']            ?? '',
