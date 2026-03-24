@@ -77,6 +77,11 @@ const OTWorkStore = (() => {
     return ots;
   }
 
+  function getOTsByOM(omId) {
+    const key = String(omId);
+    return _cache.get(key) || []; // Retorna las OTs del caché o un array vacío si no hay
+  }
+
   // ── KPIs de una lista de OTs ─────────────────────────────
   function calcKPIs(ots) {
     const total      = ots.length;
@@ -127,7 +132,7 @@ const OTWorkStore = (() => {
 
   return { getForOM, calcKPIs, calcEquipoAvance, subscribe, clearCache, _getCache: () => _cache,
 _notify: notify,
-_mapRow: _mapRow,};
+_mapRow: _mapRow,getOTsByOM,};
 })();
 
 window.OTWorkStore = OTWorkStore;
