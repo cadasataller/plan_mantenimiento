@@ -1,10 +1,12 @@
 // ============================================================
-// CADASA TALLER — OT TAB COMPONENT  (v4.1)
-// Fix:
-//  - Popup: se cierra al seleccionar y actualiza la card in-place
-//  - Datos heredados: solo se insertan en DB, sin mostrarse
-//  - Columnas del schema: Área, ID_#EQUIPO, ITEM, Sistema, Semana
-//  - Log de fecha tras formatear
+// CADASA TALLER — OT TAB COMPONENT  (v4.3)
+// Cambios:
+//  - Estado "Programado" → "Retrasado"
+//  - Causa y Retraso (horas) solo visibles cuando Estatus = Retrasado
+//  - Al cambiar estado a "Retrasado" desde card → abre form edición
+//  - Al cambiar a "Concluida" → update directo + mover card al DOM
+//    de concluidas sin re-render completo (animación fade-out/in)
+//  - Solo se envían columnas del schema al guardar/actualizar
 // ============================================================
 
 const OTTabComponent = (() => {
@@ -19,7 +21,7 @@ const OTTabComponent = (() => {
   let _statusPopup  = null;
 
   const OT_ESTADOS = [
-    { value: 'Programado', label: 'Programado' },
+    { value: 'Retrasado',  label: 'Retrasado'  },
     { value: 'En Proceso', label: 'En Proceso' },
     { value: 'Concluida',  label: 'Concluida'  },
     { value: 'Ausencia',   label: 'Ausencia'   },
@@ -28,7 +30,7 @@ const OTTabComponent = (() => {
   const OT_STATUS_COLORS = {
     'Concluida':  { hex: '#2D8A4E', badge: 'status-completado' },
     'En Proceso': { hex: '#1A6B9A', badge: 'status-en-proceso' },
-    'Programado': { hex: '#B8B3A7', badge: 'status-programado' },
+    'Retrasado':  { hex: '#B8B3A7', badge: 'status-programado' },
     'Ausencia':   { hex: '#E67E22', badge: 'status-pendiente'  },
   };
 
@@ -36,24 +38,19 @@ const OTTabComponent = (() => {
 
   function _toInputDate(val) {
     if (!val || val === '—') return '';
-
     const raw = String(val).trim();
 
-    // ① ISO con tiempo: '2026-03-31T00:00:00' o '2026-03-31 00:00:00'
-    //   → tomar solo los primeros 10 chars, que YA son yyyy-MM-dd
+    // ① ISO con tiempo: '2026-03-31T00:00:00'
     if (/^\d{4}-\d{2}-\d{2}[T ]/.test(raw)) {
       const result = raw.slice(0, 10);
       console.log('[OTTab] _toInputDate ①ISO+time :', raw, '→', result);
       return result;
     }
-
     // ② ISO puro: '2026-03-31'
     if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-      console.log('[OTTab] _toInputDate ②ISO puro :', raw, '→', raw);
       return raw;
     }
-
-    // ③ Locale con '/': acepta 'd/M/yyyy' o 'dd/MM/yyyy'
+    // ③ dd/MM/yyyy
     if (raw.includes('/')) {
       const p = raw.split('/');
       if (p.length === 3) {
@@ -63,10 +60,7 @@ const OTTabComponent = (() => {
         return result;
       }
     }
-
-    // ④ NO usar new Date() — convierte a UTC y puede cambiar el día según timezone.
-    //   Si llegamos aquí, el formato es desconocido; logear y devolver vacío.
-    console.warn('[OTTab] _toInputDate ④formato desconocido, no se parsea:', raw);
+    console.warn('[OTTab] _toInputDate formato desconocido:', raw);
     return '';
   }
 
@@ -86,6 +80,7 @@ const OTTabComponent = (() => {
     if (_bound && _el) {
       _el.removeEventListener('click',  _handleClick);
       _el.removeEventListener('change', _handleChange);
+      document.removeEventListener('click', _handleDocClick);
       _bound = false;
     }
     _closeStatusPopup();
@@ -115,36 +110,6 @@ const OTTabComponent = (() => {
                : _state === 'create' ? _renderForm(null)
                :                       _renderForm(_editingOT);
     inner.innerHTML = `<div class="ot-view active">${html}</div>`;
-  }
-
-  // ── Actualizar una sola card in-place ─────────────────────
-  // Evita re-render completo (no pierde scroll, no parpadea)
-  function _updateCardInPlace(ot) {
-    const card = _el?.querySelector(`.ot-work-card[data-ot-id="${ot.ID_RowNumber}"]`);
-    if (!card) { _render(); return; } // fallback
-
-    const h      = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Programado'];
-    const stKey  = (ot.Estatus ?? '').replace(/\s/g,'-');
-    const id     = h(ot.ID_RowNumber);
-
-    // Actualizar clase de borde izquierdo
-    card.className = card.className.replace(/\bst-\S+/g, '').trim();
-    card.classList.add(`st-${stKey}`);
-
-    // Actualizar el botón cambiador de estado
-    const statusBtn = card.querySelector('.btn-ot-status-change');
-    if (statusBtn) {
-      statusBtn.dataset.currentStatus = ot.Estatus;
-      statusBtn.innerHTML = `
-        <span class="ot-status ${colors.badge}" style="font-size:0.63rem;pointer-events:none;">
-          <span class="ot-status-dot"></span>${h(ot.Estatus)}
-        </span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-             width="10" height="10" style="margin-left:3px;flex-shrink:0;opacity:0.6;pointer-events:none;">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>`;
-    }
   }
 
   // ── Lista ─────────────────────────────────────────────────
@@ -182,7 +147,6 @@ const OTTabComponent = (() => {
     const totalR = _ots.reduce((s,o) => s + (o.Retraso||0),  0);
     const concl  = _ots.filter(o => o.Estatus === 'Concluida').length;
 
-    // ── Separar listas ──
     const activas    = _ots.filter(o => o.Estatus !== 'Concluida');
     const concluidas = _ots.filter(o => o.Estatus === 'Concluida');
 
@@ -196,12 +160,10 @@ const OTTabComponent = (() => {
         ${totalR > 0 ? ` · <strong style="color:var(--color-danger);font-family:var(--font-mono);">${totalR.toFixed(1)}h</strong> retraso` : ''}
       </div>`;
 
-    // ── Cards activas ──
     const cardsActivas = activas.length
       ? activas.map(ot => _renderCard(ot, h)).join('')
       : `<div class="ot-bar-chart-empty" style="padding:1rem 0;">No hay órdenes activas.</div>`;
 
-    // ── Sección concluidas con toggle ──
     const seccionConcluidas = concluidas.length ? `
       <div class="ot-concluidas-toggle" id="btn-toggle-concluidas" data-open="false">
         <div class="ot-concluidas-toggle-left">
@@ -223,14 +185,14 @@ const OTTabComponent = (() => {
   }
 
   function _renderCard(ot, h) {
-    const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Programado'];
+    const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Retrasado'];
     const stKey  = (ot.Estatus ?? '').replace(/\s/g,'-');
     const id     = h(ot.ID_RowNumber);
 
     return `
       <div class="ot-work-card st-${stKey}" data-ot-id="${id}">
         <div class="ot-work-card-main">
-          <div class="ot-work-desc">${h(ot.Descripcion)}</div>
+          <div class="ot-work-desc">${h(ot.Descripcion ?? '')}</div>
           <div class="ot-work-meta">
             <span class="ot-work-meta-item">
               <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -269,76 +231,67 @@ const OTTabComponent = (() => {
       </div>`;
   }
 
-  // ── Status Popup ─────────────────────────────────────────
+  // ── Status Popup ──────────────────────────────────────────
   function _openStatusPopup(btn, otId, currentStatus) {
-      _closeStatusPopup();
+    _closeStatusPopup();
 
-      const popup = document.createElement('div');
-      popup.className = 'ot-status-popup';
-      popup.dataset.popupFor = otId;
+    const popup = document.createElement('div');
+    popup.className    = 'ot-status-popup';
+    popup.dataset.popupFor = otId;
 
-      popup.innerHTML = OT_ESTADOS.map(e => {
-        const colors = OT_STATUS_COLORS[e.value] ?? OT_STATUS_COLORS['Programado'];
-        const active = e.value === currentStatus ? ' ot-status-popup-item--active' : '';
-        return `
-          <button class="ot-status-popup-item${active}" data-status-val="${e.value}" data-ot-id="${otId}">
-            <span class="ot-status-dot-sm" style="background:${colors.hex};"></span>
-            ${e.label}
-            ${active ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="11" height="11" style="margin-left:auto;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-          </button>`;
-      }).join('');
+    popup.innerHTML = OT_ESTADOS.map(e => {
+      const colors = OT_STATUS_COLORS[e.value] ?? OT_STATUS_COLORS['Retrasado'];
+      const active = e.value === currentStatus ? ' ot-status-popup-item--active' : '';
+      return `
+        <button class="ot-status-popup-item${active}" data-status-val="${e.value}" data-ot-id="${otId}">
+          <span class="ot-status-dot-sm" style="background:${colors.hex};"></span>
+          ${e.label}
+          ${active ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="11" height="11" style="margin-left:auto;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+        </button>`;
+    }).join('');
 
-      const rect       = btn.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const popupH     = OT_ESTADOS.length * 42;
+    const rect       = btn.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const popupH     = OT_ESTADOS.length * 42;
 
-      let topVal, transformVal;
-      if (spaceBelow < popupH + 8) {
-        topVal       = rect.top - 4;
-        transformVal = 'translateY(-100%)';
-      } else {
-        topVal       = rect.bottom + 4;
-        transformVal = 'none';
-      }
+    let topVal, transformVal;
+    if (spaceBelow < popupH + 8) {
+      topVal       = rect.top - 4;
+      transformVal = 'translateY(-100%)';
+    } else {
+      topVal       = rect.bottom + 4;
+      transformVal = 'none';
+    }
 
-      popup.style.cssText = `
-        position: fixed;
-        top: ${topVal}px;
-        left: ${rect.left}px;
-        transform: ${transformVal};
-        z-index: 99999;
-        min-width: max(160px, ${rect.width}px);
-      `;
+    popup.style.cssText = `
+      position: fixed;
+      top: ${topVal}px;
+      left: ${rect.left}px;
+      transform: ${transformVal};
+      z-index: 99999;
+      min-width: max(160px, ${rect.width}px);
+    `;
 
-      document.body.appendChild(popup);
-      _statusPopup = popup;
-      // ── Sin _onDocClickClosePopup — lo maneja _handleDocClick ──
+    document.body.appendChild(popup);
+    _statusPopup = popup;
   }
 
   function _closeStatusPopup() {
     if (_statusPopup) {
       _statusPopup.remove();
       _statusPopup = null;
-      document.removeEventListener('click', _onDocClickClosePopup);
-    }
-  }
-
-  function _onDocClickClosePopup(e) {
-    if (_statusPopup && !_statusPopup.contains(e.target)) {
-      _closeStatusPopup();
     }
   }
 
   // ── Formulario crear/editar ───────────────────────────────
   function _renderForm(ot) {
-    const isEdit = ot !== null;
-    const h = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const isEdit      = ot !== null;
+    const h           = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const fechaVal    = _toInputDate(ot?.Fecha);
+    const estadoActual = ot?.Estatus ?? 'Retrasado';
 
-    const fechaVal = _toInputDate(ot?.Fecha);
-
-    const opts = OT_ESTADOS.map(e =>
-      `<option value="${e.value}" ${(ot?.Estatus ?? 'Programado') === e.value ? 'selected' : ''}>${e.label}</option>`
-    ).join('');
+    // Mostrar campos de retraso solo si el estado es 'Retrasado'
+    const showRetrasoFields = estadoActual === 'Retrasado';
 
     return `
       <div class="ot-tab-header ot-modal-section">
@@ -346,7 +299,7 @@ const OTTabComponent = (() => {
         <div class="ot-tab-title ot-modal-section-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             ${isEdit
-              ? `<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              ? `<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2v-7"/>
                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>`
               : `<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>`}
           </svg>
@@ -356,7 +309,6 @@ const OTTabComponent = (() => {
 
       <div class="ot-form ot-chart-card">
         <div class="ot-form-grid">
-
 
           <div class="ot-modal-field">
             <div class="ot-modal-label">Mecánico</div>
@@ -377,19 +329,13 @@ const OTTabComponent = (() => {
           </div>
 
           <div class="ot-modal-field">
-            <div class="ot-modal-label">Retraso (hrs)</div>
-            <input type="number" id="ot-retraso" placeholder="0.0" min="0" step="0.5" value="${(ot?.Retraso ?? 0)}" />
-          </div>
-
-          <div class="ot-modal-field">
             <div class="ot-modal-label">Estado</div>
             <div class="ot-status-buttons" id="ot-status-buttons">
               ${OT_ESTADOS.map(e => {
-                const active = (ot?.Estatus ?? 'Programado') === e.value ? 'active' : '';
-                const colors = OT_STATUS_COLORS[e.value] ?? OT_STATUS_COLORS['Programado'];
-
+                const active = estadoActual === e.value ? 'active' : '';
+                const colors = OT_STATUS_COLORS[e.value] ?? OT_STATUS_COLORS['Retrasado'];
                 return `
-                  <button 
+                  <button
                     type="button"
                     class="ot-status-btn ${active}"
                     data-value="${e.value}"
@@ -397,18 +343,23 @@ const OTTabComponent = (() => {
                   >
                     <span class="dot"></span>
                     ${e.label}
-                  </button>
-                `;
+                  </button>`;
               }).join('')}
             </div>
-
-            <!-- hidden input para mantener compatibilidad -->
-            <input type="hidden" id="ot-status" value="${ot?.Estatus ?? 'Programado'}" />
+            <input type="hidden" id="ot-status" value="${estadoActual}" />
           </div>
 
-          <div class="ot-modal-field" style="grid-column:1/-1;">
-            <div class="ot-modal-label">Causa</div>
-            <input type="text" id="ot-causa" placeholder="Causa de retraso o parada…" value="${h(ot?.Causa ?? '')}" />
+          <!-- Campos de retraso: visibles solo cuando Estatus = Retrasado -->
+          <div class="ot-modal-field ot-retraso-field" id="ot-field-retraso"
+               style="${showRetrasoFields ? '' : 'display:none;'}">
+            <div class="ot-modal-label">Retraso (hrs)</div>
+            <input type="number" id="ot-retraso" placeholder="0.0" min="0" step="0.5" value="${(ot?.Retraso ?? 0)}" />
+          </div>
+
+          <div class="ot-modal-field ot-retraso-field" style="grid-column:1/-1;${showRetrasoFields ? '' : 'display:none;'}"
+               id="ot-field-causa">
+            <div class="ot-modal-label">Causa del retraso</div>
+            <input type="text" id="ot-causa" placeholder="Causa del retraso…" value="${h(ot?.Causa ?? '')}" />
           </div>
 
           <div class="ot-modal-field" style="grid-column:1/-1;">
@@ -432,6 +383,21 @@ const OTTabComponent = (() => {
       </div>`;
   }
 
+  // ── Mostrar/ocultar campos de retraso ─────────────────────
+  function _toggleRetrasoFields(show) {
+    ['ot-field-retraso', 'ot-field-causa'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = show ? '' : 'none';
+    });
+    // Limpiar valores si se ocultan
+    if (!show) {
+      const r = document.getElementById('ot-retraso');
+      const c = document.getElementById('ot-causa');
+      if (r) r.value = '0';
+      if (c) c.value = '';
+    }
+  }
+
   // ── Eventos ───────────────────────────────────────────────
   function bindEvents() {
     if (!_el || _bound) return;
@@ -445,12 +411,12 @@ const OTTabComponent = (() => {
     if (e.target?.id === 'ot-fecha') {
       const preview = document.getElementById('ot-semana-preview');
       if (preview) {
-        const dateStr = e.target.value;
-        const w = _isoWeek(dateStr);
+        const w = _isoWeek(e.target.value);
         preview.textContent = w ? `Semana ${w}` : 'Fecha inválida';
       }
     }
   }
+
   function _handleDocClick(e) {
     const popupItem = e.target.closest('.ot-status-popup-item');
     if (popupItem) {
@@ -461,22 +427,23 @@ const OTTabComponent = (() => {
       _handleStatusChange(otId, newStatus);
       return;
     }
-    // Cerrar popup si click fue fuera
     if (_statusPopup && !_statusPopup.contains(e.target)) {
       _closeStatusPopup();
     }
   }
 
   async function _handleClick(e) {
-    // popupItem ya no se maneja aquí — lo maneja _handleDocClick
     const btn = e.target.closest('button, #btn-toggle-concluidas');
     if (!btn) return;
 
+    // ── Abrir popup de estado desde card ──
     if (btn.classList.contains('btn-ot-status-change')) {
       e.stopPropagation();
       _openStatusPopup(btn, btn.dataset.otId, btn.dataset.currentStatus);
       return;
     }
+
+    // ── Editar OT ──
     if (btn.classList.contains('btn-ot-edit')) {
       const otId = btn.dataset.otId;
       _editingOT = _ots.find(o => String(o.ID_RowNumber) === String(otId)) ?? null;
@@ -484,32 +451,29 @@ const OTTabComponent = (() => {
       return;
     }
 
-    // ── Selector de estado tipo botones ──
+    // ── Selector de estado en formulario ──
     const statusBtn = e.target.closest('.ot-status-btn');
     if (statusBtn) {
       const container = document.getElementById('ot-status-buttons');
       const hidden    = document.getElementById('ot-status');
 
-      // quitar active a todos
-      container.querySelectorAll('.ot-status-btn')
-        .forEach(b => b.classList.remove('active'));
-
-      // activar el seleccionado
+      container.querySelectorAll('.ot-status-btn').forEach(b => b.classList.remove('active'));
       statusBtn.classList.add('active');
 
-      // guardar valor (mantiene tu lógica intacta)
-      if (hidden) hidden.value = statusBtn.dataset.value;
+      const newVal = statusBtn.dataset.value;
+      if (hidden) hidden.value = newVal;
 
+      // Mostrar/ocultar campos de retraso según el estado elegido
+      _toggleRetrasoFields(newVal === 'Retrasado');
       return;
     }
 
-        // ── Toggle concluidas ──
+    // ── Toggle concluidas ──
     if (btn.id === 'btn-toggle-concluidas') {
       const list   = document.getElementById('ot-concluidas-list');
       const isOpen = btn.dataset.open === 'true';
       const hint   = btn.querySelector('.ot-concluidas-toggle-hint');
       const icon   = btn.querySelector('svg');
-
       btn.dataset.open    = !isOpen;
       list.style.display  = isOpen ? 'none' : 'flex';
       hint.textContent    = isOpen ? 'Mostrar' : 'Ocultar';
@@ -517,72 +481,84 @@ const OTTabComponent = (() => {
       return;
     }
 
+    // ── Nueva OT ──
     if (btn.id === 'btn-add-ot') {
-      // NUEVA VALIDACIÓN: Verificar estado de la OM actual
       if (_om.Estatus === 'Concluida') {
-        // Usar el ToastService para mostrar el error
-        if (window.ToastService) {
-          window.ToastService.show('No se pueden agregar tareas a una mantenimiento ya completado. Debe cambiar el estado primero.', 'error');
-        } else {
-          alert('Debe cambiar el estado de la OM para agregar nuevas tareas.');
-        }
-        return; // Bloquea la apertura del formulario
+        window.ToastService
+          ? window.ToastService.show('No se pueden agregar tareas a un mantenimiento ya completado. Debe cambiar el estado primero.', 'error')
+          : alert('Debe cambiar el estado de la OM para agregar nuevas tareas.');
+        return;
       }
-      
-        _state = 'create';
-        _editingOT = null;
-        _render();
+      _state = 'create'; _editingOT = null; _render();
+      return;
     }
 
     switch (btn.id) {
       case 'btn-back-list':
-      case 'btn-cancel':    _editingOT = null; _state = 'list';   _render(); break;
-      case 'btn-save':      await _handleSave(btn.dataset.edit === 'true', btn.dataset.otId, btn); break;
+      case 'btn-cancel':
+        _editingOT = null; _state = 'list'; _render(); break;
+      case 'btn-save':
+        await _handleSave(btn.dataset.edit === 'true', btn.dataset.otId, btn); break;
     }
   }
 
-  
-
-  // ── Cambio rápido de estado ───────────────────────────────
+  // ── Cambio rápido de estado desde card ───────────────────
   async function _handleStatusChange(otId, newStatus) {
     const ot = _ots.find(o => String(o.ID_RowNumber) === String(otId));
     if (!ot || ot.Estatus === newStatus) return;
 
+    // Retrasado → abrir formulario para capturar causa y horas
+    if (newStatus === 'Retrasado') {
+      _editingOT = { ...ot, Estatus: 'Retrasado' };
+      _state     = 'edit';
+      _render();
+      return;
+    }
+
     const oldStatus = ot.Estatus;
 
-    // Optimistic: actualizar array local + card in-place
+    // Optimistic: actualizar badge de estado en la card
     ot.Estatus = newStatus;
-    _updateCardInPlace(ot);
+    _updateCardBadge(ot);
 
     const res = await OTService.actualizarOT(otId, { Estatus: newStatus });
 
     if (res.ok) {
       const idx = _ots.findIndex(o => String(o.ID_RowNumber) === String(otId));
       if (idx !== -1) _ots[idx] = res.data;
-      _updateCardInPlace(res.data);       // reflejar datos confirmados del server
+
+      // Actualizar badge con datos confirmados del server
+      _updateCardBadge(res.data);
+
+      // Si pasó a Concluida → mover card al bloque de concluidas en el DOM
+      if (newStatus === 'Concluida') {
+        _moveCardToConcluidas(res.data);
+      }
+      // Si venía de Concluida y ahora es otro estado → mover a activas
+      if (oldStatus === 'Concluida' && newStatus !== 'Concluida') {
+        _moveCardToActivas(res.data);
+      }
+
       _onOTsChange?.([..._ots]);
       ToastService?.show(`Estado: ${newStatus}`, 'success');
     } else {
-      // Revertir
       ot.Estatus = oldStatus;
-      _updateCardInPlace(ot);
+      _updateCardBadge(ot);
       ToastService?.show('Error al cambiar estado.', 'danger');
     }
   }
 
-  // ── Actualizar card in-place ──────────────────────────────
-  function _updateCardInPlace(ot) {
+  // ── Actualizar solo el badge de estado de una card ────────
+  function _updateCardBadge(ot) {
     const card = _el?.querySelector(`.ot-work-card[data-ot-id="${ot.ID_RowNumber}"]`);
     if (!card) { _render(); return; }
 
     const h      = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Programado'];
+    const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Retrasado'];
     const stKey  = (ot.Estatus ?? '').replace(/\s/g,'-');
 
-    // Clase de borde
     card.className = card.className.replace(/\bst-\S+/g, '').trim() + ` st-${stKey}`;
 
-    // Botón de estado
     const statusBtn = card.querySelector('.btn-ot-status-change');
     if (statusBtn) {
       statusBtn.dataset.currentStatus = ot.Estatus;
@@ -597,40 +573,194 @@ const OTTabComponent = (() => {
     }
   }
 
+  // ── Mover card al bloque de concluidas ────────────────────
+  function _moveCardToConcluidas(ot) {
+    const h    = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const card = _el?.querySelector(`.ot-work-card[data-ot-id="${ot.ID_RowNumber}"]`);
+    if (!card) { _render(); return; }
+
+    // Contar concluidas actuales para decidir si crear la sección
+    const concluidas = _ots.filter(o => o.Estatus === 'Concluida');
+
+    // Animación de salida
+    card.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+    card.style.opacity    = '0';
+    card.style.transform  = 'translateY(-6px)';
+
+    setTimeout(() => {
+      card.remove();
+
+      // Actualizar contador del summary
+      _refreshSummary();
+
+      // ── Obtener o crear la sección de concluidas ──
+      let toggleBtn  = _el?.querySelector('#btn-toggle-concluidas');
+      let listEl     = _el?.querySelector('#ot-concluidas-list');
+
+      if (!toggleBtn) {
+        // La sección no existe aún → crearla e insertarla al final de ot-tab-content
+        const tabContent = _el?.querySelector('.ot-tab-content');
+        if (!tabContent) { _render(); return; }
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `
+          <div class="ot-concluidas-toggle" id="btn-toggle-concluidas" data-open="true">
+            <div class="ot-concluidas-toggle-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"
+                   style="transform:rotate(90deg);">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+              <span>Concluidas</span>
+              <span class="ot-concluidas-badge">1</span>
+            </div>
+            <span class="ot-concluidas-toggle-hint">Ocultar</span>
+          </div>
+          <div class="ot-concluidas-list" id="ot-concluidas-list" style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.5rem;"></div>`;
+
+        tabContent.appendChild(wrapper.children[0]); // toggle btn
+        tabContent.appendChild(wrapper.children[0]); // list
+        toggleBtn = _el.querySelector('#btn-toggle-concluidas');
+        listEl    = _el.querySelector('#ot-concluidas-list');
+      } else {
+        // Actualizar badge del contador
+        const badge = toggleBtn.querySelector('.ot-concluidas-badge');
+        if (badge) badge.textContent = concluidas.length;
+
+        // Si la sección está cerrada, abrirla automáticamente
+        const isOpen = toggleBtn.dataset.open === 'true';
+        if (!isOpen) {
+          toggleBtn.dataset.open = 'true';
+          listEl.style.display   = 'flex';
+          const hint = toggleBtn.querySelector('.ot-concluidas-toggle-hint');
+          const icon = toggleBtn.querySelector('svg');
+          if (hint) hint.textContent     = 'Ocultar';
+          if (icon) icon.style.transform = 'rotate(90deg)';
+        }
+      }
+
+      // Insertar card al principio de la lista de concluidas
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = _renderCard(ot, h);
+      const newCard = tempDiv.firstElementChild;
+      newCard.style.opacity   = '0';
+      newCard.style.transform = 'translateY(8px)';
+      listEl.prepend(newCard);
+
+      // Animación de entrada
+      requestAnimationFrame(() => {
+        newCard.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+        newCard.style.opacity    = '1';
+        newCard.style.transform  = 'translateY(0)';
+      });
+
+      // Si la lista de activas quedó vacía, mostrar placeholder
+      const listaActivas = _el?.querySelector('.ot-work-list');
+      if (listaActivas && !listaActivas.querySelector('.ot-work-card')) {
+        listaActivas.innerHTML =
+          `<div class="ot-bar-chart-empty" style="padding:1rem 0;">No hay órdenes activas.</div>`;
+      }
+    }, 230);
+  }
+
+  // ── Mover card de concluidas a activas ────────────────────
+  // (cuando se reactiva una OT que estaba concluida)
+  function _moveCardToActivas(ot) {
+    const h    = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const card = _el?.querySelector(`.ot-work-card[data-ot-id="${ot.ID_RowNumber}"]`);
+    if (!card) { _render(); return; }
+
+    card.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+    card.style.opacity    = '0';
+    card.style.transform  = 'translateY(-6px)';
+
+    setTimeout(() => {
+      card.remove();
+      _refreshSummary();
+
+      // Actualizar badge de concluidas
+      const concluidas  = _ots.filter(o => o.Estatus === 'Concluida');
+      const toggleBtn   = _el?.querySelector('#btn-toggle-concluidas');
+      if (toggleBtn) {
+        const badge = toggleBtn.querySelector('.ot-concluidas-badge');
+        if (badge) badge.textContent = concluidas.length;
+        // Si ya no hay concluidas, remover la sección entera
+        if (!concluidas.length) {
+          toggleBtn.remove();
+          _el?.querySelector('#ot-concluidas-list')?.remove();
+        }
+      }
+
+      // Insertar en lista de activas
+      let listaActivas = _el?.querySelector('.ot-work-list');
+      if (!listaActivas) { _render(); return; }
+
+      // Quitar placeholder si existe
+      const placeholder = listaActivas.querySelector('.ot-bar-chart-empty');
+      if (placeholder) placeholder.remove();
+
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = _renderCard(ot, h);
+      const newCard = tempDiv.firstElementChild;
+      newCard.style.opacity   = '0';
+      newCard.style.transform = 'translateY(8px)';
+      listaActivas.prepend(newCard);
+
+      requestAnimationFrame(() => {
+        newCard.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+        newCard.style.opacity    = '1';
+        newCard.style.transform  = 'translateY(0)';
+      });
+    }, 230);
+  }
+
+  // ── Refrescar el bloque de summary (totales) ──────────────
+  function _refreshSummary() {
+    const summaryEl = _el?.querySelector('.ot-tab-content > div[style*="background"]');
+    if (!summaryEl) return;
+    const totalH = _ots.reduce((s,o) => s + (o.Duracion||0), 0);
+    const totalR = _ots.reduce((s,o) => s + (o.Retraso||0),  0);
+    const concl  = _ots.filter(o => o.Estatus === 'Concluida').length;
+    summaryEl.innerHTML = `
+      <strong style="color:var(--text-primary);font-family:var(--font-mono);">${_ots.length}</strong> OTs ·
+      <strong style="color:var(--text-primary);font-family:var(--font-mono);">${totalH.toFixed(1)}h</strong> totales ·
+      <strong style="color:var(--color-success);font-family:var(--font-mono);">${concl}</strong> concluidas
+      ${totalR > 0 ? ` · <strong style="color:var(--color-danger);font-family:var(--font-mono);">${totalR.toFixed(1)}h</strong> retraso` : ''}`;
+  }
+
+  // Alias para compatibilidad interna (usado en _handleSave tras guardar desde form)
+  function _updateCardInPlace(ot) { _updateCardBadge(ot); }
+
   // ── Guardar OT ────────────────────────────────────────────
   async function _handleSave(isEdit, otId, saveBtn) {
-    
     const mec        = document.getElementById('ot-mec')?.value?.trim()          ?? '';
     const fechaRaw   = document.getElementById('ot-fecha')?.value                ?? '';
     const duracion   = parseFloat(document.getElementById('ot-duracion')?.value) || 0;
-    const retraso    = parseFloat(document.getElementById('ot-retraso')?.value)  || 0;
-    const status     = document.getElementById('ot-status')?.value               ?? 'Programado';
-    const causa      = document.getElementById('ot-causa')?.value?.trim()        ?? '';
+    const status     = document.getElementById('ot-status')?.value               ?? 'Retrasado';
     const comentario = document.getElementById('ot-comentario')?.value?.trim()   ?? '';
 
+    // Causa y Retraso solo si aplica
+    const isRetrasado = status === 'Retrasado';
+    const retraso  = isRetrasado ? (parseFloat(document.getElementById('ot-retraso')?.value)  || 0) : 0;
+    const causa    = isRetrasado ? (document.getElementById('ot-causa')?.value?.trim()        ?? '') : '';
 
-    // Normalizar fecha → yyyy-MM-dd  (input[type=date] ya lo entrega así, pero por si acaso)
-    const fecha = _toInputDate(fechaRaw);
-    console.log('[OTTab] fecha raw:', fechaRaw, '→ normalizada:', fecha);
-
-    // Calcular semana
+    const fecha  = _toInputDate(fechaRaw);
     const semana = fecha ? String(_isoWeek(fecha) ?? '') : '';
-    console.log('[OTTab] semana calculada:', semana);
 
-    
+    console.log('[OTTab] fecha raw:', fechaRaw, '→ normalizada:', fecha, '| semana:', semana);
 
     saveBtn.disabled  = true;
     saveBtn.innerHTML = `<div class="spinner-sm"></div> Guardando…`;
 
+    // Solo columnas del schema (sin Descripcion, Area, etc.)
     const datos = {
-      ID_Mecanico: mec,
-      Fecha:       fecha,
-      Duracion:    duracion,
-      Retraso:     retraso,
-      Estatus:     status,
-      Causa:       causa,
-      Comentario:  comentario,
-      Semana:      semana,
+      ID_Mecanico:  mec,
+      Fecha:        fecha,
+      Duracion:     duracion,
+      Retraso:      retraso,
+      Estatus:      status,
+      Causa:        causa,
+      Comentario:   comentario,
+      Semana:       semana,
     };
 
     const res = isEdit
@@ -645,9 +775,7 @@ const OTTabComponent = (() => {
         _ots.unshift(res.data);
       }
 
-      _editingOT = null;
-      _state     = 'list';
-      _render();
+      _editingOT = null; _state = 'list'; _render();
 
       const badge = document.getElementById('modal-ot-badge');
       if (badge) { badge.textContent = _ots.length; badge.style.display = 'inline'; }

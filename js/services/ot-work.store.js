@@ -1,5 +1,5 @@
 // ============================================================
-// CADASA TALLER — OT WORK ORDERS STORE (Supabase)
+// CADASA TALLER — OT WORK ORDERS STORE (Supabase)  (v4.2)
 // Gestiona las Órdenes de Trabajo (hijas de las OMs)
 // ============================================================
 
@@ -20,26 +20,24 @@ const OTWorkStore = (() => {
 
   // ── Mapear fila de Supabase al formato interno ───────────
   function _mapRow(row) {
+    // Fecha: convertir timestamp a yyyy-MM-dd sin depender de locale
+    let fechaDisplay = row['Fecha'] ?? '';
+    if (fechaDisplay && fechaDisplay.length > 10) {
+      fechaDisplay = fechaDisplay.slice(0, 10);   // 'yyyy-MM-dd'
+    }
+
     return {
       ID_RowNumber:  row['ID_OT']                        ?? '',
       ID_OrdenMant:  row['ID_Orden mantenimiento']       ?? '',
-      Area:          row['Área']                         ?? '',
-      ID_EQUIPO:     row['ID_#EQUIPO']                   ?? '',
-      ITEM:          row['ITEM']                         ?? '',
-      Sistema:       row['Sistema']                      ?? '',
-      Descripcion:   row['Descripcion']                  ?? '',
-      Fecha:         row['Fecha']
-                       ? new Date(row['Fecha']).toLocaleDateString()
-                       : '',
       ID_Mecanico:   row['ID_Mecanico']                  ?? '',
       EquipoTrabajo: row['Equipo de trabajo']            ?? '',
+      Fecha:         fechaDisplay,
       Duracion:      parseFloat(row['Duración (horas)']) || 0,
-      Estatus:       row['Estatus']                      ?? '',
+      Estatus:       row['Estatus']                      ?? 'Retrasado',
       Retraso:       parseFloat(row['Retraso (horas)'])  || 0,
       Causa:         row['Causa']                        ?? '',
       Comentario:    row['Comentario']                   ?? '',
-      Semana:        row['Semana'] ? parseInt(row['Semana']) || null : null,
-      Cantidad:      parseInt(row['Cantidad'])            || 1,
+      Semana:        row['Semana'] ? (parseInt(row['Semana']) || null) : null,
     };
   }
 
@@ -78,17 +76,16 @@ const OTWorkStore = (() => {
   }
 
   function getOTsByOM(omId) {
-    const key = String(omId);
-    return _cache.get(key) || []; // Retorna las OTs del caché o un array vacío si no hay
+    return _cache.get(String(omId)) || [];
   }
 
   // ── KPIs de una lista de OTs ─────────────────────────────
   function calcKPIs(ots) {
-    const total      = ots.length;
-    const counts = { 'Concluida': 0, 'En Proceso': 0, 'Programado': 0, 'Ausencia': 0 };
-    let   horasTotal  = 0;
+    const total  = ots.length;
+    const counts = { 'Concluida': 0, 'En Proceso': 0, 'Retrasado': 0, 'Ausencia': 0 };
+    let   horasTotal   = 0;
     let   horasRetraso = 0;
-    const mecanicos   = new Set();
+    const mecanicos    = new Set();
 
     ots.forEach(ot => {
       counts[ot.Estatus] = (counts[ot.Estatus] ?? 0) + 1;
@@ -125,14 +122,19 @@ const OTWorkStore = (() => {
     })).sort((a, b) => b.total - a.total);
   }
 
-  // ── Limpiar caché (útil en logout o reload) ──────────────
+  // ── Limpiar caché ────────────────────────────────────────
   function clearCache() {
     _cache.clear();
   }
 
-  return { getForOM, calcKPIs, calcEquipoAvance, subscribe, clearCache, _getCache: () => _cache,
-_notify: notify,
-_mapRow: _mapRow,getOTsByOM,};
+  return {
+    getForOM, getOTsByOM,
+    calcKPIs, calcEquipoAvance,
+    subscribe, clearCache,
+    _getCache: () => _cache,
+    _notify:   notify,
+    _mapRow:   _mapRow,
+  };
 })();
 
 window.OTWorkStore = OTWorkStore;

@@ -332,13 +332,13 @@
 .ot-status-buttons {
   display: flex;
   gap: 0.4rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;        /* 🔥 evita que se vayan en vertical */
+  overflow-x: auto;         /* opcional si no caben */
 }
 
 .ot-status-btn {
-  flex: 1;
-  min-width: 110px;
-  padding: 0.45rem 0.6rem;
+  flex: 0 0 auto;           /* 🔥 evita que crezcan a 100% */
+  padding: 0.45rem 0.75rem;
   border-radius: 999px;
   border: 1px solid var(--color-gray-200);
   background: white;
@@ -349,6 +349,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
+
+  white-space: nowrap;      /* 🔥 evita que el texto rompa línea */
 
   transition: all 0.2s ease;
 }
