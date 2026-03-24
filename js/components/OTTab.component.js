@@ -245,59 +245,48 @@ const OTTabComponent = (() => {
 
   // ── Status Popup ─────────────────────────────────────────
   function _openStatusPopup(btn, otId, currentStatus) {
-    _closeStatusPopup();
+      _closeStatusPopup();
 
-    const popup = document.createElement('div');
-    popup.className = 'ot-status-popup';
-    popup.dataset.popupFor = otId;
+      const popup = document.createElement('div');
+      popup.className = 'ot-status-popup';
+      popup.dataset.popupFor = otId;
 
-    popup.innerHTML = OT_ESTADOS.map(e => {
-      const colors = OT_STATUS_COLORS[e.value] ?? OT_STATUS_COLORS['Programado'];
-      const active = e.value === currentStatus ? ' ot-status-popup-item--active' : '';
-      return `
-        <button class="ot-status-popup-item${active}" data-status-val="${e.value}" data-ot-id="${otId}">
-          <span class="ot-status-dot-sm" style="background:${colors.hex};"></span>
-          ${e.label}
-          ${active ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="11" height="11" style="margin-left:auto;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-        </button>`;
-    }).join('');
+      popup.innerHTML = OT_ESTADOS.map(e => {
+        const colors = OT_STATUS_COLORS[e.value] ?? OT_STATUS_COLORS['Programado'];
+        const active = e.value === currentStatus ? ' ot-status-popup-item--active' : '';
+        return `
+          <button class="ot-status-popup-item${active}" data-status-val="${e.value}" data-ot-id="${otId}">
+            <span class="ot-status-dot-sm" style="background:${colors.hex};"></span>
+            ${e.label}
+            ${active ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="11" height="11" style="margin-left:auto;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+          </button>`;
+      }).join('');
 
-    // ── POSICIÓN: usar fixed + coords de viewport (getBoundingClientRect)
-    // NO usar scrollY/scrollX — el modal es position:fixed y el popup
-    // debe anclarse al viewport, no al documento.
-    const rect = btn.getBoundingClientRect();
+      const rect       = btn.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const popupH     = OT_ESTADOS.length * 42;
 
-    // Calcular si hay espacio abajo o hay que abrir hacia arriba
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const popupH     = OT_ESTADOS.length * 42; // estimación conservadora
+      let topVal, transformVal;
+      if (spaceBelow < popupH + 8) {
+        topVal       = rect.top - 4;
+        transformVal = 'translateY(-100%)';
+      } else {
+        topVal       = rect.bottom + 4;
+        transformVal = 'none';
+      }
 
-    let topVal, transformVal;
-    if (spaceBelow < popupH + 8) {
-      // Abrir hacia arriba
-      topVal      = rect.top - 4;
-      transformVal = 'translateY(-100%)';
-    } else {
-      // Abrir hacia abajo (normal)
-      topVal      = rect.bottom + 4;
-      transformVal = 'none';
-    }
+      popup.style.cssText = `
+        position: fixed;
+        top: ${topVal}px;
+        left: ${rect.left}px;
+        transform: ${transformVal};
+        z-index: 99999;
+        min-width: max(160px, ${rect.width}px);
+      `;
 
-    popup.style.cssText = `
-      position: fixed;
-      top: ${topVal}px;
-      left: ${rect.left}px;
-      transform: ${transformVal};
-      z-index: 99999;
-      min-width: max(160px, ${rect.width}px);
-    `;
-
-    document.body.appendChild(popup);
-    _statusPopup = popup;
-
-    // Listener de cierre diferido para no capturar el click que lo abrió
-    requestAnimationFrame(() => {
-      document.addEventListener('click', _onDocClickClosePopup);
-    });
+      document.body.appendChild(popup);
+      _statusPopup = popup;
+      // ── Sin _onDocClickClosePopup — lo maneja _handleDocClick ──
   }
 
   function _closeStatusPopup() {
@@ -406,6 +395,7 @@ const OTTabComponent = (() => {
     if (!_el || _bound) return;
     _el.addEventListener('click',  _handleClick);
     _el.addEventListener('change', _handleChange);
+    document.addEventListener('click', _handleDocClick);
     _bound = true;
   }
 
@@ -419,52 +409,47 @@ const OTTabComponent = (() => {
       }
     }
   }
-
-  async function _handleClick(e) {
-    // ── Item del popup ── (primero, antes de cerrar por doc-click)
+  function _handleDocClick(e) {
     const popupItem = e.target.closest('.ot-status-popup-item');
     if (popupItem) {
       e.stopPropagation();
       const newStatus = popupItem.dataset.statusVal;
       const otId      = popupItem.dataset.otId;
-      _closeStatusPopup();                        // cerrar popup inmediatamente
-      await _handleStatusChange(otId, newStatus); // luego actualizar
+      _closeStatusPopup();
+      _handleStatusChange(otId, newStatus);
       return;
     }
+    // Cerrar popup si click fue fuera
+    if (_statusPopup && !_statusPopup.contains(e.target)) {
+      _closeStatusPopup();
+    }
+  }
 
+  async function _handleClick(e) {
+    // popupItem ya no se maneja aquí — lo maneja _handleDocClick
     const btn = e.target.closest('button');
     if (!btn) return;
 
-    // ── Abrir popup de estado ──
     if (btn.classList.contains('btn-ot-status-change')) {
       e.stopPropagation();
-      const otId          = btn.dataset.otId;
-      const currentStatus = btn.dataset.currentStatus;
-      _openStatusPopup(btn, otId, currentStatus);
+      _openStatusPopup(btn, btn.dataset.otId, btn.dataset.currentStatus);
       return;
     }
-
-    // ── Editar OT ──
     if (btn.classList.contains('btn-ot-edit')) {
       const otId = btn.dataset.otId;
       _editingOT = _ots.find(o => String(o.ID_RowNumber) === String(otId)) ?? null;
       if (_editingOT) { _state = 'edit'; _render(); }
       return;
     }
-
     switch (btn.id) {
-      case 'btn-add-ot':
-        _editingOT = null; _state = 'create'; _render(); break;
-
+      case 'btn-add-ot':    _editingOT = null; _state = 'create'; _render(); break;
       case 'btn-back-list':
-      case 'btn-cancel':
-        _editingOT = null; _state = 'list'; _render(); break;
-
-      case 'btn-save':
-        await _handleSave(btn.dataset.edit === 'true', btn.dataset.otId, btn);
-        break;
+      case 'btn-cancel':    _editingOT = null; _state = 'list';   _render(); break;
+      case 'btn-save':      await _handleSave(btn.dataset.edit === 'true', btn.dataset.otId, btn); break;
     }
   }
+
+  
 
   // ── Cambio rápido de estado ───────────────────────────────
   async function _handleStatusChange(otId, newStatus) {
@@ -608,6 +593,7 @@ const OTTabComponent = (() => {
     if (_el && _bound) {
       _el.removeEventListener('click',  _handleClick);
       _el.removeEventListener('change', _handleChange);
+      document.removeEventListener('click', _handleDocClick);
     }
     _bound = false; _state = 'list'; _om = null;
     _ots = []; _editingOT = null; _el = null; _onOTsChange = null;
