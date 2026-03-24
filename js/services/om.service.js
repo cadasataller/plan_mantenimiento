@@ -199,6 +199,22 @@ const OMService = (() => {
    */
   async function actualizar(omActual, cambios) {
     try {
+
+      if (cambios.estatus === 'Concluida') {
+        // Obtener las OTs asociadas a esta OM desde el Store
+        const ots = OTWorkStore.getOTsByOM(omActual['ID_Orden mantenimiento'] || omActual.ID_Orden);
+        
+        // Verificar si hay alguna OT que NO esté "Concluida"
+        const pendientes = ots.filter(ot => ot.Estatus !== 'Concluida');
+        
+        if (pendientes.length > 0) {
+          return { 
+            ok: false, 
+            error: `No se puede concluir la OM. Existen ${pendientes.length} órdenes de trabajo pendientes.` 
+          };
+        }
+      }
+      
       const fechasAuto = _calcFechasAutomaticas(omActual, cambios);
       const payload = _buildPayload(omActual, cambios, fechasAuto);
 

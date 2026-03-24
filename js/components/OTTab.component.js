@@ -482,8 +482,24 @@ const OTTabComponent = (() => {
       return;
     }
 
+    if (id === 'btn-add-ot') {
+      // NUEVA VALIDACIÓN: Verificar estado de la OM actual
+      if (_om.Estatus === 'Concluida') {
+        // Usar el ToastService para mostrar el error
+        if (window.ToastService) {
+          window.ToastService.show('No se pueden agregar tareas a una mantenimiento ya completado. Debe cambiar el estado primero.', 'error');
+        } else {
+          alert('Debe cambiar el estado de la OM para agregar nuevas tareas.');
+        }
+        return; // Bloquea la apertura del formulario
+      }
+      
+        _state = 'create';
+        _editingOT = null;
+        _render();
+    }
+
     switch (btn.id) {
-      case 'btn-add-ot':    _editingOT = null; _state = 'create'; _render(); break;
       case 'btn-back-list':
       case 'btn-cancel':    _editingOT = null; _state = 'list';   _render(); break;
       case 'btn-save':      await _handleSave(btn.dataset.edit === 'true', btn.dataset.otId, btn); break;
