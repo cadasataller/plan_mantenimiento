@@ -405,10 +405,13 @@ async function _renderCard(ot, h) {
 
       <div class="ot-form ot-chart-card">
         <div class="ot-form-grid">
-
+          
           <div class="ot-modal-field">
-            <div class="ot-modal-label">Mecánico</div>${MecanicoSelectComponent.renderHtml()}
-          </div>
+              <div class="ot-moda-label">
+                Mecánico
+              </div>
+              ${MecanicoSelectComponent.renderHtml()}
+          </div>
 
           <div class="ot-modal-field">
             <div class="ot-modal-label">Fecha</div>
