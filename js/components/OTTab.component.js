@@ -110,6 +110,10 @@ const OTTabComponent = (() => {
                : _state === 'create' ? _renderForm(null)
                :                       _renderForm(_editingOT);
     inner.innerHTML = `<div class="ot-view active">${html}</div>`;
+
+    if (_state === 'create' || _state === 'edit') {
+      MecanicoSelectComponent.mount(_editingOT?.ID_Mecanico);
+    }
   }
 
   // ── Lista ─────────────────────────────────────────────────
@@ -321,9 +325,9 @@ const OTTabComponent = (() => {
         <div class="ot-form-grid">
 
           <div class="ot-modal-field">
-            <div class="ot-modal-label">Mecánico</div>
-            <input type="text" id="ot-mec" placeholder="ID o nombre" value="${h(ot?.ID_Mecanico ?? '')}" />
-          </div>
+            <div class="ot-modal-label">Mecánico</div>
+            ${MecanicoSelectComponent.renderHtml()}
+          </div>
 
           <div class="ot-modal-field">
             <div class="ot-modal-label">Fecha</div>
@@ -745,7 +749,7 @@ const OTTabComponent = (() => {
   // ── Guardar OT ────────────────────────────────────────────
  // ── Guardar OT ────────────────────────────────────────────
   async function _handleSave(isEdit, otId, saveBtn) {
-    const mec         = document.getElementById('ot-mec')?.value?.trim()          ?? '';
+    const mecId       = MecanicoSelectComponent.getValue();
     const fechaRaw    = document.getElementById('ot-fecha')?.value                ?? '';
     const duracionStr = document.getElementById('ot-duracion')?.value?.trim()     ?? '';
     const status      = document.getElementById('ot-status')?.value               ?? 'Retrasada';
@@ -761,7 +765,7 @@ const OTTabComponent = (() => {
 
     // ── 1. Lógica de Validación ──
     let errorMsg = '';
-    if (!mec) errorMsg = 'El Mecánico es obligatorio.';
+    if (mecId === null) errorMsg = 'El Mecánico es obligatorio.';
     else if (!fecha) errorMsg = 'La Fecha es obligatoria.';
     else if (!semana) errorMsg = 'La fecha ingresada no es válida.';
     else if (!duracionStr || parseFloat(duracionStr) < 0) errorMsg = 'La Duración (horas) es obligatoria.';
@@ -802,7 +806,7 @@ const OTTabComponent = (() => {
     saveBtn.innerHTML = `<div class="spinner-sm"></div> Guardando…`;
 
     const datos = {
-      ID_Mecanico:  mec,
+      ID_Mecanico:  mecId,
       Fecha:        fecha,
       Duracion:     duracion,
       Retraso:      retraso,

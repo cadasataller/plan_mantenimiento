@@ -107,10 +107,10 @@ const OTService = (() => {
     return {
       'ID_Orden mantenimiento': String(omId),
       'Fecha':                  fechaISO,
-      'ID_Mecanico':            data.ID_Mecanico     ?? '',
+      'ID_Mecanico':            data.ID_Mecanico,
       'Equipo de trabajo':      data.EquipoTrabajo   ?? '',
       'Duración (horas)':       data.Duracion        ?? 0,
-      'Estatus':                data.Estatus         ?? 'Retrasado',
+      'Estatus':                data.Estatus         ?? 'En Proceso',
       'Retraso (horas)':        data.Retraso         ?? 0,
       'Causa':                  data.Causa           ?? '',
       'Comentario':             data.Comentario      ?? '',
