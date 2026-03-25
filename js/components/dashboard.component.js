@@ -1,6 +1,6 @@
 // ============================================================
 // CADASA TALLER — DASHBOARD COMPONENT (v2)
-// Incluye tabs: Dashboard / Órdenes de Trabajo / Horas Asignadas
+// Incluye tabs: Dashboard / Órdenes de Trabajo / Horas Asignadas / Servicios Generales
 // ============================================================
 
 const DashboardComponent = (() => {
@@ -18,6 +18,11 @@ const DashboardComponent = (() => {
       label: 'Órdenes de Trabajo',
       icon:  () => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
       badge: () => { try { const k = OTStore.getKPIs(); return k.total > 0 ? k.total : null; } catch(_){return null;} },
+    },
+    {
+      id:    'sg', // <-- NUEVO TAB PARA SG
+      label: 'Servicios Generales',
+      icon:  () => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
     },
     {
       id:    'horas',
@@ -77,6 +82,10 @@ const DashboardComponent = (() => {
           <div id="ot-module-container"></div>
         </div>
 
+        <div class="tab-panel ${_activeTab==='sg'?'active':''}" id="tab-panel-sg">
+          <div id="sg-module-container" style="width:100%; height:100%;"></div>
+        </div>
+
         <div class="tab-panel ${_activeTab==='horas'?'active':''}" id="tab-panel-horas">
           <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--text-muted);flex-direction:column;gap:1rem;padding:3rem;">
             <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="opacity:0.25">
@@ -91,6 +100,10 @@ const DashboardComponent = (() => {
     `;
 
     OTComponent.mount('ot-module-container');
+    // Inicializar el módulo de SG en su contenedor
+    if (window.SGPageComponent) {
+      SGPageComponent.mount('sg-module-container');
+    }
   }
 
   function _switchTab(tabId) {
@@ -100,9 +113,15 @@ const DashboardComponent = (() => {
       el.classList.toggle('active', el.dataset.tab === tabId));
     document.querySelectorAll('.tab-panel').forEach(el =>
       el.classList.toggle('active', el.id === `tab-panel-${tabId}`));
+      
     if (tabId === 'ordenes') {
       OTComponent.onEnter();
       setTimeout(updateTabBadges, 800);
+    }
+    
+    // Si entramos a la pestaña de SG, refrescamos los datos
+    if (tabId === 'sg' && window.SGPageComponent) {
+      SGPageComponent.onEnter();
     }
   }
 
@@ -122,6 +141,7 @@ const DashboardComponent = (() => {
     if (!user) { Router.navigate('login'); return; }
     renderTopbarUser(user);
     if (_activeTab === 'ordenes') OTComponent.onEnter();
+    if (_activeTab === 'sg' && window.SGPageComponent) SGPageComponent.onEnter();
     setTimeout(updateTabBadges, 1200);
   }
 
@@ -129,7 +149,6 @@ const DashboardComponent = (() => {
     const container = document.getElementById('topbar-user');
     if (!container) return;
  
-    // role y area vienen directamente desde la tabla PROFILE via _buildUser
     const isAdmin   = user.role === 'ADMIN';
     const roleLabel = isAdmin
                       ? 'Administrador'

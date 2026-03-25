@@ -7,6 +7,7 @@
   // ── 1. Montar componentes ──
   LoginComponent.mount('page-login');
   DashboardComponent.mount('page-dashboard');
+  SGPageComponent.mount('page-sg');
 
   // ── 2. Registrar rutas ──
   Router.register('login', {
@@ -18,6 +19,12 @@
   Router.register('dashboard', {
     el:           document.getElementById('page-dashboard'),
     onEnter:      () => DashboardComponent.onEnter(),
+    requiresAuth: true,
+  });
+
+  Router.register('sg', {
+    el: document.getElementById('page-sg'),
+    onEnter: () => SGPageComponent.onEnter(),
     requiresAuth: true,
   });
 
