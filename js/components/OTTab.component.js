@@ -100,15 +100,25 @@ const OTTabComponent = (() => {
   }
 
   // ── Render completo ───────────────────────────────────────
-  function _render() {
+  // ── Render completo ───────────────────────────────────────
+  async function _render() {
     const inner = _el?.querySelector('#ot-tab-inner')
                 ?? document.getElementById('ot-tab-inner');
     if (!inner) return;
+
+    // Precargar mecánicos antes de pintar cualquier cosa para tener los nombres listos
+    if (window.MecanicoSelectComponent) {
+      await MecanicoSelectComponent.fetchMecanicos();
+    }
+
     inner.classList.remove('slide-left', 'slide-right');
     inner.classList.add(_state === 'list' ? 'slide-right' : 'slide-left');
-    const html = _state === 'list'   ? _renderList()
+    
+    // Ahora las funciones de renderizado abajo tendrán acceso inmediato al caché
+    const html = _state === 'list'   ? await _renderList()
                : _state === 'create' ? _renderForm(null)
                :                       _renderForm(_editingOT);
+               
     inner.innerHTML = `<div class="ot-view active">${html}</div>`;
 
     if (_state === 'create' || _state === 'edit') {
@@ -117,7 +127,11 @@ const OTTabComponent = (() => {
   }
 
   // ── Lista ─────────────────────────────────────────────────
-  function _renderList() {
+  // ── Lista ─────────────────────────────────────────────────
+  async function _renderList() {
+    // 1. Esperamos a que se generen todas las tarjetas (ahora es asíncrono)
+    const cardsHtml = await _renderOTCards();
+
     return `
       <div class="ot-tab-header ot-modal-section">
         <div class="ot-tab-title ot-modal-section-title">
@@ -138,11 +152,11 @@ const OTTabComponent = (() => {
         </button>
       </div>
       <div class="ot-tab-content ot-work-list">
-        ${_renderOTCards()}
+        ${cardsHtml}
       </div>`;
   }
 
-  function _renderOTCards() {
+  async function _renderOTCards() {
     const h = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     if (!_ots.length)
       return `<div class="ot-bar-chart-empty">No hay órdenes de trabajo registradas para esta OM.</div>`;
@@ -164,24 +178,34 @@ const OTTabComponent = (() => {
         ${totalR > 0 ? ` · <strong style="color:var(--color-danger);font-family:var(--font-mono);">${totalR.toFixed(1)}h</strong> retraso` : ''}
       </div>`;
 
+    // 2. Usamos Promise.all para esperar que TODAS las tarjetas activas obtengan el nombre del mecánico
+    const cardsActivasPromises = activas.map(ot => _renderCard(ot, h));
     const cardsActivas = activas.length
-      ? activas.map(ot => _renderCard(ot, h)).join('')
+      ? (await Promise.all(cardsActivasPromises)).join('')
       : `<div class="ot-bar-chart-empty" style="padding:1rem 0;">No hay órdenes activas.</div>`;
 
-    const seccionConcluidas = concluidas.length ? `
-      <div class="ot-concluidas-toggle" id="btn-toggle-concluidas" data-open="false">
-        <div class="ot-concluidas-toggle-left">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-          <span>Concluidas</span>
-          <span class="ot-concluidas-badge">${concluidas.length}</span>
+    let seccionConcluidas = '';
+    
+    // 3. Hacemos lo mismo con las tarjetas concluidas si es que hay alguna
+    if (concluidas.length) {
+      const cardsConcluidasPromises = concluidas.map(ot => _renderCard(ot, h));
+      const cardsConcluidasHtml = (await Promise.all(cardsConcluidasPromises)).join('');
+      
+      seccionConcluidas = `
+        <div class="ot-concluidas-toggle" id="btn-toggle-concluidas" data-open="false">
+          <div class="ot-concluidas-toggle-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+            <span>Concluidas</span>
+            <span class="ot-concluidas-badge">${concluidas.length}</span>
+          </div>
+          <span class="ot-concluidas-toggle-hint">Mostrar</span>
         </div>
-        <span class="ot-concluidas-toggle-hint">Mostrar</span>
-      </div>
-      <div class="ot-concluidas-list" id="ot-concluidas-list" style="display:none;">
-        ${concluidas.map(ot => _renderCard(ot, h)).join('')}
-      </div>` : '';
+        <div class="ot-concluidas-list" id="ot-concluidas-list" style="display:none;">
+          ${cardsConcluidasHtml}
+        </div>`;
+    }
 
     return summary
       + `<div class="ot-work-list">${cardsActivas}</div>`
