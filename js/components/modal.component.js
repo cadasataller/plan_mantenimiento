@@ -369,7 +369,7 @@ const ModalComponent = (() => {
         </button>`;
     } else {
       footerRight.innerHTML = `
-        <button class="btn-modal-secondary" id="btn-modal-footer-close">Cerrar</button>
+        
   
         ${enTabInfo ? `
           <button class="btn-modal-edit" id="btn-modal-edit">

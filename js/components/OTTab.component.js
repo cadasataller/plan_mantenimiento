@@ -212,41 +212,110 @@ const OTTabComponent = (() => {
       + seccionConcluidas;
   }
 
-  // 👇 Asegúrate de que tenga "async" al principio
-  async function _renderCard(ot, h) {
-    const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Retrasado'];
-    const stKey  = (ot.Estatus ?? '').replace(/\s/g,'-');
-    const id     = h(ot.ID_RowNumber);
-    
-   
-    const nombreMecanico = window.MecanicoSelectComponent 
-      ? await window.MecanicoSelectComponent.getNameById(ot.ID_Mecanico) 
-      : ot.ID_Mecanico;
+  // ── Render Card ──────────────────────────────────────────
+async function _renderCard(ot, h) {
 
-    return `
-      <div class="ot-work-card st-${stKey}" data-ot-id="${id}">
-        <div class="ot-work-card-main">
-          <div class="ot-work-desc">${h(ot.Descripcion ?? '')}</div>
-          <div class="ot-work-meta">
-            
-            <span class="ot-work-meta-item">
-              <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              
-              ${h(nombreMecanico || '—')} 
-              
-            </span>
-            
-            <span class="ot-work-meta-item">
-              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              ${h(ot.Fecha || '—')}
-            </span>
-            ${ot.Semana ? `<span class="ot-work-meta-item ot-semana-badge">S${String(ot.Semana).padStart(2,'0')}</span>` : ''}
-          </div>
-          ${ot.Causa      ? `<div class="ot-work-causa">⚠ ${h(ot.Causa)}</div>` : ''}
-          ${ot.Comentario ? `<div style="font-size:0.74rem;color:var(--text-muted);margin-top:0.3rem;font-style:italic;">${h(ot.Comentario)}</div>` : ''}
+  const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Retrasado'];
+  const stKey  = (ot.Estatus ?? '').replace(/\s/g, '-');
+  const id     = h(ot.ID_RowNumber);
+
+  // 🔹 Obtener nombre del mecánico
+  const nombreMecanico = window.MecanicoSelectComponent
+    ? await window.MecanicoSelectComponent.getNameById(ot.ID_Mecanico)
+    : ot.ID_Mecanico;
+
+  return `
+    <div class="ot-work-card st-${stKey}" data-ot-id="${id}">
+      
+      <div class="ot-work-card-main">
+
+        <!-- Descripción -->
+        <div class="ot-work-desc">
+          ${h(ot.Descripcion ?? '')}
         </div>
-        
-        </div>`;
+
+        <!-- Meta -->
+        <div class="ot-work-meta">
+
+          <!-- Mecánico -->
+          <span class="ot-work-meta-item">
+            <svg viewBox="0 0 24 24">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            ${h(nombreMecanico || '—')}
+          </span>
+
+          <!-- Fecha -->
+          <span class="ot-work-meta-item">
+            <svg viewBox="0 0 24 24">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            ${h(ot.Fecha || '—')}
+          </span>
+
+        </div>
+
+        <!-- Causa / Comentario -->
+        ${ot.Causa 
+          ? `<div class="ot-work-causa">⚠ ${h(ot.Causa)}</div>` 
+          : ''}
+
+        ${ot.Comentario 
+          ? `<div class="ot-work-comment">${h(ot.Comentario)}</div>` 
+          : ''}
+
+      </div>
+
+      <!-- Lado derecho -->
+      <div class="ot-work-card-right">
+
+        <!-- Horas -->
+        <div class="ot-work-horas">
+          ${(ot.Duracion || 0).toFixed(1)} <span>hrs</span>
+        </div>
+
+        <!-- Retraso -->
+        ${ot.Retraso > 0 
+          ? `<div class="ot-work-retraso">+${ot.Retraso.toFixed(1)}h retraso</div>` 
+          : ''}
+
+        <!-- Acciones -->
+        <div class="ot-card-actions">
+
+          <!-- Estado -->
+          <button 
+            class="btn-ot-status-change"
+            data-ot-id="${id}"
+            data-current-status="${h(ot.Estatus)}"
+            title="Cambiar estado"
+          >
+            <span class="ot-status ${colors.badge}" style="pointer-events:none;">
+              <span class="ot-status-dot"></span>
+              ${h(ot.Estatus)}
+            </span>
+          </button>
+
+          <!-- Editar -->
+          <button 
+            class="btn-ot-edit"
+            data-ot-id="${id}"
+            title="Editar OT"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+
+        </div>
+      </div>
+
+    </div>
+  `;
   }
   // ── Status Popup ──────────────────────────────────────────
   function _openStatusPopup(btn, otId, currentStatus) {
@@ -338,8 +407,7 @@ const OTTabComponent = (() => {
         <div class="ot-form-grid">
 
           <div class="ot-modal-field">
-            <div class="ot-modal-label">Mecánico</div>
-            ${MecanicoSelectComponent.renderHtml()}
+            <div class="ot-modal-label">Mecánico</div>${MecanicoSelectComponent.renderHtml()}
           </div>
 
           <div class="ot-modal-field">
