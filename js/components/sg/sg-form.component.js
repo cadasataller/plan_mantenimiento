@@ -137,7 +137,7 @@ const SGFormComponent = (() => {
 
       const fechaEntrega = document.getElementById('sg-fecha-entrega').value;
 
-      const idMantenimiento = document.getElementById('sg-id-base').value.trim();
+      let idMantenimiento = document.getElementById('sg-id-base').value.trim();
 
       if(idMantenimiento===''){
         idMantenimiento = SGService.generarIdMantenimiento({
