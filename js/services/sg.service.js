@@ -35,8 +35,6 @@ const SGService = (() => {
 
       // 3. Vincular el ID y la fecha/hora de registro en SG
       sgData.id_orden_base = baseResult['ID_Orden mantenimiento'];
-      sgData.fecha_solicitud = new Date().toISOString().split('T')[0]; // Fecha actual local
-      sgData.hora_registro = new Date().toTimeString().split(' ')[0]; // Hora actual local
 
       // 4. Insertar en OM_SG
       const { data: sgResult, error: sgError } = await db

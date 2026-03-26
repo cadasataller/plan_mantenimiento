@@ -23,24 +23,24 @@ const SGFormComponent = (() => {
           
           <h4 style="margin-bottom: 1rem; color: var(--color-main); font-size: 0.9rem; border-bottom: 1px solid var(--color-gray-200); padding-bottom: 0.3rem;">1. Identificación y Ubicación</h4>
           <div class="ot-form-grid" style="margin-bottom: 1.5rem;">
-            <div class="ot-modal-field">
-              <label class="ot-modal-label">ID Orden (Manual)</label>
-              <input type="text" id="sg-id-base" placeholder="Ej: SG-2026-001" required />
+            <div class="ot-modal-field" hidden>
+              <label class="ot-modal-label">ID Orden</label>
+              <input type="text" id="sg-id-base" placeholder="Ej: SG-2026-001" />
             </div>
             <div class="ot-modal-field">
-              <label class="ot-modal-label">Área</label>
+              <label class="ot-modal-label">Área*</label>
               <input type="text" id="sg-area" required />
             </div>
             <div class="ot-modal-field">
-              <label class="ot-modal-label">ID Equipo</label>
+              <label class="ot-modal-label">Equipo*</label>
               <input type="text" id="sg-equipo" required />
             </div>
             <div class="ot-modal-field">
-              <label class="ot-modal-label">Item</label>
+              <label class="ot-modal-label">Item*</label>
               <input type="text" id="sg-item" required />
             </div>
             <div class="ot-modal-field">
-              <label class="ot-modal-label">Sistema</label>
+              <label class="ot-modal-label">Sistema*</label>
               <input type="text" id="sg-sistema" required />
             </div>
           </div>
@@ -48,11 +48,11 @@ const SGFormComponent = (() => {
           <h4 style="margin-bottom: 1rem; color: var(--color-main); font-size: 0.9rem; border-bottom: 1px solid var(--color-gray-200); padding-bottom: 0.3rem;">2. Detalles del Trabajo</h4>
           <div class="ot-form-grid" style="margin-bottom: 1.5rem;">
             <div class="ot-modal-field" style="grid-column: 1 / -1;">
-              <label class="ot-modal-label">Descripción General</label>
+              <label class="ot-modal-label">Descripción General*</label>
               <input type="text" id="sg-desc" required />
             </div>
             <div class="ot-modal-field">
-              <label class="ot-modal-label">Tipo de Trabajo</label>
+              <label class="ot-modal-label">Tipo de Trabajo*</label>
               <select id="sg-tipo-trabajo" required>
                 <option value="">Seleccione...</option>
                 <option value="Soldadura">Soldadura</option>
@@ -85,11 +85,11 @@ const SGFormComponent = (() => {
               </select>
             </div>
             <div class="ot-modal-field">
-              <label class="ot-modal-label">N° Solicitud (Opcional si es No)</label>
+              <label class="ot-modal-label">N° Solicitud</label>
               <input type="text" id="sg-n-solicitud" />
             </div>
             <div class="ot-modal-field">
-              <label class="ot-modal-label">N° Orden de Compra (Opcional)</label>
+              <label class="ot-modal-label">N° Orden de Compra</label>
               <input type="text" id="sg-n-oc" />
             </div>
           </div>
@@ -97,7 +97,7 @@ const SGFormComponent = (() => {
           <h4 style="margin-bottom: 1rem; color: var(--color-main); font-size: 0.9rem; border-bottom: 1px solid var(--color-gray-200); padding-bottom: 0.3rem;">4. Notas Finales</h4>
           <div class="ot-form-grid" style="margin-bottom: 1.5rem;">
             <div class="ot-modal-field" style="grid-column: 1 / -1;">
-              <label class="ot-modal-label">Observaciones (Opcional)</label>
+              <label class="ot-modal-label">Observaciones</label>
               <input type="text" id="sg-obs" placeholder="Comentarios adicionales..." />
             </div>
           </div>
@@ -136,22 +136,20 @@ const SGFormComponent = (() => {
       btn.textContent = 'Guardando...';
 
       const fechaEntrega = document.getElementById('sg-fecha-entrega').value;
-
+        //'ID_Orden mantenimiento': document.getElementById('sg-id-base').value.trim()
       // 1. Armamos el objeto para la tabla base (ORDEN_MANTENIMIENTO)
       const baseData = {
-        'ID_Orden mantenimiento': document.getElementById('sg-id-base').value.trim(),
         'Área': document.getElementById('sg-area').value.trim(),
         'ID_#EQUIPO': document.getElementById('sg-equipo').value.trim(),
         'ITEM': document.getElementById('sg-item').value.trim(),
         'Sistema': document.getElementById('sg-sistema').value.trim(),
         'Descripcion': document.getElementById('sg-desc').value.trim(),
-        'Estatus': 'Pendiente', // Por defecto
+        'Estatus': 'Programado', // Por defecto
         'Tiene solicitud de compra?': document.getElementById('sg-tiene-compra').value === 'true',
         'N° solicitud': document.getElementById('sg-n-solicitud').value.trim() || null,
         'N° Orden de compra': document.getElementById('sg-n-oc').value.trim() || null,
         'Fecha Entrega': fechaEntrega, // Está en ambas tablas
         'Observaciones': document.getElementById('sg-obs').value.trim() || null,
-        // IS_SG = true se agrega en el sg.service.js
       };
 
       // 2. Armamos el objeto para la tabla de detalle (OM_SG)
