@@ -12,18 +12,33 @@ const SGListComponent = (() => {
     
     _container.innerHTML = `<div style="padding: 2rem; text-align: center;">Cargando Órdenes SG...</div>`;
     
-    // fetchSGs ahora usa la caché que hicimos en el servicio
     const sgs = await SGService.fetchSGs();
     _render(sgs);
     _bindEvents();
   }
 
-  // 👇 NUEVA FUNCIÓN: Vuelve a pedir los datos (de la caché) y repinta la lista
+  // 👇 FUNCIÓN MEJORADA: Solo recarga las tarjetas, sin destruir el modal
   async function refresh() {
     if (!_container) return;
     const sgs = await SGService.fetchSGs(); 
-    _render(sgs);
-    _bindEvents();
+    
+    const listBody = document.getElementById('sg-list-dynamic-body');
+    
+    if (listBody) {
+      // Inyectamos solo el HTML de las tarjetas
+      listBody.innerHTML = sgs.length === 0 
+        ? `<div style="padding: 2rem; text-align: center; color: #6b7280;">No hay órdenes de Servicios Generales registradas.</div>`
+        : `<div id="sg-cards-container">` + sgs.map(sg => SGCardComponent.render(sg)).join('') + `</div>`;
+      
+      // Volvemos a atar los eventos de click SOLO para las tarjetas nuevas
+      SGCardComponent.bindEvents('sg-cards-container', (sg) => {
+        if (window.SGModalComponent) SGModalComponent.open(sg);
+      });
+    } else {
+      // Fallback por si la estructura original no está
+      _render(sgs);
+      _bindEvents();
+    }
   }
 
   function _render(sgs) {
@@ -39,8 +54,13 @@ const SGListComponent = (() => {
             ${SGUI.Icon('plus')} Nueva SG Manual
           </button>
         </div>
-        ${listHtml}
+        
+        <div id="sg-list-dynamic-body">
+          ${listHtml}
+        </div>
+
       </div>
+
       <div id="sg-modal-root"></div>
     `;
   }
@@ -50,11 +70,10 @@ const SGListComponent = (() => {
     if (btnNew && _onNewManual) btnNew.addEventListener('click', _onNewManual);
 
     SGCardComponent.bindEvents('sg-cards-container', (sg) => {
-      SGModalComponent.open(sg);
+      if (window.SGModalComponent) SGModalComponent.open(sg);
     });
   }
 
-  // Exponemos el método refresh para que el modal pueda llamarlo
   return { mount, refresh };
 })();
 

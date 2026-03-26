@@ -2,6 +2,10 @@
 // SG MODAL COMPONENT — Visor y Editor de Detalles de SG
 // ============================================================
 
+// ============================================================
+// SG MODAL COMPONENT — Visor y Editor de Detalles de SG
+// ============================================================
+
 const SGModalComponent = (() => {
   let _currentSG = null;
   let _editMode = false;
@@ -17,10 +21,7 @@ const SGModalComponent = (() => {
     const root = document.getElementById('sg-modal-root'); 
     if (!root) return console.error('No se encontró #sg-modal-root en la pestaña SG');
     
-    // 1. Renderizamos el cascarón una sola vez
     _renderShell(sg);
-    
-    // 2. Renderizamos el contenido interno (en modo vista)
     _renderContent();
     
     document.body.style.overflow = 'hidden'; 
@@ -47,7 +48,6 @@ const SGModalComponent = (() => {
     }
   }
 
-  // ── LÓGICA DE PERMISOS ──────────────────────────────────────────
   function _calcularPermisos(sg) {
     _perms = { statusObs: false, all: false };
     const user = window.AuthService?.getUser() || {};
@@ -73,7 +73,6 @@ const SGModalComponent = (() => {
     return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
   }
 
-  // ── ESTADO DE EDICIÓN ───────────────────────────────────────────
   function _enterEditMode() {
     _editMode = true;
     const om = _currentSG.ORDEN_MANTENIMIENTO || {};
@@ -92,23 +91,30 @@ const SGModalComponent = (() => {
       fecha_conclusion: om['Fecha conclusion'] || '',
       semana: om.Semana || ''
     };
-    // Solo re-renderizamos el interior
     _renderContent();
   }
 
   function _cancelEdit() {
     _editMode = false;
     _editState = {};
-    // Regresamos a la vista normal re-renderizando el interior
     _renderContent();
   }
 
   async function _saveEdit() {
     const btn = document.getElementById('btn-sg-modal-save');
+    const btnOriginalHTML = btn.innerHTML; // Guardamos el diseño del botón
     btn.disabled = true;
     btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando...`;
 
-    // 1. LLAMADA REAL A LA BASE DE DATOS
+    // 👇 VALIDACIÓN 1: Seguridad antes de guardar a BD
+    if (_editState.estatus === 'Concluida' && !_editState.fecha_inicio) {
+      window.ToastService?.show('No se puede guardar como Concluida si no tiene fecha de inicio.', 'danger');
+      btn.disabled = false;
+      btn.innerHTML = btnOriginalHTML;
+      return;
+    }
+
+    // LLAMADA A LA BD
     const resultado = await SGService.updateSG(
       _currentSG.id_sg, 
       _currentSG.ORDEN_MANTENIMIENTO['ID_Orden mantenimiento'], 
@@ -116,31 +122,43 @@ const SGModalComponent = (() => {
       _perms
     );
 
-    // 2. MANEJO DE ERROR
     if (!resultado.ok) {
       window.ToastService?.show('Error al guardar en la base de datos', 'danger');
       btn.disabled = false;
-      btn.innerHTML = `${SGUI.Icon('save')} Guardar Cambios`;
+      btn.innerHTML = btnOriginalHTML;
       return; 
     }
 
-    // 3. ÉXITO: Actualizamos el objeto local
     _currentSG = resultado.data; 
 
     _editMode = false;
     _editState = {};
     window.ToastService?.show('Cambios guardados', 'success');
-    
-    // Volvemos a dibujar el interior del modal con los nuevos datos
     _renderContent(); 
 
-    // 👇 AQUÍ ESTÁ LA MAGIA: Le decimos a la lista que se repinte con los datos nuevos
     if (window.SGListComponent && typeof window.SGListComponent.refresh === 'function') {
       window.SGListComponent.refresh();
     }
   }
 
-  // ── HELPERS FECHAS ──────────────────────────────────────────────
+  function _getPanamaNow() {
+    const panamaDateStr = new Date().toLocaleString("en-US", { timeZone: "America/Panama" });
+    const d = new Date(panamaDateStr);
+    
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    
+    return {
+      timestamp: `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`, 
+      soloFecha: `${yyyy}-${mm}-${dd}`,                    
+      dateObj: d                                           
+    };
+  }
+
   function formatDate(dateStr) {
     if (!dateStr) return '—';
     try {
@@ -164,9 +182,6 @@ const SGModalComponent = (() => {
     return `<span style="${bs} background:#F3F4F6; color:#4B5563;">Se entrega hoy</span>`;
   }
 
-  // ── RENDERIZADO ─────────────────────────────────────────────────
-
-  // 1. Dibuja solo la estructura externa
   function _renderShell(sg) {
     const root = document.getElementById('sg-modal-root');
     const om = sg.ORDEN_MANTENIMIENTO || {};
@@ -204,14 +219,12 @@ const SGModalComponent = (() => {
       </div>
     `;
 
-    // Eventos del cascarón (estáticos)
     document.getElementById('btn-sg-modal-close')?.addEventListener('click', close);
     document.getElementById('sg-backdrop')?.addEventListener('click', e => {
       if (e.target === e.currentTarget) close();
     });
   }
 
-  // 2. Dibuja el interior (cambia entre vista y edición)
   function _renderContent() {
     const bodyContainer = document.getElementById('sg-dynamic-body');
     const footerContainer = document.getElementById('sg-dynamic-footer');
@@ -223,7 +236,6 @@ const SGModalComponent = (() => {
     const v = (key, fallback) => _editMode ? (_editState[key] ?? fallback) : fallback;
     const fechaEntregaReal = sg.fecha_entrega || om['Fecha Entrega'];
 
-    // Actualizamos el badge del header para reflejar cambios en vivo
     const headerBadge = document.getElementById('sg-modal-header-badge');
     if (headerBadge) headerBadge.innerHTML = SGUI.Badge(v('estatus', om.Estatus || sg.estado));
 
@@ -322,28 +334,6 @@ const SGModalComponent = (() => {
     _bindDynamicEvents();
   }
 
-  // ── HELPER: HORA EXACTA DE PANAMÁ ───────────────────────────────
-  function _getPanamaNow() {
-    // 1. Obtenemos la fecha y hora literal de Panamá sin importar la PC local
-    const panamaDateStr = new Date().toLocaleString("en-US", { timeZone: "America/Panama" });
-    const d = new Date(panamaDateStr);
-    
-    // 2. Formateamos a YYYY-MM-DDTHH:mm:ss (Ideal para 'timestamp without time zone')
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    const ss = String(d.getSeconds()).padStart(2, '0');
-    
-    return {
-      timestamp: `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`, // Fecha y Hora
-      soloFecha: `${yyyy}-${mm}-${dd}`,                    // Solo Fecha
-      dateObj: d                                           // Objeto Date para extraer semanas
-    };
-  }
-
-  // ── EVENTOS DINÁMICOS Y LÓGICA DE ESTADOS ───────────────────────
   function _bindDynamicEvents() {
     document.getElementById('btn-sg-modal-cerrar')?.addEventListener('click', close);
     document.getElementById('btn-sg-modal-edit')?.addEventListener('click', _enterEditMode);
@@ -357,9 +347,19 @@ const SGModalComponent = (() => {
         
         const nuevoEstado = btn.getAttribute('data-sg-status');
         if (_editState.estatus !== nuevoEstado) {
+
+          // 👇 VALIDACIÓN 2: UI (Bloquea el click y muestra el toast/alerta inmediatamente)
+          if (nuevoEstado === 'Concluida' && !_editState.fecha_inicio) {
+            if (window.ToastService) {
+              window.ToastService.show('Debe iniciar la orden (estado "En Proceso") antes de poder concluirla.', 'warning');
+            } else {
+              alert('Debe iniciar la orden (estado "En Proceso") antes de poder concluirla.');
+            }
+            return; // Bloquea la acción
+          }
+
           _editState.estatus = nuevoEstado;
 
-          // 1. Actualizar colores (Visual)
           document.querySelectorAll('#edit-estatus .sg-status-btn').forEach(b => {
             b.classList.toggle('active', b.dataset.sgStatus === nuevoEstado);
           });
@@ -367,29 +367,20 @@ const SGModalComponent = (() => {
           const headerBadge = document.getElementById('sg-modal-header-badge');
           if (headerBadge) headerBadge.innerHTML = SGUI.Badge(nuevoEstado);
 
-          // 2. Lógica de Fechas usando el Tiempo exacto de Panamá
           const panamaTime = _getPanamaNow();
 
           if (nuevoEstado === 'En Proceso') {
-            // Guardamos el timestamp completo de Panamá para la fecha de inicio
             if (!_editState.fecha_inicio) _editState.fecha_inicio = panamaTime.timestamp;
-            // Calculamos la semana en base a la fecha de Panamá
             if (!_editState.semana) _editState.semana = String(_getWeekNumber(panamaTime.dateObj));
-            
-            _editState.fecha_conclusion = ''; // Limpiamos conclusión si retrocede a En Proceso
-            
+            _editState.fecha_conclusion = ''; 
           } else if (nuevoEstado === 'Concluida') {
-            // Guardamos el timestamp completo de Panamá para la fecha de conclusión
             if (!_editState.fecha_conclusion) _editState.fecha_conclusion = panamaTime.timestamp;
-            
           } else if (nuevoEstado === 'Programado') {
-            // Si regresa a programado, limpiamos todo
             _editState.fecha_inicio = '';
             _editState.semana = '';
             _editState.fecha_conclusion = '';
           }
 
-          // 3. Imprimir textos en vivo en los labels sin recargar
           const dispSemana = document.getElementById('disp-semana');
           const dispInicio = document.getElementById('disp-fecha-inicio');
           const dispConclusion = document.getElementById('disp-fecha-conclusion');
@@ -400,7 +391,6 @@ const SGModalComponent = (() => {
         }
       });
 
-      // Inputs de texto/selects
       document.querySelectorAll('[data-sg-edit]').forEach(input => {
         input.addEventListener('input', (e) => {
           const key = e.target.id.replace('edit-', '');
