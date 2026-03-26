@@ -320,15 +320,35 @@ const SGModalComponent = (() => {
     _bindDynamicEvents();
   }
 
+  // ── HELPER: HORA EXACTA DE PANAMÁ ───────────────────────────────
+  function _getPanamaNow() {
+    // 1. Obtenemos la fecha y hora literal de Panamá sin importar la PC local
+    const panamaDateStr = new Date().toLocaleString("en-US", { timeZone: "America/Panama" });
+    const d = new Date(panamaDateStr);
+    
+    // 2. Formateamos a YYYY-MM-DDTHH:mm:ss (Ideal para 'timestamp without time zone')
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    
+    return {
+      timestamp: `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`, // Fecha y Hora
+      soloFecha: `${yyyy}-${mm}-${dd}`,                    // Solo Fecha
+      dateObj: d                                           // Objeto Date para extraer semanas
+    };
+  }
+
+  // ── EVENTOS DINÁMICOS Y LÓGICA DE ESTADOS ───────────────────────
   function _bindDynamicEvents() {
-    // Escuchar botones del Footer dinámico
     document.getElementById('btn-sg-modal-cerrar')?.addEventListener('click', close);
     document.getElementById('btn-sg-modal-edit')?.addEventListener('click', _enterEditMode);
     document.getElementById('btn-sg-modal-cancel')?.addEventListener('click', _cancelEdit);
     document.getElementById('btn-sg-modal-save')?.addEventListener('click', _saveEdit);
 
     if (_editMode) {
-      // Cambio de estado con botones
       document.getElementById('edit-estatus')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.sg-status-btn');
         if (!btn) return;
@@ -342,27 +362,32 @@ const SGModalComponent = (() => {
             b.classList.toggle('active', b.dataset.sgStatus === nuevoEstado);
           });
           
-          // Actualizar badge del header instantáneamente
           const headerBadge = document.getElementById('sg-modal-header-badge');
           if (headerBadge) headerBadge.innerHTML = SGUI.Badge(nuevoEstado);
 
-          // 2. Lógica de fechas
-          const hoy = new Date();
-          const hoyISO = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
+          // 2. Lógica de Fechas usando el Tiempo exacto de Panamá
+          const panamaTime = _getPanamaNow();
 
           if (nuevoEstado === 'En Proceso') {
-            if (!_editState.fecha_inicio) _editState.fecha_inicio = hoyISO;
-            if (!_editState.semana) _editState.semana = String(_getWeekNumber(hoy));
-            _editState.fecha_conclusion = ''; // Limpiamos conclusión si retrocede
+            // Guardamos el timestamp completo de Panamá para la fecha de inicio
+            if (!_editState.fecha_inicio) _editState.fecha_inicio = panamaTime.timestamp;
+            // Calculamos la semana en base a la fecha de Panamá
+            if (!_editState.semana) _editState.semana = String(_getWeekNumber(panamaTime.dateObj));
+            
+            _editState.fecha_conclusion = ''; // Limpiamos conclusión si retrocede a En Proceso
+            
           } else if (nuevoEstado === 'Concluida') {
-            if (!_editState.fecha_conclusion) _editState.fecha_conclusion = hoyISO;
+            // Guardamos el timestamp completo de Panamá para la fecha de conclusión
+            if (!_editState.fecha_conclusion) _editState.fecha_conclusion = panamaTime.timestamp;
+            
           } else if (nuevoEstado === 'Programado') {
+            // Si regresa a programado, limpiamos todo
             _editState.fecha_inicio = '';
             _editState.semana = '';
             _editState.fecha_conclusion = '';
           }
 
-          // 3. Imprimir textos en vivo en los labels sin recargar nada más
+          // 3. Imprimir textos en vivo en los labels sin recargar
           const dispSemana = document.getElementById('disp-semana');
           const dispInicio = document.getElementById('disp-fecha-inicio');
           const dispConclusion = document.getElementById('disp-fecha-conclusion');
