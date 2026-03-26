@@ -35,7 +35,6 @@ const SGModalComponent = (() => {
   function formatDate(dateStr) {
     if (!dateStr) return '—';
     try {
-      // Ajuste para evitar que el timezone reste un día a las fechas 'YYYY-MM-DD'
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
       
@@ -48,32 +47,31 @@ const SGModalComponent = (() => {
     }
   }
 
-  // Helper para calcular la diferencia de días y retornar el badge con colores
+  // Helper para calcular la diferencia de días y retornar un badge pequeño
   function _calcularEstadoDias(fechaEntregaStr) {
-    if (!fechaEntregaStr) return '<span style="color:#6b7280; font-size:0.8rem;">Sin fecha asignada</span>';
+    if (!fechaEntregaStr) return '<span style="color:var(--text-muted); font-size:0.68rem; margin-top:0.3rem; font-style:italic;">Sin fecha asignada</span>';
 
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
     const entrega = new Date(fechaEntregaStr);
-    // Ajustar el timezone para que compare exactamente los días locales
     entrega.setMinutes(entrega.getMinutes() + entrega.getTimezoneOffset());
     entrega.setHours(0, 0, 0, 0);
 
     const diffTime = entrega.getTime() - hoy.getTime();
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-    // Estilos base para el badge
-    const baseStyle = "display:inline-block; padding:0.2rem 0.6rem; border-radius:4px; font-weight:600; font-size:0.75rem;";
+    // Estilos base ajustados: un poco más pequeños y con margen superior
+    const baseStyle = "display:inline-block; padding:0.15rem 0.4rem; border-radius:4px; font-weight:600; font-size:0.68rem; margin-top:0.3rem;";
 
     if (diffDays > 0) {
-      // Falta para la entrega -> Verde
+      // Faltan días -> Verde
       return `<span style="${baseStyle} background:#DCFCE7; color:#166534;">Faltan ${diffDays} día(s)</span>`;
     } else if (diffDays < 0) {
-      // Se pasó la fecha -> Rojo
+      // Retraso -> Rojo
       return `<span style="${baseStyle} background:#FEE2E2; color:#991B1B;">Retraso de ${Math.abs(diffDays)} día(s)</span>`;
     } else {
-      // Es exactamente hoy -> Gris
+      // Es hoy -> Gris
       return `<span style="${baseStyle} background:#F3F4F6; color:#4B5563;">Se entrega hoy</span>`;
     }
   }
@@ -128,15 +126,22 @@ const SGModalComponent = (() => {
                   <div class="ot-modal-field"><div class="ot-modal-label">Tipo Trabajo</div><div class="ot-modal-val">${sg.tipo_trabajo || '—'}</div></div>
                   <div class="ot-modal-field"><div class="ot-modal-label">Estimación</div><div class="ot-modal-val">${sg.estimacion_horas || 0} horas</div></div>
                   <div class="ot-modal-field"><div class="ot-modal-label">Personal Solicitado</div><div class="ot-modal-val">${sg.solicitar_personal || '—'}</div></div>
-                  <div class="ot-modal-field"><div class="ot-modal-label">Estado de Entrega</div><div class="ot-modal-val">${_calcularEstadoDias(fechaEntrega)}</div></div>
-                </div>
+                  </div>
               </div>
 
               <div class="ot-modal-section">
                 <div class="ot-modal-section-title">Fechas y Planificación</div>
                 <div class="ot-modal-grid">
                   <div class="ot-modal-field"><div class="ot-modal-label">Semana</div><div class="ot-modal-val">${om.Semana || '—'}</div></div>
-                  <div class="ot-modal-field"><div class="ot-modal-label">Fecha Entrega Esperada</div><div class="ot-modal-val">${formatDate(fechaEntrega)}</div></div>
+                  
+                  <div class="ot-modal-field">
+                    <div class="ot-modal-label">Fecha Entrega Esperada</div>
+                    <div class="ot-modal-val" style="display: flex; flex-direction: column; align-items: flex-start;">
+                      <span>${formatDate(fechaEntrega)}</span>
+                      ${_calcularEstadoDias(fechaEntrega)}
+                    </div>
+                  </div>
+
                   <div class="ot-modal-field"><div class="ot-modal-label">Fecha Inicio (OM)</div><div class="ot-modal-val">${formatDate(om['Fecha inicio'])}</div></div>
                   <div class="ot-modal-field"><div class="ot-modal-label">Fecha Conclusión (OM)</div><div class="ot-modal-val">${formatDate(om['Fecha conclusion'])}</div></div>
                 </div>
@@ -145,7 +150,7 @@ const SGModalComponent = (() => {
               <div class="ot-modal-section">
                 <div class="ot-modal-section-title">Gestión de Compras</div>
                 <div class="ot-modal-grid">
-                  <div class="ot-modal-field"><div class="ot-modal-label">¿Requiere Compra?</div><div class="ot-modal-val">${om['Tiene solicitud de compra?'] ? 'Sí' : 'No'}</div></div>
+                  <div class="ot-modal-field"><div class="ot-modal-label">Tiene solicitud?</div><div class="ot-modal-val">${om['Tiene solicitud de compra?'] ? 'Sí' : 'No'}</div></div>
                   <div class="ot-modal-field"><div class="ot-modal-label">N° Solicitud</div><div class="ot-modal-val">${om['N° solicitud'] || '—'}</div></div>
                   <div class="ot-modal-field"><div class="ot-modal-label">N° OC</div><div class="ot-modal-val">${om['N° Orden de compra'] || '—'}</div></div>
                 </div>
@@ -164,7 +169,7 @@ const SGModalComponent = (() => {
           <div class="ot-modal-footer">
             <div class="ot-modal-footer-left">
               <span style="font-size:0.72rem;color:var(--text-muted);">
-                Registrado: ${sg.fecha_solicitud} | ID DB: ${sg.id_sg}
+                Registrado: ${sg.fecha_solicitud || '—'}
               </span>
             </div>
             <div class="ot-modal-footer-right">
