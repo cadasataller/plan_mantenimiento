@@ -108,33 +108,34 @@ const SGModalComponent = (() => {
     btn.disabled = true;
     btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando...`;
 
-    // SIMULACIÓN DE LLAMADA A API
-    await new Promise(r => setTimeout(r, 800)); 
+    // 1. LLAMADA REAL A LA BASE DE DATOS
+    const resultado = await SGService.updateSG(
+      _currentSG.id_sg, 
+      _currentSG.ORDEN_MANTENIMIENTO['ID_Orden mantenimiento'], 
+      _editState, 
+      _perms
+    );
 
-    if(_currentSG.ORDEN_MANTENIMIENTO) {
-      if(_perms.statusObs || _perms.all) {
-        _currentSG.ORDEN_MANTENIMIENTO.Estatus = _editState.estatus;
-        _currentSG.ORDEN_MANTENIMIENTO.Observaciones = _editState.observaciones;
-        _currentSG.ORDEN_MANTENIMIENTO['Fecha inicio'] = _editState.fecha_inicio || null;
-        _currentSG.ORDEN_MANTENIMIENTO['Fecha conclusion'] = _editState.fecha_conclusion || null;
-        _currentSG.ORDEN_MANTENIMIENTO.Semana = _editState.semana || null;
-      }
-      if(_perms.all) {
-        _currentSG.tipo_trabajo = _editState.tipo_trabajo;
-        _currentSG.estimacion_horas = _editState.estimacion_horas;
-        _currentSG.solicitar_personal = _editState.solicitar_personal;
-        _currentSG.fecha_entrega = _editState.fecha_entrega;
-        _currentSG.ORDEN_MANTENIMIENTO['Fecha Entrega'] = _editState.fecha_entrega;
-        _currentSG.ORDEN_MANTENIMIENTO['Tiene solicitud de compra?'] = _editState.tiene_compra === 'true';
-        _currentSG.ORDEN_MANTENIMIENTO['N° solicitud'] = _editState.n_solicitud;
-        _currentSG.ORDEN_MANTENIMIENTO['N° Orden de compra'] = _editState.n_oc;
-      }
+    // 2. MANEJO DE ERROR
+    if (!resultado.ok) {
+      window.ToastService?.show('Error al guardar en la base de datos', 'danger');
+      btn.disabled = false;
+      btn.innerHTML = `${SGUI.Icon('save')} Guardar Cambios`;
+      return; 
     }
+
+    // 3. ÉXITO: Actualizamos el objeto local del modal basándonos en la caché actualizada
+    _currentSG = resultado.data; 
 
     _editMode = false;
     _editState = {};
     window.ToastService?.show('Cambios guardados', 'success');
-    _renderContent(); // Actualizamos UI
+    
+    // Volvemos a dibujar el interior del modal con los nuevos datos
+    _renderContent(); 
+
+    // Opcional: Si tienes una función para re-dibujar la lista de SG por detrás, la llamas aquí.
+    // Ej: if (window.SGListComponent) window.SGListComponent.refresh();
   }
 
   // ── HELPERS FECHAS ──────────────────────────────────────────────
