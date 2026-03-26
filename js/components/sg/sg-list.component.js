@@ -8,11 +8,20 @@ const SGListComponent = (() => {
 
   async function mount(containerId, callbacks) {
     _container = document.getElementById(containerId);
-    _onNewManual = callbacks.onNewManual;
+    _onNewManual = callbacks?.onNewManual;
     
     _container.innerHTML = `<div style="padding: 2rem; text-align: center;">Cargando Órdenes SG...</div>`;
     
+    // fetchSGs ahora usa la caché que hicimos en el servicio
     const sgs = await SGService.fetchSGs();
+    _render(sgs);
+    _bindEvents();
+  }
+
+  // 👇 NUEVA FUNCIÓN: Vuelve a pedir los datos (de la caché) y repinta la lista
+  async function refresh() {
+    if (!_container) return;
+    const sgs = await SGService.fetchSGs(); 
     _render(sgs);
     _bindEvents();
   }
@@ -32,21 +41,21 @@ const SGListComponent = (() => {
         </div>
         ${listHtml}
       </div>
-
       <div id="sg-modal-root"></div>
     `;
   }
   
   function _bindEvents() {
     const btnNew = document.getElementById('btn-new-sg-manual');
-    if (btnNew) btnNew.addEventListener('click', _onNewManual);
+    if (btnNew && _onNewManual) btnNew.addEventListener('click', _onNewManual);
 
-    // Conectar el click de la tarjeta con la apertura del Modal
     SGCardComponent.bindEvents('sg-cards-container', (sg) => {
       SGModalComponent.open(sg);
     });
   }
 
-  return { mount };
+  // Exponemos el método refresh para que el modal pueda llamarlo
+  return { mount, refresh };
 })();
+
 window.SGListComponent = SGListComponent;

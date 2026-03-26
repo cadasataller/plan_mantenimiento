@@ -124,7 +124,7 @@ const SGModalComponent = (() => {
       return; 
     }
 
-    // 3. ÉXITO: Actualizamos el objeto local del modal basándonos en la caché actualizada
+    // 3. ÉXITO: Actualizamos el objeto local
     _currentSG = resultado.data; 
 
     _editMode = false;
@@ -134,8 +134,10 @@ const SGModalComponent = (() => {
     // Volvemos a dibujar el interior del modal con los nuevos datos
     _renderContent(); 
 
-    // Opcional: Si tienes una función para re-dibujar la lista de SG por detrás, la llamas aquí.
-    // Ej: if (window.SGListComponent) window.SGListComponent.refresh();
+    // 👇 AQUÍ ESTÁ LA MAGIA: Le decimos a la lista que se repinte con los datos nuevos
+    if (window.SGListComponent && typeof window.SGListComponent.refresh === 'function') {
+      window.SGListComponent.refresh();
+    }
   }
 
   // ── HELPERS FECHAS ──────────────────────────────────────────────

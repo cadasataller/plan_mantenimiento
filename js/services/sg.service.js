@@ -43,12 +43,18 @@ const SGService = (() => {
   }
 
   // Actualizar una SG en Base de Datos y Caché
+  // Actualizar una SG en Base de Datos y Caché
   async function updateSG(id_sg, id_orden_base, editState, perms) {
     try {
+      // 1. Logs de depuración para que veas en la consola (F12) qué está intentando enviar
+      console.log('--- INICIANDO UPDATE DB ---');
+      console.log('ID SG:', id_sg);
+      console.log('ID Base:', id_orden_base);
+      console.log('Permisos aplicados:', perms);
+
       const omPayload = {};
       const sgPayload = {};
 
-      // 1. Armar payload de la tabla base según permisos
       if (perms.statusObs || perms.all) {
         omPayload.Estatus = editState.estatus;
         omPayload.Observaciones = editState.observaciones;
@@ -57,7 +63,6 @@ const SGService = (() => {
         omPayload.Semana = editState.semana || null;
       }
 
-      // 2. Armar payload extendido según permisos totales
       if (perms.all) {
         omPayload['Fecha Entrega'] = editState.fecha_entrega || null;
         omPayload['Tiene solicitud de compra?'] = editState.tiene_compra === 'true';
@@ -70,40 +75,68 @@ const SGService = (() => {
         sgPayload.fecha_entrega = editState.fecha_entrega || null;
       }
 
-      // 3. Ejecutar actualizaciones en paralelo
-      const tasks = [];
-      if (Object.keys(omPayload).length > 0) {
-        tasks.push(db.from('ORDEN_MANTENIMIENTO').update(omPayload).eq('ID_Orden mantenimiento', id_orden_base));
+      console.log('Payload OM a enviar:', omPayload);
+      console.log('Payload SG a enviar:', sgPayload);
+
+      // Si no hay nada que actualizar, cortamos aquí
+      if (Object.keys(omPayload).length === 0 && Object.keys(sgPayload).length === 0) {
+         console.warn('Los permisos bloquearon la actualización. No se enviaron datos.');
+         return { ok: false, error: 'Sin permisos para editar.' };
       }
+
+      const tasks = [];
+      
+      // 2. IMPORTANTE: Agregamos .select() al final para obligar a Supabase a devolver lo que modificó
+      if (Object.keys(omPayload).length > 0) {
+        tasks.push(
+          db.from('ORDEN_MANTENIMIENTO')
+            .update(omPayload)
+            .eq('ID_Orden mantenimiento', id_orden_base)
+            .select() // <--- ESTO ES VITAL
+        );
+      }
+      
       if (Object.keys(sgPayload).length > 0) {
-        tasks.push(db.from('OM_SG').update(sgPayload).eq('id_sg', id_sg));
+        tasks.push(
+          db.from('OM_SG')
+            .update(sgPayload)
+            .eq('id_sg', id_sg)
+            .select() // <--- ESTO ES VITAL
+        );
       }
 
       const results = await Promise.all(tasks);
       
+      // 3. Revisamos qué nos respondió Supabase
       for (let res of results) {
         if (res.error) throw res.error;
+        
+        // Si data está vacío, la consulta pasó pero afectó a CERO filas (RLS o ID erróneo)
+        if (!res.data || res.data.length === 0) {
+          console.error('ALERTA: Supabase devolvió un arreglo vacío. Verifica Políticas RLS o si el ID existe.', res);
+          throw new Error('Supabase no actualizó ninguna fila. Verifica RLS en la tabla.');
+        }
       }
 
-      // 4. Actualizar la caché local para no tener que recargar
+      // 4. Actualizar la caché local
       const cacheIndex = _sgCache.findIndex(item => item.id_sg === id_sg);
       if (cacheIndex !== -1) {
         const cachedItem = _sgCache[cacheIndex];
-        
         if (Object.keys(omPayload).length > 0) {
           cachedItem.ORDEN_MANTENIMIENTO = { ...cachedItem.ORDEN_MANTENIMIENTO, ...omPayload };
         }
         if (Object.keys(sgPayload).length > 0) {
           Object.assign(cachedItem, sgPayload);
         }
-        
         _sgCache[cacheIndex] = cachedItem;
       }
 
+      console.log('--- UPDATE COMPLETADO CON ÉXITO ---');
       return { ok: true, data: _sgCache[cacheIndex] };
+      
     } catch (err) {
       console.error('[SGService] Error updateSG:', err);
-      return { ok: false, error: err };
+      return { ok: false, error: err.message || err };
     }
   }
 
