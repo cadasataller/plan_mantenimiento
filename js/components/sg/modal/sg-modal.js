@@ -2,10 +2,6 @@
 // SG MODAL COMPONENT — Visor y Editor de Detalles de SG
 // ============================================================
 
-// ============================================================
-// SG MODAL COMPONENT — Visor y Editor de Detalles de SG
-// ============================================================
-
 const SGModalComponent = (() => {
   let _currentSG = null;
   let _editMode = false;
@@ -102,19 +98,41 @@ const SGModalComponent = (() => {
 
   async function _saveEdit() {
     const btn = document.getElementById('btn-sg-modal-save');
-    const btnOriginalHTML = btn.innerHTML; // Guardamos el diseño del botón
+    const btnOriginalHTML = btn.innerHTML; 
     btn.disabled = true;
     btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando...`;
 
-    // 👇 VALIDACIÓN 1: Seguridad antes de guardar a BD
-    if (_editState.estatus === 'Concluida' && !_editState.fecha_inicio) {
-      window.ToastService?.show('No se puede guardar como Concluida si no tiene fecha de inicio.', 'danger');
-      btn.disabled = false;
-      btn.innerHTML = btnOriginalHTML;
-      return;
+    // 👇 VALIDACIÓN MEDIANTE CONSULTA A SUPABASE ANTES DE GUARDAR
+    if (_editState.estatus === 'Concluida') {
+      try {
+        const db = window.SupabaseClient;
+        const idOrden = _currentSG.ORDEN_MANTENIMIENTO['ID_Orden mantenimiento'];
+        
+        const { data, error } = await db
+          .from('ORDEN_MANTENIMIENTO')
+          .select('"Fecha inicio"')
+          .eq('ID_Orden mantenimiento', idOrden)
+          .single();
+          
+        if (error) throw error;
+
+        // Validamos si no hay fecha de inicio en la base de datos Y tampoco en el estado de edición actual
+        if (!data['Fecha inicio'] && !_editState.fecha_inicio) {
+          window.ToastService?.show('No se puede concluir: La orden no tiene Fecha de Inicio registrada.', 'warning');
+          btn.disabled = false;
+          btn.innerHTML = btnOriginalHTML;
+          return; // Detiene el guardado
+        }
+      } catch (err) {
+        console.error('Error al consultar Supabase:', err);
+        window.ToastService?.show('Error al validar la orden en la base de datos.', 'danger');
+        btn.disabled = false;
+        btn.innerHTML = btnOriginalHTML;
+        return;
+      }
     }
 
-    // LLAMADA A LA BD
+    // LLAMADA A LA BD PARA ACTUALIZAR
     const resultado = await SGService.updateSG(
       _currentSG.id_sg, 
       _currentSG.ORDEN_MANTENIMIENTO['ID_Orden mantenimiento'], 
@@ -348,18 +366,9 @@ const SGModalComponent = (() => {
         const nuevoEstado = btn.getAttribute('data-sg-status');
         if (_editState.estatus !== nuevoEstado) {
 
-          // 👇 VALIDACIÓN 2: UI (Bloquea el click y muestra el toast/alerta inmediatamente)
-          if (nuevoEstado === 'Concluida' && !_editState.fecha_inicio) {
-            if (window.ToastService) {
-              window.ToastService.show('Debe iniciar la orden (estado "En Proceso") antes de poder concluirla.', 'warning');
-            } else {
-              alert('Debe iniciar la orden (estado "En Proceso") antes de poder concluirla.');
-            }
-            return; // Bloquea la acción
-          }
-
           _editState.estatus = nuevoEstado;
 
+          // Se actualiza el color de los botones
           document.querySelectorAll('#edit-estatus .sg-status-btn').forEach(b => {
             b.classList.toggle('active', b.dataset.sgStatus === nuevoEstado);
           });
@@ -373,8 +382,13 @@ const SGModalComponent = (() => {
             if (!_editState.fecha_inicio) _editState.fecha_inicio = panamaTime.timestamp;
             if (!_editState.semana) _editState.semana = String(_getWeekNumber(panamaTime.dateObj));
             _editState.fecha_conclusion = ''; 
+
           } else if (nuevoEstado === 'Concluida') {
             if (!_editState.fecha_conclusion) _editState.fecha_conclusion = panamaTime.timestamp;
+            
+          } else if (nuevoEstado === 'Detenido') { // 👇 SE LIMPIA CONCLUSIÓN SI SE DETIENE
+            _editState.fecha_conclusion = ''; 
+            
           } else if (nuevoEstado === 'Programado') {
             _editState.fecha_inicio = '';
             _editState.semana = '';
