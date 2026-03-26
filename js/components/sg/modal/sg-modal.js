@@ -7,7 +7,6 @@ const SGModalComponent = (() => {
 
   function open(sg) {
     _currentSG = sg;
-    // 👇 Cambiamos a sg-modal-root
     const root = document.getElementById('sg-modal-root'); 
     if (!root) return console.error('No se encontró #sg-modal-root en la pestaña SG');
     
@@ -16,9 +15,8 @@ const SGModalComponent = (() => {
   }
 
   function close() {
-    // 👇 Cambiamos a sg-modal-root
     const root = document.getElementById('sg-modal-root');
-    const bd = document.getElementById('sg-backdrop'); // Cambié el ID del backdrop también para que no choque
+    const bd = document.getElementById('sg-backdrop');
     _currentSG = null;
     
     if (bd) {
@@ -33,12 +31,24 @@ const SGModalComponent = (() => {
     }
   }
 
+  // Helper para formatear fechas de timestamp a fecha local legible (si viene del server)
+  function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('es-PA'); // Ajusta el locale según necesites
+    } catch {
+      return dateStr;
+    }
+  }
+
   function _renderModal(sg) {
     const root = document.getElementById('sg-modal-root');
     const om = sg.ORDEN_MANTENIMIENTO || {};
 
     root.innerHTML = `
-      <div class="ot-modal-backdrop" id="ot-backdrop" style="opacity: 1; transition: opacity 0.2s ease;">
+      <div class="ot-modal-backdrop" id="sg-backdrop" style="opacity: 1; transition: opacity 0.2s ease;">
         <div class="ot-modal" role="dialog" aria-modal="true">
           
           <div class="ot-modal-header">
@@ -55,7 +65,7 @@ const SGModalComponent = (() => {
               <button class="btn-modal-close" id="btn-sg-modal-close">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
-              ${SGUI.Badge(om.Estatus)}
+              ${SGUI.Badge(om.Estatus || sg.estado)}
             </div>
           </div>
 
@@ -67,12 +77,32 @@ const SGModalComponent = (() => {
             <div class="ot-modal-tab-panel active">
               
               <div class="ot-modal-section">
-                <div class="ot-modal-section-title">Detalles del Trabajo</div>
+                <div class="ot-modal-section-title">Identificación y Ubicación</div>
+                <div class="ot-modal-grid">
+                  <div class="ot-modal-field"><div class="ot-modal-label">Sistema</div><div class="ot-modal-val">${om.Sistema || '—'}</div></div>
+                  <div class="ot-modal-field"><div class="ot-modal-label">Tipo de Proceso</div><div class="ot-modal-val">${om['Tipo de Proceso'] || '—'}</div></div>
+                  <div class="ot-modal-field"><div class="ot-modal-label">Semana</div><div class="ot-modal-val">${om.Semana || '—'}</div></div>
+                  <div class="ot-modal-field"><div class="ot-modal-label">Etapa</div><div class="ot-modal-val">${om.Etapa || '—'}</div></div>
+                </div>
+              </div>
+
+              <div class="ot-modal-section">
+                <div class="ot-modal-section-title">Detalles del Trabajo (Servicios Generales)</div>
                 <div class="ot-modal-grid">
                   <div class="ot-modal-field"><div class="ot-modal-label">Tipo Trabajo</div><div class="ot-modal-val">${sg.tipo_trabajo || '—'}</div></div>
                   <div class="ot-modal-field"><div class="ot-modal-label">Estimación</div><div class="ot-modal-val">${sg.estimacion_horas || 0} horas</div></div>
                   <div class="ot-modal-field"><div class="ot-modal-label">Personal Solicitado</div><div class="ot-modal-val">${sg.solicitar_personal || '—'}</div></div>
-                  <div class="ot-modal-field"><div class="ot-modal-label">Fecha Entrega</div><div class="ot-modal-val">${sg.fecha_entrega || om['Fecha Entrega'] || '—'}</div></div>
+                  <div class="ot-modal-field"><div class="ot-modal-label">Días de trabajo</div><div class="ot-modal-val">${sg.dias ? sg.dias + ' días' : '—'}</div></div>
+                </div>
+              </div>
+
+              <div class="ot-modal-section">
+                <div class="ot-modal-section-title">Fechas y Ejecución</div>
+                <div class="ot-modal-grid">
+                  <div class="ot-modal-field"><div class="ot-modal-label">Fecha Inicio (OM)</div><div class="ot-modal-val">${formatDate(om['Fecha inicio'])}</div></div>
+                  <div class="ot-modal-field"><div class="ot-modal-label">Fecha Ejecución (SG)</div><div class="ot-modal-val">${formatDate(sg.fecha_ejecucion)}</div></div>
+                  <div class="ot-modal-field"><div class="ot-modal-label">Fecha Conclusión (OM)</div><div class="ot-modal-val">${formatDate(om['Fecha conclusion'])}</div></div>
+                  <div class="ot-modal-field"><div class="ot-modal-label">Fecha Entrega Esperada</div><div class="ot-modal-val">${formatDate(sg.fecha_entrega || om['Fecha Entrega'])}</div></div>
                 </div>
               </div>
 
@@ -87,7 +117,7 @@ const SGModalComponent = (() => {
 
               <div class="ot-modal-section">
                 <div class="ot-modal-section-title">Observaciones</div>
-                <div style="font-size:0.85rem; background:var(--color-gray-50); padding:1rem; border-radius:8px; border-left:3px solid var(--color-main-light);">
+                <div style="font-size:0.85rem; background:var(--color-gray-50); padding:1rem; border-radius:8px; border-left:3px solid var(--color-main-light); white-space: pre-wrap;">
                   ${om.Observaciones || 'Sin observaciones.'}
                 </div>
               </div>
@@ -96,7 +126,11 @@ const SGModalComponent = (() => {
           </div>
 
           <div class="ot-modal-footer">
-            <div class="ot-modal-footer-left"><span style="font-size:0.72rem;color:var(--text-muted);">Registrado: ${sg.fecha_solicitud}</span></div>
+            <div class="ot-modal-footer-left">
+              <span style="font-size:0.72rem;color:var(--text-muted);">
+                Registrado: ${sg.fecha_solicitud} | ID DB: ${sg.id_sg}
+              </span>
+            </div>
             <div class="ot-modal-footer-right">
               <button class="btn-modal-secondary" id="btn-sg-modal-cerrar">Cerrar</button>
             </div>
@@ -116,4 +150,5 @@ const SGModalComponent = (() => {
 
   return { open, close };
 })();
+
 window.SGModalComponent = SGModalComponent;
