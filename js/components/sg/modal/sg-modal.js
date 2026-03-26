@@ -1,3 +1,7 @@
+// ============================================================
+// SG MODAL COMPONENT — Visor y Editor de Detalles de SG
+// ============================================================
+
 const SGModalComponent = (() => {
   let _currentSG = null;
   let _editMode = false;
@@ -110,9 +114,9 @@ const SGModalComponent = (() => {
       if(_perms.statusObs || _perms.all) {
         _currentSG.ORDEN_MANTENIMIENTO.Estatus = _editState.estatus;
         _currentSG.ORDEN_MANTENIMIENTO.Observaciones = _editState.observaciones;
-        _currentSG.ORDEN_MANTENIMIENTO['Fecha inicio'] = _editState.fecha_inicio;
-        _currentSG.ORDEN_MANTENIMIENTO['Fecha conclusion'] = _editState.fecha_conclusion;
-        _currentSG.ORDEN_MANTENIMIENTO.Semana = _editState.semana;
+        _currentSG.ORDEN_MANTENIMIENTO['Fecha inicio'] = _editState.fecha_inicio || null;
+        _currentSG.ORDEN_MANTENIMIENTO['Fecha conclusion'] = _editState.fecha_conclusion || null;
+        _currentSG.ORDEN_MANTENIMIENTO.Semana = _editState.semana || null;
       }
       if(_perms.all) {
         _currentSG.tipo_trabajo = _editState.tipo_trabajo;
@@ -230,7 +234,7 @@ const SGModalComponent = (() => {
               <div class="ot-modal-section">
                 <div class="ot-modal-section-title">Fechas y Planificación</div>
                 <div class="ot-modal-grid">
-                  <div class="ot-modal-field"><div class="ot-modal-label">Semana</div><div class="ot-modal-val">${v('semana', om.Semana || '—')}</div></div>
+                  <div class="ot-modal-field"><div class="ot-modal-label">Semana</div><div class="ot-modal-val" id="disp-semana">${v('semana', om.Semana || '—')}</div></div>
                   
                   ${_editMode && _perms.all 
                     ? SGUI.EditableField({ id: 'edit-fecha_entrega', label: 'Fecha Entrega Esperada', value: v('fecha_entrega', fechaEntregaReal), type: 'date', isEditMode: true, canEdit: true })
@@ -245,8 +249,8 @@ const SGModalComponent = (() => {
                     `
                   }
                   
-                  <div class="ot-modal-field"><div class="ot-modal-label">Fecha Inicio (OM)</div><div class="ot-modal-val">${formatDate(v('fecha_inicio', om['Fecha inicio']))}</div></div>
-                  <div class="ot-modal-field"><div class="ot-modal-label">Fecha Conclusión (OM)</div><div class="ot-modal-val">${formatDate(v('fecha_conclusion', om['Fecha conclusion']))}</div></div>
+                  <div class="ot-modal-field"><div class="ot-modal-label">Fecha Inicio (OM)</div><div class="ot-modal-val" id="disp-fecha-inicio">${formatDate(v('fecha_inicio', om['Fecha inicio']))}</div></div>
+                  <div class="ot-modal-field"><div class="ot-modal-label">Fecha Conclusión (OM)</div><div class="ot-modal-val" id="disp-fecha-conclusion">${formatDate(v('fecha_conclusion', om['Fecha conclusion']))}</div></div>
                 </div>
               </div>
 
@@ -304,7 +308,7 @@ const SGModalComponent = (() => {
     document.getElementById('btn-sg-modal-save')?.addEventListener('click', _saveEdit);
 
     if (_editMode) {
-      // Listener dinámico para los botones de Estado
+      // Listener modificado para actualizar UI sin recargar todo el modal
       document.getElementById('edit-estatus')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.sg-status-btn');
         if (!btn) return;
@@ -313,18 +317,37 @@ const SGModalComponent = (() => {
         if (_editState.estatus !== nuevoEstado) {
           _editState.estatus = nuevoEstado;
 
-          // Lógica de fechas automáticas
+          // 1. Actualizar colores de los botones
+          document.querySelectorAll('#edit-estatus .sg-status-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.sgStatus === nuevoEstado);
+          });
+
+          // 2. Lógica de fechas automáticas
           const hoy = new Date();
           const hoyISO = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
 
           if (nuevoEstado === 'En Proceso') {
             if (!_editState.fecha_inicio) _editState.fecha_inicio = hoyISO;
             if (!_editState.semana) _editState.semana = String(_getWeekNumber(hoy));
+            // Si regresa a En Proceso, limpiamos la conclusión
+            _editState.fecha_conclusion = '';
           } else if (nuevoEstado === 'Concluida') {
             if (!_editState.fecha_conclusion) _editState.fecha_conclusion = hoyISO;
+          } else if (nuevoEstado === 'Programado') {
+            // Si regresa a programado, limpiamos las fechas generadas
+            _editState.fecha_inicio = '';
+            _editState.semana = '';
+            _editState.fecha_conclusion = '';
           }
 
-          _renderModal(); // Volvemos a pintar para refrescar UI
+          // 3. Actualizar textos en el DOM directamente (sin recargar el modal)
+          const dispSemana = document.getElementById('disp-semana');
+          const dispInicio = document.getElementById('disp-fecha-inicio');
+          const dispConclusion = document.getElementById('disp-fecha-conclusion');
+
+          if (dispSemana) dispSemana.innerText = _editState.semana || '—';
+          if (dispInicio) dispInicio.innerText = formatDate(_editState.fecha_inicio);
+          if (dispConclusion) dispConclusion.innerText = formatDate(_editState.fecha_conclusion);
         }
       });
 
