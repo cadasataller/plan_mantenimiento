@@ -15,23 +15,30 @@ const SGListComponent = (() => {
 
   function _render(sgs) {
     // Función de ayuda para los badges
+    function _render(sgs) {
+    // Función de ayuda para los badges
     const getBadgeClass = (estado) => {
-      const e = (estado || 'Pendiente').toLowerCase();
+      const e = (estado || 'Programado').toLowerCase(); // <--- CAMBIO AQUÍ
       if (e.includes('proceso')) return 'st-en-proceso';
       if (e.includes('concluida')) return 'st-concluida';
+      if (e.includes('programado')) return 'st-programado'; // <--- CAMBIO AQUÍ
       return 'st-pendiente';
     };
 
     const listHtml = sgs.length === 0 
       ? `<div style="padding: 2rem; text-align: center; color: var(--text-muted);">No hay órdenes de Servicios Generales registradas.</div>`
       : `<div class="sg-list-container">` + 
-        sgs.map(sg => `
+        sgs.map(sg => {
+          // Extraemos el Estatus de la tabla ORDEN_MANTENIMIENTO
+          const estatusOM = sg.ORDEN_MANTENIMIENTO?.Estatus || 'Programado'; 
+
+          return `
           <div class="sg-card">
             <div class="sg-card-header">
               <div class="sg-card-title">${sg.ORDEN_MANTENIMIENTO?.Descripcion || 'Sin descripción'}</div>
-              <div class="sg-card-id">${sg.ORDEN_MANTENIMIENTO?.['ID_Orden mantenimiento'] || 'N/A'}</div>
+              <div class="sg-card-id">${sg.ORDEN_MANTENIMIENTO?.['ID_#EQUIPO'] || 'N/A'}</div>
             </div>
-            
+                
             ${sg.ORDEN_MANTENIMIENTO?.Observaciones ? `<div class="sg-card-body"><strong>Obs:</strong> ${sg.ORDEN_MANTENIMIENTO.Observaciones}</div>` : ''}
             
             <div class="sg-card-footer">
@@ -41,17 +48,17 @@ const SGListComponent = (() => {
               </span>
               <span class="sg-meta-item">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                Est: ${sg.estimacion_horas || 0}h (${sg.dias || 0} días)
+                Est: ${sg.estimacion_horas || 0}h
               </span>
               <span class="sg-meta-item">
                 <strong>Tipo:</strong> ${sg.tipo_trabajo || '—'}
               </span>
               <span class="sg-meta-item" style="margin-left: auto;">
-                <span class="sg-badge ${getBadgeClass(sg.estado)}">${sg.estado || 'Pendiente'}</span>
+                <span class="sg-badge ${getBadgeClass(estatusOM)}">${estatusOM}</span>
               </span>
             </div>
           </div>
-        `).join('') + `</div>`;
+        `}).join('') + `</div>`;
 
     _container.innerHTML = `
       <div class="ot-tab-header ot-modal-section" style="margin-bottom: 0;">

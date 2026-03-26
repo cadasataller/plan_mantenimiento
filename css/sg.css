@@ -115,6 +115,7 @@
 }
 
 /* ── Badges de Estado para SG ── */
+/* ── Badges de Estado para SG ── */
 .sg-badge {
   display: inline-flex;
   align-items: center;
@@ -126,6 +127,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+.sg-badge.st-programado { background: var(--color-gray-200); color: var(--text-secondary); } /* NUEVO */
 .sg-badge.st-pendiente { background: var(--color-warning-bg); color: var(--color-warning); }
 .sg-badge.st-en-proceso { background: var(--color-info-bg); color: var(--color-info); }
 .sg-badge.st-concluida { background: var(--color-success-bg); color: var(--color-success); }
