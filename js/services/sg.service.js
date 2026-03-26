@@ -7,6 +7,7 @@ const SGService = (() => {
       .from('OM_SG')
       .select(`
         *,
+        fecha_solicitud::timestamptz,
         ORDEN_MANTENIMIENTO (*)
       `)
       .order('fecha_solicitud', { ascending: false });
