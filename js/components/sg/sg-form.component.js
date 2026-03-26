@@ -140,7 +140,7 @@ const SGFormComponent = (() => {
       const idMantenimiento = document.getElementById('sg-id-base').value.trim();
 
       if(idMantenimiento===''){
-        idMantenimiento = generarIdMantenimiento({
+        idMantenimiento = SGService.generarIdMantenimiento({
           area: document.getElementById('sg-area').value,
           equipo: document.getElementById('sg-equipo').value,
           item: document.getElementById('sg-item').value,
