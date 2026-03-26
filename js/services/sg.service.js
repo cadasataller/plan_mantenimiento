@@ -15,7 +15,14 @@ const SGService = (() => {
       console.error('[SGService] Error fetchSGs:', error);
       return [];
     }
-    return data;
+
+    
+    const dataFormateada = data.map(row => ({
+        ...row,
+        fecha_solicitud: new Date(row.fecha_solicitud).toLocaleString('es-PA')
+    }));
+
+    return dataFormateada;
   }
 
   // Crear una SG Manual (Crea la base en ORDEN_MANTENIMIENTO y luego el detalle en OM_SG)
