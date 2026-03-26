@@ -21,6 +21,12 @@ const SGUI = (() => {
     .sg-field-input { padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; font-family: inherit; font-size: 0.85rem; width: 100%; box-sizing: border-box; }
     .sg-field-input:focus { outline: none; border-color: #0284C7; box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2); }
     .sg-edit-tag { font-size: 0.65rem; color: #0284C7; margin-left: 4px; font-weight: normal; }
+    
+    /* Nuevos estilos para los botones de estado */
+    .sg-status-picker { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.2rem; }
+    .sg-status-btn { padding: 0.4rem 0.8rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.8rem; color: #4B5563; font-weight: 500; transition: all 0.15s; font-family: inherit; }
+    .sg-status-btn:hover { background: #f9fafb; border-color: #9ca3af; }
+    .sg-status-btn.active { background: #E0F2FE; color: #0284C7; border-color: #0284C7; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
   `);
 
   const Icon = (type) => {
@@ -42,10 +48,32 @@ const SGUI = (() => {
     return `<span class="sg-badge-atom ${cls}"><span class="ot-status-dot"></span>${status}</span>`;
   };
 
-  // Átomo dinámico que cambia de Texto a Input si está en modo edición y tiene permisos
+  // Selector de Estado en forma de Botones
+  const StatusPicker = ({ id, label, value, options = [], isEditMode = false, canEdit = false }) => {
+    if (!isEditMode || !canEdit) {
+      return `
+        <div class="ot-modal-field" style="grid-column: 1 / -1;">
+          <div class="ot-modal-label">${label}</div>
+          <div class="ot-modal-val">${Badge(value)}</div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="ot-modal-field" style="grid-column: 1 / -1;">
+        <div class="ot-modal-label">${label} <span class="sg-edit-tag">(editable)</span></div>
+        <div class="sg-status-picker" id="${id}">
+          ${options.map(o => `
+            <button type="button" class="sg-status-btn ${o.value === value ? 'active' : ''}" data-sg-status="${o.value}">
+              ${o.label}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  };
+
   const EditableField = ({ id, label, value, type = 'text', options = [], isEditMode = false, canEdit = false, placeholder = '', fullWidth = false }) => {
-    
-    // Si no está en edición o el usuario no tiene permisos sobre este campo específico, renderiza texto
     if (!isEditMode || !canEdit) {
       let displayVal = value || '—';
       if (type === 'select' && value !== undefined && value !== null) {
@@ -60,7 +88,6 @@ const SGUI = (() => {
       `;
     }
 
-    // MODO EDICIÓN
     let inputHtml = '';
     if (type === 'select') {
       inputHtml = `<select id="${id}" data-sg-edit class="sg-field-input">
@@ -80,6 +107,6 @@ const SGUI = (() => {
     `;
   };
 
-  return { Icon, Badge, EditableField, injectCSS };
+  return { Icon, Badge, StatusPicker, EditableField, injectCSS };
 })();
 window.SGUI = SGUI;
