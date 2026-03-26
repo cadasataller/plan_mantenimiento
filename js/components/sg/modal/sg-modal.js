@@ -7,16 +7,18 @@ const SGModalComponent = (() => {
 
   function open(sg) {
     _currentSG = sg;
-    const root = document.getElementById('ot-modal-root'); // Usamos el mismo root de tu app
-    if (!root) return console.error('No se encontró #ot-modal-root');
+    // 👇 Cambiamos a sg-modal-root
+    const root = document.getElementById('sg-modal-root'); 
+    if (!root) return console.error('No se encontró #sg-modal-root en la pestaña SG');
     
     _renderModal(sg);
-    document.body.style.overflow = 'hidden'; // Prevenir scroll de fondo
+    document.body.style.overflow = 'hidden'; 
   }
 
   function close() {
-    const root = document.getElementById('ot-modal-root');
-    const bd = document.getElementById('ot-backdrop');
+    // 👇 Cambiamos a sg-modal-root
+    const root = document.getElementById('sg-modal-root');
+    const bd = document.getElementById('sg-backdrop'); // Cambié el ID del backdrop también para que no choque
     _currentSG = null;
     
     if (bd) {
@@ -32,7 +34,7 @@ const SGModalComponent = (() => {
   }
 
   function _renderModal(sg) {
-    const root = document.getElementById('ot-modal-root');
+    const root = document.getElementById('sg-modal-root');
     const om = sg.ORDEN_MANTENIMIENTO || {};
 
     root.innerHTML = `
@@ -107,7 +109,7 @@ const SGModalComponent = (() => {
     // Eventos
     document.getElementById('btn-sg-modal-close')?.addEventListener('click', close);
     document.getElementById('btn-sg-modal-cerrar')?.addEventListener('click', close);
-    document.getElementById('ot-backdrop')?.addEventListener('click', e => {
+    document.getElementById('sg-backdrop')?.addEventListener('click', e => {
       if (e.target === e.currentTarget) close();
     });
   }

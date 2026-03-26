@@ -23,13 +23,17 @@ const SGListComponent = (() => {
       : `<div id="sg-cards-container">` + sgs.map(sg => SGCardComponent.render(sg)).join('') + `</div>`;
 
     _container.innerHTML = `
-      <div class="ot-tab-header ot-modal-section" style="margin-bottom: 1rem;">
-        <div class="ot-tab-title ot-modal-section-title">Servicios Generales</div>
-        <button class="btn-modal-primary" id="btn-new-sg-manual">
-          ${SGUI.Icon('plus')} Nueva SG Manual
-        </button>
+      <div class="sg-main-content" style="position: relative;">
+        <div class="ot-tab-header ot-modal-section" style="margin-bottom: 1rem;">
+          <div class="ot-tab-title ot-modal-section-title">Servicios Generales</div>
+          <button class="btn-modal-primary" id="btn-new-sg-manual">
+            ${SGUI.Icon('plus')} Nueva SG Manual
+          </button>
+        </div>
+        ${listHtml}
       </div>
-      ${listHtml}
+
+      <div id="sg-modal-root"></div>
     `;
   }
   
