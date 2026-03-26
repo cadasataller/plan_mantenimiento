@@ -19,8 +19,19 @@ const SGService = (() => {
     
     const dataFormateada = data.map(row => ({
         ...row,
-        fecha_solicitud: new Date(row.fecha_solicitud).toLocaleString('es-PA')
+        fecha_solicitud: fecha_solicitud: new Date(fechaRaw).toLocaleString('es-PA', {
+                    timeZone: 'America/Panama', // 👈 CLAVE
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                    })
     }));
+
+    console.log(dataFormateada.fecha_solicitud);
+    
 
     return dataFormateada;
   }
