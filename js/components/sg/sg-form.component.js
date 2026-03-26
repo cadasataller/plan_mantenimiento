@@ -70,7 +70,7 @@ const SGFormComponent = (() => {
               <input type="date" id="sg-fecha-entrega" required />
             </div>
             <div class="ot-modal-field">
-              <label class="ot-modal-label">Personal a Solicitar (Opcional)</label>
+              <label class="ot-modal-label">Personal a Solicitar</label>
               <input type="text" id="sg-personal" placeholder="Ej: 2 Soldadores" />
             </div>
           </div>
@@ -136,9 +136,24 @@ const SGFormComponent = (() => {
       btn.textContent = 'Guardando...';
 
       const fechaEntrega = document.getElementById('sg-fecha-entrega').value;
+
+      const idMantenimiento = document.getElementById('sg-id-base').value.trim();
+
+      if(idMantenimiento===''){
+        idMantenimiento = generarIdMantenimiento({
+          area: document.getElementById('sg-area').value,
+          equipo: document.getElementById('sg-equipo').value,
+          item: document.getElementById('sg-item').value,
+          sistema: document.getElementById('sg-sistema').value
+        });
+      }
+
+       
+
         //'ID_Orden mantenimiento': document.getElementById('sg-id-base').value.trim()
       // 1. Armamos el objeto para la tabla base (ORDEN_MANTENIMIENTO)
       const baseData = {
+        'ID_Orden mantenimiento': idMantenimiento,
         'Área': document.getElementById('sg-area').value.trim(),
         'ID_#EQUIPO': document.getElementById('sg-equipo').value.trim(),
         'ITEM': document.getElementById('sg-item').value.trim(),

@@ -23,7 +23,6 @@ const SGService = (() => {
     try {
       // 1. Forzar IS_SG en la base
       baseData.IS_SG = true;
-
       // 2. Insertar en ORDEN_MANTENIMIENTO
       const { data: baseResult, error: baseError } = await db
         .from('ORDEN_MANTENIMIENTO')
@@ -56,7 +55,29 @@ const SGService = (() => {
     }
   }
 
-  return { fetchSGs, createManualSG };
+  function generarIdMantenimiento({ area, equipo, item, sistema }) {
+    const getFirst = (str) => (str || '').charAt(0).toUpperCase();
+
+    const prefijo = `SG-${getFirst(area)}${getFirst(equipo)}${getFirst(item)}${getFirst(sistema)}`;
+
+    const now = new Date();
+
+    const fecha = `${now.getFullYear()}${
+        String(now.getMonth() + 1).padStart(2, '0')
+    }${
+        String(now.getDate()).padStart(2, '0')
+    }-${
+        String(now.getHours()).padStart(2, '0')
+    }${
+        String(now.getMinutes()).padStart(2, '0')
+    }${
+        String(now.getSeconds()).padStart(2, '0')
+    }`;
+
+    return `${prefijo}-${fecha}`;
+  }
+
+  return { fetchSGs, createManualSG, generarIdMantenimiento };
 })();
 
 window.SGService = SGService;
