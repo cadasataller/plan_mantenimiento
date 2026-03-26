@@ -14,9 +14,7 @@ const SGListComponent = (() => {
   }
 
   function _render(sgs) {
-    // Función de ayuda para los badges
-    function _render(sgs) {
-    // Función de ayuda para los badges
+    
     const getBadgeClass = (estado) => {
       const e = (estado || 'Programado').toLowerCase(); // <--- CAMBIO AQUÍ
       if (e.includes('proceso')) return 'st-en-proceso';
@@ -38,7 +36,7 @@ const SGListComponent = (() => {
               <div class="sg-card-title">${sg.ORDEN_MANTENIMIENTO?.Descripcion || 'Sin descripción'}</div>
               <div class="sg-card-id">${sg.ORDEN_MANTENIMIENTO?.['ID_#EQUIPO'] || 'N/A'}</div>
             </div>
-                
+
             ${sg.ORDEN_MANTENIMIENTO?.Observaciones ? `<div class="sg-card-body"><strong>Obs:</strong> ${sg.ORDEN_MANTENIMIENTO.Observaciones}</div>` : ''}
             
             <div class="sg-card-footer">
