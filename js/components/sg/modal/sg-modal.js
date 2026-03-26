@@ -1,23 +1,34 @@
 // ============================================================
-// SG MODAL COMPONENT — Visor de Detalles de SG
+// SG MODAL COMPONENT — Visor y Editor de Detalles de SG
 // ============================================================
 
 const SGModalComponent = (() => {
   let _currentSG = null;
+  let _editMode = false;
+  let _editState = {};
+  let _perms = { statusObs: false, all: false };
 
   function open(sg) {
     _currentSG = sg;
+    _editMode = false;
+    _editState = {};
+    _calcularPermisos(sg);
+
     const root = document.getElementById('sg-modal-root'); 
     if (!root) return console.error('No se encontró #sg-modal-root en la pestaña SG');
     
-    _renderModal(sg);
+    _renderModal();
     document.body.style.overflow = 'hidden'; 
   }
 
   function close() {
+    if (_editMode && !confirm('Tienes cambios sin guardar. ¿Cerrar de todas formas?')) return;
+    
     const root = document.getElementById('sg-modal-root');
     const bd = document.getElementById('sg-backdrop');
     _currentSG = null;
+    _editMode = false;
+    _editState = {};
     
     if (bd) {
       bd.style.opacity = '0';
@@ -31,57 +42,142 @@ const SGModalComponent = (() => {
     }
   }
 
-  // Helper para formatear fechas a texto legible
+  // ── LÓGICA DE PERMISOS ──────────────────────────────────────────
+  function _calcularPermisos(sg) {
+    _perms = { statusObs: false, all: false };
+    
+    // Obtenemos usuario desde AuthService
+    const user = window.AuthService?.getUser() || {};
+    const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+    
+    const om = sg.ORDEN_MANTENIMIENTO || {};
+    const omArea = String(om['Área'] || '').trim().toUpperCase();
+    const estatus = String(om.Estatus || 'Programado').trim().toUpperCase();
+
+    // 1. Si es de SG, solo edita status y observaciones
+    if (uArea === 'SERVICIOS GENERALES') {
+      _perms.statusObs = true;
+    }
+
+    // 2. Si es el dueño del área o es ALL
+    if (uArea === omArea || uArea === 'ALL') {
+      // SOLO si el estatus es Programado puede editar TODO
+      if (estatus === 'PROGRAMADO') {
+        _perms.all = true;
+        _perms.statusObs = true; // Por herencia
+      }
+    }
+  }
+
+  // ── ESTADO DE EDICIÓN ───────────────────────────────────────────
+  function _enterEditMode() {
+    _editMode = true;
+    const om = _currentSG.ORDEN_MANTENIMIENTO || {};
+    
+    // Inicializar estado de edición con valores actuales
+    _editState = {
+      estatus: om.Estatus || 'Programado',
+      observaciones: om.Observaciones || '',
+      tipo_trabajo: _currentSG.tipo_trabajo || '',
+      estimacion_horas: _currentSG.estimacion_horas || '',
+      solicitar_personal: _currentSG.solicitar_personal || '',
+      fecha_entrega: _currentSG.fecha_entrega || om['Fecha Entrega'] || '',
+      tiene_compra: om['Tiene solicitud de compra?'] ? 'true' : 'false',
+      n_solicitud: om['N° solicitud'] || '',
+      n_oc: om['N° Orden de compra'] || ''
+    };
+    _renderModal();
+  }
+
+  function _cancelEdit() {
+    _editMode = false;
+    _editState = {};
+    _renderModal();
+  }
+
+  async function _saveEdit() {
+    // Aquí conectarías con tu SGService.updateSG(...)
+    const btn = document.getElementById('btn-sg-modal-save');
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando...`;
+
+    console.log("Valores a guardar:", _editState);
+    
+    // SIMULACIÓN DE LLAMADA A API (Reemplaza esto con tu backend real)
+    await new Promise(r => setTimeout(r, 800)); 
+
+    // Actualizamos el objeto local para reflejar los cambios en la UI temporalmente
+    if(_currentSG.ORDEN_MANTENIMIENTO) {
+      if(_perms.statusObs) {
+        _currentSG.ORDEN_MANTENIMIENTO.Estatus = _editState.estatus;
+        _currentSG.ORDEN_MANTENIMIENTO.Observaciones = _editState.observaciones;
+      }
+      if(_perms.all) {
+        _currentSG.tipo_trabajo = _editState.tipo_trabajo;
+        _currentSG.estimacion_horas = _editState.estimacion_horas;
+        _currentSG.solicitar_personal = _editState.solicitar_personal;
+        _currentSG.fecha_entrega = _editState.fecha_entrega;
+        _currentSG.ORDEN_MANTENIMIENTO['Fecha Entrega'] = _editState.fecha_entrega;
+        _currentSG.ORDEN_MANTENIMIENTO['Tiene solicitud de compra?'] = _editState.tiene_compra === 'true';
+        _currentSG.ORDEN_MANTENIMIENTO['N° solicitud'] = _editState.n_solicitud;
+        _currentSG.ORDEN_MANTENIMIENTO['N° Orden de compra'] = _editState.n_oc;
+      }
+    }
+
+    _editMode = false;
+    _editState = {};
+    window.ToastService?.show('Cambios guardados', 'success');
+    _renderModal();
+  }
+
+  // ── HELPERS FECHAS ──────────────────────────────────────────────
   function formatDate(dateStr) {
     if (!dateStr) return '—';
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
-      
-      const userTimezoneOffset = d.getTimezoneOffset() * 60000;
-      const localDate = new Date(d.getTime() + userTimezoneOffset);
-      
+      const localDate = new Date(d.getTime() + (d.getTimezoneOffset() * 60000));
       return localDate.toLocaleDateString('es-PA');
-    } catch {
-      return dateStr;
-    }
+    } catch { return dateStr; }
   }
 
-  // Helper para calcular la diferencia de días y retornar un badge pequeño
   function _calcularEstadoDias(fechaEntregaStr) {
     if (!fechaEntregaStr) return '<span style="color:var(--text-muted); font-size:0.68rem; margin-top:0.3rem; font-style:italic;">Sin fecha asignada</span>';
-
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
     const entrega = new Date(fechaEntregaStr);
     entrega.setMinutes(entrega.getMinutes() + entrega.getTimezoneOffset());
     entrega.setHours(0, 0, 0, 0);
-
-    const diffTime = entrega.getTime() - hoy.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-    // Estilos base ajustados: un poco más pequeños y con margen superior
-    const baseStyle = "display:inline-block; padding:0.15rem 0.4rem; border-radius:4px; font-weight:600; font-size:0.68rem; margin-top:0.3rem;";
-
-    if (diffDays > 0) {
-      // Faltan días -> Verde
-      return `<span style="${baseStyle} background:#DCFCE7; color:#166534;">Faltan ${diffDays} día(s)</span>`;
-    } else if (diffDays < 0) {
-      // Retraso -> Rojo
-      return `<span style="${baseStyle} background:#FEE2E2; color:#991B1B;">Retraso de ${Math.abs(diffDays)} día(s)</span>`;
-    } else {
-      // Es hoy -> Gris
-      return `<span style="${baseStyle} background:#F3F4F6; color:#4B5563;">Se entrega hoy</span>`;
-    }
+    const diffDays = Math.round((entrega.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+    const bs = "display:inline-block; padding:0.15rem 0.4rem; border-radius:4px; font-weight:600; font-size:0.68rem; margin-top:0.3rem;";
+    if (diffDays > 0) return `<span style="${bs} background:#DCFCE7; color:#166534;">Faltan ${diffDays} día(s)</span>`;
+    if (diffDays < 0) return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Retraso de ${Math.abs(diffDays)} día(s)</span>`;
+    return `<span style="${bs} background:#F3F4F6; color:#4B5563;">Se entrega hoy</span>`;
   }
 
-  function _renderModal(sg) {
+  // ── RENDER PRINCIPAL ────────────────────────────────────────────
+  function _renderModal() {
     const root = document.getElementById('sg-modal-root');
+    const sg = _currentSG;
     const om = sg.ORDEN_MANTENIMIENTO || {};
     
-    // Obtener la fecha de entrega unificada
-    const fechaEntrega = sg.fecha_entrega || om['Fecha Entrega'];
+    // Si estamos en edición, leemos de _editState, sino del objeto original
+    const v = (key, fallback) => _editMode ? (_editState[key] ?? fallback) : fallback;
+    const fechaEntregaReal = sg.fecha_entrega || om['Fecha Entrega'];
+
+    // Opciones para Selects
+    const estatusOptions = [
+      { value: 'Programado', label: 'Programado' },
+      { value: 'En Proceso', label: 'En Proceso' },
+      { value: 'Detenido', label: 'Detenido' },
+      { value: 'Concluida', label: 'Concluida' }
+    ];
+    const booleanOptions = [{ value: 'false', label: 'No' }, { value: 'true', label: 'Sí' }];
+    const tipoTrabajoOptions = [
+      { value: 'Soldadura', label: 'Soldadura' },
+      { value: 'Torneria', label: 'Tornería' },
+      { value: 'Electromecanica', label: 'Electromecánica' },
+      { value: 'Bateria', label: 'Batería' }
+    ];
 
     root.innerHTML = `
       <div class="ot-modal-backdrop" id="sg-backdrop" style="opacity: 1; transition: opacity 0.2s ease;">
@@ -101,7 +197,7 @@ const SGModalComponent = (() => {
               <button class="btn-modal-close" id="btn-sg-modal-close">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
-              ${SGUI.Badge(om.Estatus || sg.estado)}
+              ${SGUI.Badge(v('estatus', om.Estatus || sg.estado))}
             </div>
           </div>
 
@@ -112,21 +208,23 @@ const SGModalComponent = (() => {
           <div class="ot-modal-body">
             <div class="ot-modal-tab-panel active">
               
+              ${_editMode ? `<div style="background:#E0F2FE; color:#0284C7; padding:0.5rem 1rem; border-radius:6px; margin-bottom:1rem; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:0.5rem;">${SGUI.Icon('edit')} Modo edición activo</div>` : ''}
+
               <div class="ot-modal-section">
-                <div class="ot-modal-section-title">Identificación y Ubicación</div>
+                <div class="ot-modal-section-title">Estado y Observaciones</div>
                 <div class="ot-modal-grid">
-                  <div class="ot-modal-field"><div class="ot-modal-label">Sistema</div><div class="ot-modal-val">${om.Sistema || '—'}</div></div>
-                  <div class="ot-modal-field"><div class="ot-modal-label">Tipo de Proceso</div><div class="ot-modal-val">${om['Tipo de Proceso'] || '—'}</div></div>
+                  ${SGUI.EditableField({ id: 'edit-estatus', label: 'Estatus', value: v('estatus', om.Estatus), type: 'select', options: estatusOptions, isEditMode: _editMode, canEdit: _perms.statusObs })}
+                  ${SGUI.EditableField({ id: 'edit-observaciones', label: 'Observaciones', value: v('observaciones', om.Observaciones), type: 'textarea', placeholder: 'Notas de Servicios Generales...', isEditMode: _editMode, canEdit: _perms.statusObs, fullWidth: true })}
                 </div>
               </div>
 
               <div class="ot-modal-section">
-                <div class="ot-modal-section-title">Detalles del Trabajo (Servicios Generales)</div>
+                <div class="ot-modal-section-title">Detalles del Trabajo (SG)</div>
                 <div class="ot-modal-grid">
-                  <div class="ot-modal-field"><div class="ot-modal-label">Tipo Trabajo</div><div class="ot-modal-val">${sg.tipo_trabajo || '—'}</div></div>
-                  <div class="ot-modal-field"><div class="ot-modal-label">Estimación</div><div class="ot-modal-val">${sg.estimacion_horas || 0} horas</div></div>
-                  <div class="ot-modal-field"><div class="ot-modal-label">Personal Solicitado</div><div class="ot-modal-val">${sg.solicitar_personal || '—'}</div></div>
-                  </div>
+                  ${SGUI.EditableField({ id: 'edit-tipo_trabajo', label: 'Tipo Trabajo', value: v('tipo_trabajo', sg.tipo_trabajo), type: 'select', options: tipoTrabajoOptions, isEditMode: _editMode, canEdit: _perms.all })}
+                  ${SGUI.EditableField({ id: 'edit-estimacion_horas', label: 'Estimación (h)', value: v('estimacion_horas', sg.estimacion_horas), type: 'number', isEditMode: _editMode, canEdit: _perms.all })}
+                  ${SGUI.EditableField({ id: 'edit-solicitar_personal', label: 'Personal Solicitado', value: v('solicitar_personal', sg.solicitar_personal), type: 'text', isEditMode: _editMode, canEdit: _perms.all, fullWidth: true })}
+                </div>
               </div>
 
               <div class="ot-modal-section">
@@ -134,14 +232,18 @@ const SGModalComponent = (() => {
                 <div class="ot-modal-grid">
                   <div class="ot-modal-field"><div class="ot-modal-label">Semana</div><div class="ot-modal-val">${om.Semana || '—'}</div></div>
                   
-                  <div class="ot-modal-field">
-                    <div class="ot-modal-label">Fecha Entrega Esperada</div>
-                    <div class="ot-modal-val" style="display: flex; flex-direction: column; align-items: flex-start;">
-                      <span>${formatDate(fechaEntrega)}</span>
-                      ${_calcularEstadoDias(fechaEntrega)}
+                  ${_editMode && _perms.all 
+                    ? SGUI.EditableField({ id: 'edit-fecha_entrega', label: 'Fecha Entrega Esperada', value: v('fecha_entrega', fechaEntregaReal), type: 'date', isEditMode: true, canEdit: true })
+                    : `
+                    <div class="ot-modal-field">
+                      <div class="ot-modal-label">Fecha Entrega Esperada</div>
+                      <div class="ot-modal-val" style="display: flex; flex-direction: column; align-items: flex-start;">
+                        <span>${formatDate(fechaEntregaReal)}</span>
+                        ${!_editMode ? _calcularEstadoDias(fechaEntregaReal) : ''}
+                      </div>
                     </div>
-                  </div>
-
+                    `
+                  }
                   <div class="ot-modal-field"><div class="ot-modal-label">Fecha Inicio (OM)</div><div class="ot-modal-val">${formatDate(om['Fecha inicio'])}</div></div>
                   <div class="ot-modal-field"><div class="ot-modal-label">Fecha Conclusión (OM)</div><div class="ot-modal-val">${formatDate(om['Fecha conclusion'])}</div></div>
                 </div>
@@ -150,16 +252,9 @@ const SGModalComponent = (() => {
               <div class="ot-modal-section">
                 <div class="ot-modal-section-title">Gestión de Compras</div>
                 <div class="ot-modal-grid">
-                  <div class="ot-modal-field"><div class="ot-modal-label">Tiene solicitud?</div><div class="ot-modal-val">${om['Tiene solicitud de compra?'] ? 'Sí' : 'No'}</div></div>
-                  <div class="ot-modal-field"><div class="ot-modal-label">N° Solicitud</div><div class="ot-modal-val">${om['N° solicitud'] || '—'}</div></div>
-                  <div class="ot-modal-field"><div class="ot-modal-label">N° OC</div><div class="ot-modal-val">${om['N° Orden de compra'] || '—'}</div></div>
-                </div>
-              </div>
-
-              <div class="ot-modal-section">
-                <div class="ot-modal-section-title">Observaciones</div>
-                <div style="font-size:0.85rem; background:var(--color-gray-50); padding:1rem; border-radius:8px; border-left:3px solid var(--color-main-light); white-space: pre-wrap;">
-                  ${om.Observaciones || 'Sin observaciones.'}
+                  ${SGUI.EditableField({ id: 'edit-tiene_compra', label: 'Tiene solicitud?', value: v('tiene_compra', om['Tiene solicitud de compra?'] ? 'true' : 'false'), type: 'select', options: booleanOptions, isEditMode: _editMode, canEdit: _perms.all })}
+                  ${SGUI.EditableField({ id: 'edit-n_solicitud', label: 'N° Solicitud', value: v('n_solicitud', om['N° solicitud']), type: 'text', isEditMode: _editMode, canEdit: _perms.all })}
+                  ${SGUI.EditableField({ id: 'edit-n_oc', label: 'N° OC', value: v('n_oc', om['N° Orden de compra']), type: 'text', isEditMode: _editMode, canEdit: _perms.all })}
                 </div>
               </div>
 
@@ -168,12 +263,24 @@ const SGModalComponent = (() => {
 
           <div class="ot-modal-footer">
             <div class="ot-modal-footer-left">
-              <span style="font-size:0.72rem;color:var(--text-muted);">
-                Registrado: ${sg.fecha_solicitud || '—'}
-              </span>
+              <span style="font-size:0.72rem;color:var(--text-muted);">Registrado: ${sg.fecha_solicitud || '—'}</span>
             </div>
-            <div class="ot-modal-footer-right">
-              <button class="btn-modal-secondary" id="btn-sg-modal-cerrar">Cerrar</button>
+            <div class="ot-modal-footer-right" style="display:flex; gap:0.5rem;">
+              
+              ${_editMode ? `
+                <button class="btn-modal-secondary" id="btn-sg-modal-cancel">Cancelar</button>
+                <button class="btn-modal-primary" id="btn-sg-modal-save" style="background:#166534; border-color:#166534;">
+                  ${SGUI.Icon('save')} Guardar Cambios
+                </button>
+              ` : `
+                ${(_perms.statusObs || _perms.all) ? `
+                  <button class="btn-modal-primary" id="btn-sg-modal-edit" style="background:#0284C7; border-color:#0284C7;">
+                    ${SGUI.Icon('edit')} Editar
+                  </button>
+                ` : ''}
+                <button class="btn-modal-secondary" id="btn-sg-modal-cerrar">Cerrar</button>
+              `}
+              
             </div>
           </div>
 
@@ -181,12 +288,31 @@ const SGModalComponent = (() => {
       </div>
     `;
 
-    // Eventos
+    _bindEvents();
+  }
+
+  function _bindEvents() {
+    // Eventos Básicos
     document.getElementById('btn-sg-modal-close')?.addEventListener('click', close);
     document.getElementById('btn-sg-modal-cerrar')?.addEventListener('click', close);
     document.getElementById('sg-backdrop')?.addEventListener('click', e => {
       if (e.target === e.currentTarget) close();
     });
+
+    // Botones de Edición
+    document.getElementById('btn-sg-modal-edit')?.addEventListener('click', _enterEditMode);
+    document.getElementById('btn-sg-modal-cancel')?.addEventListener('click', _cancelEdit);
+    document.getElementById('btn-sg-modal-save')?.addEventListener('click', _saveEdit);
+
+    // Escuchar cambios en los inputs para actualizar el _editState dinámicamente
+    if (_editMode) {
+      document.querySelectorAll('[data-sg-edit]').forEach(input => {
+        input.addEventListener('input', (e) => {
+          const key = e.target.id.replace('edit-', '');
+          _editState[key] = e.target.value;
+        });
+      });
+    }
   }
 
   return { open, close };
