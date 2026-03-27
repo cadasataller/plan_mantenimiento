@@ -108,7 +108,6 @@ const OTService = (() => {
       'ID_Orden mantenimiento': String(omId),
       'Fecha':                  fechaISO,
       'ID_Mecanico':            data.ID_Mecanico,
-      'Equipo de trabajo':      data.EquipoTrabajo   ?? '',
       'Duración (horas)':       data.Duracion        ?? 0,
       'Estatus':                data.Estatus         ?? 'En Proceso',
       'Retraso (horas)':        data.Retraso         ?? 0,
@@ -128,7 +127,6 @@ const OTService = (() => {
         : data.Fecha;
     }
     if (data.ID_Mecanico    !== undefined) out['ID_Mecanico']       = data.ID_Mecanico;
-    if (data.EquipoTrabajo  !== undefined) out['Equipo de trabajo'] = data.EquipoTrabajo;
     if (data.Duracion       !== undefined) out['Duración (horas)']  = data.Duracion;
     if (data.Estatus        !== undefined) out['Estatus']           = data.Estatus;
     if (data.Retraso        !== undefined) out['Retraso (horas)']   = data.Retraso;
@@ -155,7 +153,6 @@ const OTService = (() => {
       ID_RowNumber:  row['ID_OT'],
       ID_OrdenMant:  row['ID_Orden mantenimiento'] ?? '',
       ID_Mecanico:   row['ID_Mecanico']            ?? '',
-      EquipoTrabajo: row['Equipo de trabajo']       ?? '',
       Fecha:         fechaDisplay,
       Duracion:      parseFloat(row['Duración (horas)']) || 0,
       Estatus:       row['Estatus']                ?? 'Retrasado',
