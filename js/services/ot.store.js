@@ -85,8 +85,9 @@ const OTStore = (() => {
         // SG ve todas las áreas, pero SOLO las órdenes derivadas a ellos
         query = query.eq('IS_SG', true);
       } else if (uArea && uArea !== 'ALL') {
+        const user = AuthService.getUser();
         // Un área normal solo ve sus órdenes (hayan sido o no derivadas a SG)
-        query = query.eq('Área', uArea);
+        query = query.eq('Área', user.Area);
       }
       // (Si es ALL, no aplica ningún filtro y trae la base de datos completa)
 
