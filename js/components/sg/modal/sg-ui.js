@@ -22,12 +22,35 @@ const SGUI = (() => {
     .sg-field-input:focus { outline: none; border-color: #0284C7; box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2); }
     .sg-edit-tag { font-size: 0.65rem; color: #0284C7; margin-left: 4px; font-weight: normal; }
     
-    /* Nuevos estilos para los botones de estado */
     .sg-status-picker { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.2rem; }
     .sg-status-btn { padding: 0.4rem 0.8rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.8rem; color: #4B5563; font-weight: 500; transition: all 0.15s; font-family: inherit; }
     .sg-status-btn:hover { background: #f9fafb; border-color: #9ca3af; }
     .sg-status-btn.active { background: #E0F2FE; color: #0284C7; border-color: #0284C7; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+    .sg-btn-group-container { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .sg-btn-group-item { padding: 0.5rem 0.8rem; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb; color: #4B5563; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; font-family: inherit; flex-grow: 1; text-align: center; }
+    .sg-btn-group-item:hover { background: #f3f4f6; border-color: #9ca3af; }
+    .sg-btn-group-item.active { background: #0284C7; color: #fff; border-color: #0284C7; font-weight: 600; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2); }
   `);
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.sg-btn-group-item');
+    if (!btn) return;
+    const targetId = btn.getAttribute('data-target');
+    const val = btn.getAttribute('data-value');
+    const input = document.getElementById(targetId);
+    
+    if (input) {
+      input.value = val;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      // Disparamos evento input también para que lo capture el Modal
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    
+    const container = btn.closest('.sg-btn-group-container');
+    container.querySelectorAll('.sg-btn-group-item').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
 
   const Icon = (type) => {
     const icons = {
@@ -48,26 +71,13 @@ const SGUI = (() => {
     return `<span class="sg-badge-atom ${cls}"><span class="ot-status-dot"></span>${status}</span>`;
   };
 
-  // Selector de Estado en forma de Botones
   const StatusPicker = ({ id, label, value, options = [], isEditMode = false, canEdit = false }) => {
-    if (!isEditMode || !canEdit) {
-      return `
-        <div class="ot-modal-field" style="grid-column: 1 / -1;">
-          <div class="ot-modal-label">${label}</div>
-          <div class="ot-modal-val">${Badge(value)}</div>
-        </div>
-      `;
-    }
-
+    if (!isEditMode || !canEdit) return `<div class="ot-modal-field" style="grid-column: 1 / -1;"><div class="ot-modal-label">${label}</div><div class="ot-modal-val">${Badge(value)}</div></div>`;
     return `
       <div class="ot-modal-field" style="grid-column: 1 / -1;">
         <div class="ot-modal-label">${label} <span class="sg-edit-tag">(editable)</span></div>
         <div class="sg-status-picker" id="${id}">
-          ${options.map(o => `
-            <button type="button" class="sg-status-btn ${o.value === value ? 'active' : ''}" data-sg-status="${o.value}">
-              ${o.label}
-            </button>
-          `).join('')}
+          ${options.map(o => `<button type="button" class="sg-status-btn ${o.value === value ? 'active' : ''}" data-sg-status="${o.value}">${o.label}</button>`).join('')}
         </div>
       </div>
     `;
@@ -76,37 +86,55 @@ const SGUI = (() => {
   const EditableField = ({ id, label, value, type = 'text', options = [], isEditMode = false, canEdit = false, placeholder = '', fullWidth = false }) => {
     if (!isEditMode || !canEdit) {
       let displayVal = value || '—';
-      if (type === 'select' && value !== undefined && value !== null) {
+      if ((type === 'select' || type === 'buttongroup') && value !== undefined && value !== null) {
         const opt = options.find(o => String(o.value) === String(value));
         if (opt) displayVal = opt.label;
       }
-      return `
-        <div class="ot-modal-field" ${fullWidth ? 'style="grid-column: 1 / -1;"' : ''}>
-          <div class="ot-modal-label">${label}</div>
-          <div class="ot-modal-val" ${type==='textarea' ? 'style="white-space: pre-wrap;"' : ''}>${displayVal}</div>
-        </div>
-      `;
+      return `<div class="ot-modal-field" ${fullWidth ? 'style="grid-column: 1 / -1;"' : ''}><div class="ot-modal-label">${label}</div><div class="ot-modal-val" ${type==='textarea' ? 'style="white-space: pre-wrap;"' : ''}>${displayVal}</div></div>`;
     }
 
     let inputHtml = '';
     if (type === 'select') {
-      inputHtml = `<select id="${id}" data-sg-edit class="sg-field-input">
-        ${options.map(o => `<option value="${o.value}" ${String(o.value) === String(value) ? 'selected' : ''}>${o.label}</option>`).join('')}
-      </select>`;
+      inputHtml = `<select id="${id}" data-sg-edit class="sg-field-input"><option value="">Seleccione...</option>${options.map(o => `<option value="${o.value}" ${String(o.value) === String(value) ? 'selected' : ''}>${o.label}</option>`).join('')}</select>`;
+    } else if (type === 'buttongroup') {
+      inputHtml = `
+        <div class="sg-btn-group-container">
+          ${options.map(o => `<button type="button" class="sg-btn-group-item ${String(o.value) === String(value) ? 'active' : ''}" data-target="${id}" data-value="${o.value}">${o.label}</button>`).join('')}
+        </div>
+        <input type="hidden" id="${id}" data-sg-edit value="${value || ''}" />
+      `;
     } else if (type === 'textarea') {
       inputHtml = `<textarea id="${id}" data-sg-edit class="sg-field-input" rows="3" placeholder="${placeholder}">${value || ''}</textarea>`;
     } else {
       inputHtml = `<input type="${type}" id="${id}" data-sg-edit class="sg-field-input" placeholder="${placeholder}" value="${value || ''}" />`;
     }
+    
+    return `<div class="ot-modal-field" ${fullWidth ? 'style="grid-column: 1 / -1;"' : ''}><div class="ot-modal-label">${label} <span class="sg-edit-tag">(editable)</span></div>${inputHtml}</div>`;
+  };
 
+  const ButtonGroup = ({ id, label, options = [], value = '', required = false, fullWidth = false }) => {
     return `
       <div class="ot-modal-field" ${fullWidth ? 'style="grid-column: 1 / -1;"' : ''}>
-        <div class="ot-modal-label">${label} <span class="sg-edit-tag">(editable)</span></div>
-        ${inputHtml}
+        <label class="ot-modal-label" style="margin-bottom: 0.3rem; display:block;">${label}${required ? ' <span style="color:#ef4444">*</span>' : ''}</label>
+        <div class="sg-btn-group-container">
+          ${options.map(o => `
+            <button type="button" class="sg-btn-group-item ${o.value === value ? 'active' : ''}" data-target="${id}" data-value="${o.value}">${o.label}</button>
+          `).join('')}
+        </div>
+        <input type="hidden" id="${id}" value="${value}" />
       </div>
     `;
   };
 
-  return { Icon, Badge, StatusPicker, EditableField, injectCSS };
+  // 👇 AQUÍ ESTÁ TU VARIABLE ESTÁTICA DE ÁREAS (Modifícala a tu gusto)
+  const AREAS_OPTIONS = [
+    { value: 'Cosecha Mecanizada', label: 'Cosecha Mecanizada' },
+    { value: 'Cosecha Agricola', label: 'Cosecha Agricola' },
+    { value: 'Engrase', label: 'Engrase' },
+    { value: 'Equipo Pesado', label: 'Equipo Pesado' },
+    { value: 'Mecanica de Transporte', label: 'Mecanica de Transporte' }
+  ];
+
+  return { Icon, Badge, StatusPicker, EditableField, ButtonGroup, injectCSS, AREAS_OPTIONS };
 })();
 window.SGUI = SGUI;

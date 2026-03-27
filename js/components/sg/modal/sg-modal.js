@@ -307,7 +307,7 @@ const SGModalComponent = (() => {
           <div class="ot-modal-grid">
             ${(_editMode && _perms.godMode) ? `
               ${SGUI.EditableField({ id: 'edit-descripcion', label: 'Descripción', value: v('descripcion', om.Descripcion), type: 'textarea', isEditMode: true, canEdit: true, fullWidth: true })}
-              ${SGUI.EditableField({ id: 'edit-area_om', label: 'Área', value: v('area_om', om['Área']), type: 'text', isEditMode: true, canEdit: true })}
+              ${SGUI.EditableField({ id: 'edit-area_om', label: 'Área', value: v('area_om', om['Área']), type: 'buttongroup', isEditMode: true, canEdit: true })}
               ${SGUI.EditableField({ id: 'edit-equipo', label: 'Equipo', value: v('equipo', om['ID_#EQUIPO']), type: 'text', isEditMode: true, canEdit: true })}
               ${SGUI.EditableField({ id: 'edit-item', label: 'Item', value: v('item', om.ITEM), type: 'text', isEditMode: true, canEdit: true })}
               ${SGUI.EditableField({ id: 'edit-sistema', label: 'Sistema', value: v('sistema', om.Sistema), type: 'text', isEditMode: true, canEdit: true })}

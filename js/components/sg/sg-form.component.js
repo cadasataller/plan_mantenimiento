@@ -1,3 +1,7 @@
+// ============================================================
+// SG FORM COMPONENT — Formulario de Creación
+// ============================================================
+
 const SGFormComponent = (() => {
   let _container = null;
   let _onCancel = null;
@@ -27,70 +31,83 @@ const SGFormComponent = (() => {
               <label class="ot-modal-label">ID Orden</label>
               <input type="text" id="sg-id-base" placeholder="Ej: SG-2026-001" />
             </div>
+            
+            ${SGUI.ButtonGroup({
+              id: 'sg-area',
+              label: 'Área',
+              options: SGUI.AREAS_OPTIONS,
+              required: true,
+              fullWidth: true
+            })}
+
             <div class="ot-modal-field">
-              <label class="ot-modal-label">Área*</label>
-              <input type="text" id="sg-area" required />
+              <label class="ot-modal-label">Equipo <span style="color:#ef4444">*</span></label>
+              <input type="text" id="sg-equipo" class="sg-field-input" required />
             </div>
             <div class="ot-modal-field">
-              <label class="ot-modal-label">Equipo*</label>
-              <input type="text" id="sg-equipo" required />
+              <label class="ot-modal-label">Item <span style="color:#ef4444">*</span></label>
+              <input type="text" id="sg-item" class="sg-field-input" required />
             </div>
             <div class="ot-modal-field">
-              <label class="ot-modal-label">Item*</label>
-              <input type="text" id="sg-item" required />
-            </div>
-            <div class="ot-modal-field">
-              <label class="ot-modal-label">Sistema*</label>
-              <input type="text" id="sg-sistema" required />
+              <label class="ot-modal-label">Sistema <span style="color:#ef4444">*</span></label>
+              <input type="text" id="sg-sistema" class="sg-field-input" required />
             </div>
           </div>
 
           <h4 style="margin-bottom: 1rem; color: var(--color-main); font-size: 0.9rem; border-bottom: 1px solid var(--color-gray-200); padding-bottom: 0.3rem;">2. Detalles del Trabajo</h4>
           <div class="ot-form-grid" style="margin-bottom: 1.5rem;">
             <div class="ot-modal-field" style="grid-column: 1 / -1;">
-              <label class="ot-modal-label">Descripción General*</label>
-              <input type="text" id="sg-desc" required />
+              <label class="ot-modal-label">Descripción General <span style="color:#ef4444">*</span></label>
+              <input type="text" id="sg-desc" class="sg-field-input" required />
+            </div>
+            
+            ${SGUI.ButtonGroup({
+              id: 'sg-tipo-trabajo',
+              label: 'Tipo de Trabajo',
+              options: [
+                { value: 'Soldadura', label: 'Soldadura' },
+                { value: 'Torneria', label: 'Tornería' },
+                { value: 'Electromecanica', label: 'Electromecánica' },
+                { value: 'Bateria', label: 'Batería' }
+              ],
+              required: true,
+              fullWidth: true
+            })}
+
+            <div class="ot-modal-field">
+              <label class="ot-modal-label">Estimación (Horas) <span style="color:#ef4444">*</span></label>
+              <input type="number" id="sg-horas" class="sg-field-input" min="1" required />
             </div>
             <div class="ot-modal-field">
-              <label class="ot-modal-label">Tipo de Trabajo*</label>
-              <select id="sg-tipo-trabajo" required>
-                <option value="">Seleccione...</option>
-                <option value="Soldadura">Soldadura</option>
-                <option value="Torneria">Tornería</option>
-                <option value="Electromecanica">Electromecánica</option>
-                <option value="Bateria">Batería</option>
-              </select>
+              <label class="ot-modal-label">Fecha Entrega <span style="color:#ef4444">*</span></label>
+              <input type="date" id="sg-fecha-entrega" class="sg-field-input" required />
             </div>
-            <div class="ot-modal-field">
-              <label class="ot-modal-label">Estimación (Horas)</label>
-              <input type="number" id="sg-horas" min="1" required />
-            </div>
-            <div class="ot-modal-field">
-              <label class="ot-modal-label">Fecha Entrega</label>
-              <input type="date" id="sg-fecha-entrega" required />
-            </div>
-            <div class="ot-modal-field">
+            <div class="ot-modal-field" style="grid-column: 1 / -1;">
               <label class="ot-modal-label">Personal a Solicitar</label>
-              <input type="text" id="sg-personal" placeholder="Ej: 2 Soldadores" />
+              <input type="text" id="sg-personal" class="sg-field-input" placeholder="Ej: 2 Soldadores" />
             </div>
           </div>
 
           <h4 style="margin-bottom: 1rem; color: var(--color-main); font-size: 0.9rem; border-bottom: 1px solid var(--color-gray-200); padding-bottom: 0.3rem;">3. Gestión de Compras</h4>
           <div class="ot-form-grid" style="margin-bottom: 1.5rem;">
-            <div class="ot-modal-field">
-              <label class="ot-modal-label">¿Tiene solicitud de compra?</label>
-              <select id="sg-tiene-compra" required>
-                <option value="false">No</option>
-                <option value="true">Sí</option>
-              </select>
-            </div>
+            
+            ${SGUI.ButtonGroup({
+              id: 'sg-tiene-compra',
+              label: '¿Tiene solicitud de compra?',
+              value: 'false',
+              options: [
+                { value: 'false', label: 'No' },
+                { value: 'true', label: 'Sí' }
+              ]
+            })}
+
             <div class="ot-modal-field">
               <label class="ot-modal-label">N° Solicitud</label>
-              <input type="text" id="sg-n-solicitud" />
+              <input type="text" id="sg-n-solicitud" class="sg-field-input" disabled style="background:#f3f4f6;" />
             </div>
             <div class="ot-modal-field">
               <label class="ot-modal-label">N° Orden de Compra</label>
-              <input type="text" id="sg-n-oc" />
+              <input type="text" id="sg-n-oc" class="sg-field-input" disabled style="background:#f3f4f6;" />
             </div>
           </div>
 
@@ -98,7 +115,7 @@ const SGFormComponent = (() => {
           <div class="ot-form-grid" style="margin-bottom: 1.5rem;">
             <div class="ot-modal-field" style="grid-column: 1 / -1;">
               <label class="ot-modal-label">Observaciones</label>
-              <input type="text" id="sg-obs" placeholder="Comentarios adicionales..." />
+              <input type="text" id="sg-obs" class="sg-field-input" placeholder="Comentarios adicionales..." />
             </div>
           </div>
 
@@ -113,67 +130,80 @@ const SGFormComponent = (() => {
   function _bindEvents() {
     document.getElementById('btn-sg-cancel').addEventListener('click', _onCancel);
     
-    // Lógica UX: Habilitar/deshabilitar los campos de compra
-    const selectCompra = document.getElementById('sg-tiene-compra');
+    const inputTieneCompra = document.getElementById('sg-tiene-compra');
     const inputNSolicitud = document.getElementById('sg-n-solicitud');
+    const inputNOc = document.getElementById('sg-n-oc');
     
-    selectCompra.addEventListener('change', (e) => {
+    inputTieneCompra.addEventListener('change', (e) => {
       const tieneCompra = e.target.value === 'true';
+      inputNSolicitud.disabled = !tieneCompra;
+      inputNOc.disabled = !tieneCompra;
+      
       if (tieneCompra) {
         inputNSolicitud.required = true;
+        inputNSolicitud.style.background = '#fff';
+        inputNOc.style.background = '#fff';
       } else {
         inputNSolicitud.required = false;
-        inputNSolicitud.value = ''; // Limpiar
-        document.getElementById('sg-n-oc').value = ''; // Limpiar OC
+        inputNSolicitud.value = ''; 
+        inputNOc.value = ''; 
+        inputNSolicitud.style.background = '#f3f4f6';
+        inputNOc.style.background = '#f3f4f6';
       }
     });
 
-    // Guardar Formulario
     document.getElementById('form-sg-manual').addEventListener('submit', async (e) => {
       e.preventDefault();
+      
+      // 👇 VALIDACIÓN MANUAL (Área y Tipo de Trabajo)
+      const areaVal = document.getElementById('sg-area').value;
+      if (!areaVal) {
+        window.ToastService?.show('Por favor seleccione un Área', 'warning');
+        return;
+      }
+      
+      const tipoTrabajoVal = document.getElementById('sg-tipo-trabajo').value;
+      if (!tipoTrabajoVal) {
+        window.ToastService?.show('Por favor seleccione un Tipo de Trabajo', 'warning');
+        return;
+      }
+
       const btn = document.getElementById('btn-sg-save');
       btn.disabled = true;
-      btn.textContent = 'Guardando...';
+      btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando...`;
 
       const fechaEntrega = document.getElementById('sg-fecha-entrega').value;
-
       let idMantenimiento = document.getElementById('sg-id-base').value.trim();
 
-      if(idMantenimiento===''){
+      if(idMantenimiento === ''){
         idMantenimiento = SGService.generarIdMantenimiento({
-          area: document.getElementById('sg-area').value,
+          area: areaVal,
           equipo: document.getElementById('sg-equipo').value,
           item: document.getElementById('sg-item').value,
           sistema: document.getElementById('sg-sistema').value
         });
       }
 
-       
-
-        //'ID_Orden mantenimiento': document.getElementById('sg-id-base').value.trim()
-      // 1. Armamos el objeto para la tabla base (ORDEN_MANTENIMIENTO)
       const baseData = {
         'ID_Orden mantenimiento': idMantenimiento,
-        'Área': document.getElementById('sg-area').value.trim(),
+        'Área': areaVal,
         'ID_#EQUIPO': document.getElementById('sg-equipo').value.trim(),
         'ITEM': document.getElementById('sg-item').value.trim(),
         'Sistema': document.getElementById('sg-sistema').value.trim(),
         'Descripcion': document.getElementById('sg-desc').value.trim(),
-        'Estatus': 'Programado', // Por defecto
+        'Estatus': 'Programado', 
         'Tiene solicitud de compra?': document.getElementById('sg-tiene-compra').value === 'true',
         'N° solicitud': document.getElementById('sg-n-solicitud').value.trim() || null,
         'N° Orden de compra': document.getElementById('sg-n-oc').value.trim() || null,
-        'Fecha Entrega': fechaEntrega, // Está en ambas tablas
+        'Fecha Entrega': fechaEntrega, 
         'Observaciones': document.getElementById('sg-obs').value.trim() || null,
       };
 
-      // 2. Armamos el objeto para la tabla de detalle (OM_SG)
       const sgData = {
-        tipo_trabajo: document.getElementById('sg-tipo-trabajo').value,
+        tipo_trabajo: tipoTrabajoVal,
         estimacion_horas: parseInt(document.getElementById('sg-horas').value, 10),
         solicitar_personal: document.getElementById('sg-personal').value.trim() || null,
-        fecha_entrega: fechaEntrega // Está en ambas tablas
-        // id_orden_base y fecha_solicitud se manejan automáticamente en sg.service.js/BD
+        fecha_entrega: fechaEntrega 
       };
 
       const res = await SGService.createManualSG(baseData, sgData);
