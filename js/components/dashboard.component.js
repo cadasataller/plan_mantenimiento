@@ -39,11 +39,12 @@ const DashboardComponent = (() => {
 
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
     
-    // Si es SG, filtramos la pestaña de OTs y forzamos a mostrar 'sg'
+    // 👇 INTERCAMBIO DE VALIDACIÓN: Si es SG, OCULTAMOS la pestaña de 'sg'
     let visibleTabs = TABS;
     if (uArea === 'SERVICIOS GENERALES') {
-      visibleTabs = TABS.filter(t => t.id !== 'ordenes');
-      _activeTab = 'sg'; 
+      // Dejamos las Órdenes, pero quitamos Servicios Generales
+      visibleTabs = TABS.filter(t => t.id !== 'sg');
+      _activeTab = 'ordenes'; // Nos aseguramos que caiga en órdenes
     }
 
     el.innerHTML = `
@@ -76,14 +77,15 @@ const DashboardComponent = (() => {
           </div>
         </div>
 
-        ${uArea !== 'SERVICIOS GENERALES' ? `
+        ${visibleTabs.some(t => t.id === 'ordenes') ? `
         <div class="tab-panel ${_activeTab==='ordenes'?'active':''}" id="tab-panel-ordenes">
           <div id="ot-module-container"></div>
         </div>` : ''}
 
+        ${visibleTabs.some(t => t.id === 'sg') ? `
         <div class="tab-panel ${_activeTab==='sg'?'active':''}" id="tab-panel-sg">
           <div id="sg-module-container" style="width:100%; height:100%;"></div>
-        </div>
+        </div>` : ''}
 
         <div class="tab-panel ${_activeTab==='horas'?'active':''}" id="tab-panel-horas">
           <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--text-muted);flex-direction:column;gap:1rem;padding:3rem;">
@@ -93,15 +95,13 @@ const DashboardComponent = (() => {
       </div>
     `;
 
-    // 👇 Corrección: Llamamos a OTComponent directamente sin validar si existe en "window"
-    if (uArea !== 'SERVICIOS GENERALES') {
-      try {
-        OTComponent.mount('ot-module-container');
-      } catch(e) { console.error('Error al montar OTComponent', e); }
+    // Montamos los componentes dinámicamente según lo que sea visible
+    if (visibleTabs.some(t => t.id === 'ordenes') && window.OTComponent) {
+      try { OTComponent.mount('ot-module-container'); } catch(e) {}
     }
     
-    if (window.SGPageComponent) {
-      SGPageComponent.mount('sg-module-container');
+    if (visibleTabs.some(t => t.id === 'sg') && window.SGPageComponent) {
+      try { SGPageComponent.mount('sg-module-container'); } catch(e) {}
     }
 
     _hasRendered = true;
@@ -115,9 +115,8 @@ const DashboardComponent = (() => {
 
     renderTopbarUser(user);
     
-    // 👇 Corrección: Llamamos a OTComponent.onEnter directamente
     if (_activeTab === 'ordenes') {
-      try { OTComponent.onEnter(); } catch(e) { }
+      try { OTComponent.onEnter(); } catch(e) {}
     }
     if (_activeTab === 'sg' && window.SGPageComponent) SGPageComponent.onEnter();
     
