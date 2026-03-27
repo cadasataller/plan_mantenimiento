@@ -91,7 +91,6 @@ const SGModalComponent = (() => {
       fecha_conclusion: om['Fecha conclusion'] || '',
       semana: om.Semana || '',
       
-      // Nuevos campos para God Mode
       area_om: om['Área'] || '',
       equipo: om['ID_#EQUIPO'] || '',
       item: om.ITEM || '',
@@ -157,7 +156,6 @@ const SGModalComponent = (() => {
 
     _currentSG = resultado.data; 
 
-    // 👇 ACTUALIZAR EL HEADER DEL MODAL CON LOS NUEVOS DATOS (Por si ALL editó la identidad)
     if (_perms.godMode) {
       const om = _currentSG.ORDEN_MANTENIMIENTO;
       const titleEl = document.querySelector('#sg-backdrop .ot-modal-title');
@@ -329,9 +327,17 @@ const SGModalComponent = (() => {
         <div class="ot-modal-section">
           <div class="ot-modal-section-title">Detalles del Trabajo (SG)</div>
           <div class="ot-modal-grid">
-            ${SGUI.EditableField({ id: 'edit-tipo_trabajo', label: 'Tipo Trabajo', value: v('tipo_trabajo', sg.tipo_trabajo), type: 'select', options: tipoTrabajoOptions, isEditMode: _editMode, canEdit: canEditFull })}
+            ${SGUI.EditableField({ id: 'edit-tipo_trabajo', label: 'Tipo Trabajo', value: v('tipo_trabajo', sg.tipo_trabajo), type: 'buttongroup', options: tipoTrabajoOptions, isEditMode: _editMode, canEdit: canEditFull, fullWidth: true })}
             ${SGUI.EditableField({ id: 'edit-estimacion_horas', label: 'Estimación (h)', value: v('estimacion_horas', sg.estimacion_horas), type: 'number', isEditMode: _editMode, canEdit: canEditFull })}
-            ${SGUI.EditableField({ id: 'edit-solicitar_personal', label: 'Personal Solicitado', value: v('solicitar_personal', sg.solicitar_personal), type: 'text', isEditMode: _editMode, canEdit: canEditFull, fullWidth: true })}
+            
+            <div class="ot-modal-field" style="grid-column: 1 / -1;">
+              <div class="ot-modal-label">Mecánico a Solicitar ${(_editMode && canEditFull) ? '<span class="sg-edit-tag">(editable)</span>' : ''}</div>
+              ${(_editMode && canEditFull) 
+                ? (window.MecanicoSelectComponent ? window.MecanicoSelectComponent.renderHtml() : `<input type="text" id="edit-solicitar_personal" data-sg-edit class="sg-field-input" value="${v('solicitar_personal', sg.solicitar_personal)}" />`)
+                : `<div class="ot-modal-val" id="disp-mecanico-solicitado">Cargando...</div>`
+              }
+            </div>
+
           </div>
         </div>
 
@@ -361,7 +367,7 @@ const SGModalComponent = (() => {
         <div class="ot-modal-section">
           <div class="ot-modal-section-title">Gestión de Compras</div>
           <div class="ot-modal-grid">
-            ${SGUI.EditableField({ id: 'edit-tiene_compra', label: 'Tiene solicitud?', value: v('tiene_compra', om['Tiene solicitud de compra?'] ? 'true' : 'false'), type: 'select', options: booleanOptions, isEditMode: _editMode, canEdit: canEditFull })}
+            ${SGUI.EditableField({ id: 'edit-tiene_compra', label: 'Tiene solicitud?', value: v('tiene_compra', om['Tiene solicitud de compra?'] ? 'true' : 'false'), type: 'buttongroup', options: booleanOptions, isEditMode: _editMode, canEdit: canEditFull })}
             ${SGUI.EditableField({ id: 'edit-n_solicitud', label: 'N° Solicitud', value: v('n_solicitud', om['N° solicitud']), type: 'text', isEditMode: _editMode, canEdit: canEditFull })}
             ${SGUI.EditableField({ id: 'edit-n_oc', label: 'N° OC', value: v('n_oc', om['N° Orden de compra']), type: 'text', isEditMode: _editMode, canEdit: canEditFull })}
           </div>
@@ -399,6 +405,34 @@ const SGModalComponent = (() => {
     document.getElementById('btn-sg-modal-edit')?.addEventListener('click', _enterEditMode);
     document.getElementById('btn-sg-modal-cancel')?.addEventListener('click', _cancelEdit);
     document.getElementById('btn-sg-modal-save')?.addEventListener('click', _saveEdit);
+
+    const canEditFull = _perms.all || _perms.godMode;
+    const currentMecId = _editMode ? _editState.solicitar_personal : (_currentSG?.solicitar_personal || null);
+
+    // 👇 LOGICA DEL MECÁNICO (Edición vs Lectura)
+    if (_editMode && canEditFull && window.MecanicoSelectComponent) {
+      // Cargamos el select con el valor actual
+      window.MecanicoSelectComponent.mount(currentMecId);
+      
+      // Vinculamos el cambio del select para guardarlo en _editState
+      const mecSelect = document.getElementById('ot-mec-select');
+      if (mecSelect) {
+        mecSelect.addEventListener('change', (e) => {
+          _editState.solicitar_personal = e.target.value;
+        });
+      }
+    } else if (!_editMode || !canEditFull) {
+      // En modo lectura pedimos el nombre asíncronamente
+      if (window.MecanicoSelectComponent) {
+        window.MecanicoSelectComponent.getNameById(currentMecId).then(name => {
+          const disp = document.getElementById('disp-mecanico-solicitado');
+          if (disp) disp.innerText = name || '—';
+        });
+      } else {
+        const disp = document.getElementById('disp-mecanico-solicitado');
+        if (disp) disp.innerText = currentMecId || '—';
+      }
+    }
 
     if (_editMode) {
       document.getElementById('edit-estatus')?.addEventListener('click', (e) => {
