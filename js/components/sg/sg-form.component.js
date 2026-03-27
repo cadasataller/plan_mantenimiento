@@ -7,55 +7,71 @@ const SGFormComponent = (() => {
   let _onCancel = null;
   let _onSuccess = null;
 
-  function mount(containerId, callbacks) {
+  // 👇 AGREGAMOS initialData COMO TERCER PARÁMETRO
+  function mount(containerId, callbacks, initialData = {}) {
     _container = document.getElementById(containerId);
-    _onCancel = callbacks.onCancel;
-    _onSuccess = callbacks.onSuccess;
-    _render();
-    _bindEvents();
+    _onCancel = callbacks?.onCancel;
+    _onSuccess = callbacks?.onSuccess;
+    _render(initialData);
+    _bindEvents(initialData);
     
-    // 👇 MONTAMOS EL COMPONENTE DE MECÁNICO DESPUÉS DE RENDERIZAR EL HTML
     if (window.MecanicoSelectComponent) {
       window.MecanicoSelectComponent.mount();
     }
   }
 
-  function _render() {
+  function _render(data) {
+    const user = window.AuthService?.getUser() || {};
+    const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+    const isAll = uArea === 'ALL';
+
+    // Usamos data.Area si viene desde otra pantalla, o el área del usuario como fallback
+    const areaAsignada = isAll ? (data.Area || '') : uArea;
+
     _container.innerHTML = `
       <div class="sg-form-wrapper">
         <div class="ot-tab-header ot-modal-section">
-          <button class="btn-modal-secondary" id="btn-sg-cancel">← Volver</button>
-          <div class="ot-tab-title ot-modal-section-title">Crear SG Manual</div>
+          <button class="btn-modal-secondary" id="btn-sg-cancel">← Volver a la Lista</button>
+          <div class="ot-tab-title ot-modal-section-title">Nueva Orden de Servicios Generales</div>
         </div>
         
         <form id="form-sg-manual" style="padding: 1.5rem;">
           
           <h4 style="margin-bottom: 1rem; color: var(--color-main); font-size: 0.9rem; border-bottom: 1px solid var(--color-gray-200); padding-bottom: 0.3rem;">1. Identificación y Ubicación</h4>
           <div class="ot-form-grid" style="margin-bottom: 1.5rem;">
-            <div class="ot-modal-field" hidden>
-              <label class="ot-modal-label">ID Orden</label>
-              <input type="text" id="sg-id-base" placeholder="Ej: SG-2026-001" />
+            
+            <div class="ot-modal-field" ${data.ID_Orden ? '' : 'hidden'}>
+              <label class="ot-modal-label">ID Orden Base</label>
+              <input type="text" id="sg-id-base" class="sg-field-input" value="${data.ID_Orden || ''}" ${data.ID_Orden ? 'readonly style="background:#f3f4f6;"' : ''} />
             </div>
             
-            ${SGUI.ButtonGroup({
-              id: 'sg-area',
-              label: 'Área',
-              options: SGUI.AREAS_OPTIONS,
-              required: true,
-              fullWidth: true
-            })}
+            ${isAll ? 
+              SGUI.ButtonGroup({
+                id: 'sg-area',
+                label: 'Área',
+                options: SGUI.AREAS_OPTIONS,
+                value: areaAsignada,
+                required: true,
+                fullWidth: true
+              })
+            : `
+              <div class="ot-modal-field" style="grid-column: 1 / -1;">
+                <label class="ot-modal-label">Área Solicitante</label>
+                <input type="text" id="sg-area" class="sg-field-input" value="${areaAsignada}" readonly style="background:#f3f4f6; color:#4B5563; font-weight:600; cursor:not-allowed;" />
+              </div>
+            `}
 
             <div class="ot-modal-field">
               <label class="ot-modal-label">Equipo <span style="color:#ef4444">*</span></label>
-              <input type="text" id="sg-equipo" class="sg-field-input" required />
+              <input type="text" id="sg-equipo" class="sg-field-input" value="${data.ID_EQUIPO || ''}" required />
             </div>
             <div class="ot-modal-field">
               <label class="ot-modal-label">Item <span style="color:#ef4444">*</span></label>
-              <input type="text" id="sg-item" class="sg-field-input" required />
+              <input type="text" id="sg-item" class="sg-field-input" value="${data.ITEM || ''}" required />
             </div>
             <div class="ot-modal-field">
               <label class="ot-modal-label">Sistema <span style="color:#ef4444">*</span></label>
-              <input type="text" id="sg-sistema" class="sg-field-input" required />
+              <input type="text" id="sg-sistema" class="sg-field-input" value="${data.Sistema || ''}" required />
             </div>
           </div>
 
@@ -63,7 +79,7 @@ const SGFormComponent = (() => {
           <div class="ot-form-grid" style="margin-bottom: 1.5rem;">
             <div class="ot-modal-field" style="grid-column: 1 / -1;">
               <label class="ot-modal-label">Descripción General <span style="color:#ef4444">*</span></label>
-              <input type="text" id="sg-desc" class="sg-field-input" required />
+              <input type="text" id="sg-desc" class="sg-field-input" value="${data.Descripcion || ''}" required />
             </div>
             
             ${SGUI.ButtonGroup({
@@ -89,25 +105,19 @@ const SGFormComponent = (() => {
             </div>
             
             <div class="ot-modal-field" style="grid-column: 1 / -1;">
-              <label class="ot-modal-label">Personal a Solicitar</label>
+              <label class="ot-modal-label">Mecánico a Solicitar</label>
               ${window.MecanicoSelectComponent ? window.MecanicoSelectComponent.renderHtml() : '<input type="text" id="sg-personal" class="sg-field-input" />'}
             </div>
-
           </div>
 
           <h4 style="margin-bottom: 1rem; color: var(--color-main); font-size: 0.9rem; border-bottom: 1px solid var(--color-gray-200); padding-bottom: 0.3rem;">3. Gestión de Compras</h4>
           <div class="ot-form-grid" style="margin-bottom: 1.5rem;">
-            
             ${SGUI.ButtonGroup({
               id: 'sg-tiene-compra',
               label: '¿Tiene solicitud de compra?',
               value: 'false',
-              options: [
-                { value: 'false', label: 'No' },
-                { value: 'true', label: 'Sí' }
-              ]
+              options: [{ value: 'false', label: 'No' }, { value: 'true', label: 'Sí' }]
             })}
-
             <div class="ot-modal-field">
               <label class="ot-modal-label">N° Solicitud</label>
               <input type="text" id="sg-n-solicitud" class="sg-field-input" disabled style="background:#f3f4f6;" />
@@ -127,15 +137,17 @@ const SGFormComponent = (() => {
           </div>
 
           <div class="ot-form-actions" style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;">
-            <button type="submit" class="btn-modal-primary" id="btn-sg-save">Guardar SG</button>
+            <button type="submit" class="btn-modal-primary" id="btn-sg-save">Guardar OM SG</button>
           </div>
         </form>
       </div>
     `;
   }
 
-  function _bindEvents() {
-    document.getElementById('btn-sg-cancel').addEventListener('click', _onCancel);
+  function _bindEvents(data) {
+    document.getElementById('btn-sg-cancel').addEventListener('click', () => {
+      if (_onCancel) _onCancel();
+    });
     
     const inputTieneCompra = document.getElementById('sg-tiene-compra');
     const inputNSolicitud = document.getElementById('sg-n-solicitud');
@@ -145,7 +157,6 @@ const SGFormComponent = (() => {
       const tieneCompra = e.target.value === 'true';
       inputNSolicitud.disabled = !tieneCompra;
       inputNOc.disabled = !tieneCompra;
-      
       if (tieneCompra) {
         inputNSolicitud.required = true;
         inputNSolicitud.style.background = '#fff';
@@ -164,7 +175,7 @@ const SGFormComponent = (() => {
       
       const areaVal = document.getElementById('sg-area').value;
       if (!areaVal) {
-        window.ToastService?.show('Por favor seleccione un Área', 'warning');
+        window.ToastService?.show('Por favor asigne un Área válida', 'warning');
         return;
       }
       
@@ -205,14 +216,10 @@ const SGFormComponent = (() => {
         'Observaciones': document.getElementById('sg-obs').value.trim() || null,
       };
 
-      // 👇 OBTENEMOS EL ID DEL MECÁNICO Y LO CONVERTIMOS A STRING (Ya que tu BD lo espera como text null)
       let personalIdStr = null;
       if (window.MecanicoSelectComponent) {
         const mecId = window.MecanicoSelectComponent.getValue();
         if (mecId) personalIdStr = String(mecId);
-      } else {
-        const inputFallback = document.getElementById('sg-personal');
-        if (inputFallback && inputFallback.value.trim()) personalIdStr = inputFallback.value.trim();
       }
 
       const sgData = {
@@ -226,12 +233,12 @@ const SGFormComponent = (() => {
 
       if (res.ok) {
         window.ToastService?.show('SG Creada exitosamente', 'success');
-        _onSuccess();
+        if (_onSuccess) _onSuccess();
       } else {
         window.ToastService?.show('Error al crear SG', 'danger');
         console.error(res.error);
         btn.disabled = false;
-        btn.textContent = 'Guardar SG';
+        btn.textContent = 'Guardar OM SG';
       }
     });
   }

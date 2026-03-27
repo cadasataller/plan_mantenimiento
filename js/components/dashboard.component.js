@@ -1,8 +1,3 @@
-// ============================================================
-// CADASA TALLER — DASHBOARD COMPONENT (v2)
-// Incluye tabs: Dashboard / Órdenes de Trabajo / Horas Asignadas / Servicios Generales
-// ============================================================
-
 const DashboardComponent = (() => {
 
   let _activeTab = 'ordenes'; // default
@@ -15,12 +10,12 @@ const DashboardComponent = (() => {
     },
     {
       id:    'ordenes',
-      label: 'Órdenes de Trabajo',
+      label: 'Órdenes de Mantenimiento',
       icon:  () => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
       badge: () => { try { const k = OTStore.getKPIs(); return k.total > 0 ? k.total : null; } catch(_){return null;} },
     },
     {
-      id:    'sg', // <-- NUEVO TAB PARA SG
+      id:    'sg',
       label: 'Servicios Generales',
       icon:  () => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
     },
@@ -31,10 +26,20 @@ const DashboardComponent = (() => {
     },
   ];
 
-  // ── MOUNT ────────────────────────────────────────────────
   function mount(containerId) {
     const el = document.getElementById(containerId);
     if (!el) return;
+
+    // 👇 OBTENER USUARIO Y FILTRAR PESTAÑAS
+    const user = window.AuthService?.getUser() || {};
+    const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+    
+    let visibleTabs = TABS;
+    if (uArea === 'SERVICIOS GENERALES') {
+      // Si es SG, solo mostramos la pestaña de SG
+      visibleTabs = TABS.filter(t => t.id === 'sg');
+      _activeTab = 'sg'; // Forzamos la pestaña activa
+    }
 
     el.innerHTML = `
       <nav class="topbar" id="topbar">
@@ -55,7 +60,7 @@ const DashboardComponent = (() => {
       </nav>
 
       <div class="dash-tabs" id="dash-tabs">
-        ${TABS.map(tab => `
+        ${visibleTabs.map(tab => `
           <div class="dash-tab ${tab.id === _activeTab ? 'active' : ''}"
                data-tab="${tab.id}"
                onclick="DashboardComponent._switchTab('${tab.id}')">
@@ -66,15 +71,9 @@ const DashboardComponent = (() => {
       </div>
 
       <div style="flex:1;overflow-y:auto;" id="dash-tab-content">
-
         <div class="tab-panel ${_activeTab==='dashboard'?'active':''}" id="tab-panel-dashboard">
           <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--text-muted);flex-direction:column;gap:1rem;padding:3rem;">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="opacity:0.25">
-              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-            </svg>
-            <p style="font-size:0.95rem;font-weight:500;">Dashboard de Avances</p>
-            <p style="font-size:0.8rem;opacity:0.6;">Módulo en desarrollo — Próximamente</p>
+            <p>Dashboard de Avances - Próximamente</p>
           </div>
         </div>
 
@@ -88,19 +87,16 @@ const DashboardComponent = (() => {
 
         <div class="tab-panel ${_activeTab==='horas'?'active':''}" id="tab-panel-horas">
           <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--text-muted);flex-direction:column;gap:1rem;padding:3rem;">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="opacity:0.25">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            <p style="font-size:0.95rem;font-weight:500;">Horas Asignadas</p>
-            <p style="font-size:0.8rem;opacity:0.6;">Módulo en desarrollo — Próximamente</p>
+            <p>Horas Asignadas - Próximamente</p>
           </div>
         </div>
-
       </div>
     `;
 
-    OTComponent.mount('ot-module-container');
-    // Inicializar el módulo de SG en su contenedor
+    if (uArea !== 'SERVICIOS GENERALES') {
+      OTComponent.mount('ot-module-container');
+    }
+    
     if (window.SGPageComponent) {
       SGPageComponent.mount('sg-module-container');
     }
@@ -118,8 +114,6 @@ const DashboardComponent = (() => {
       OTComponent.onEnter();
       setTimeout(updateTabBadges, 800);
     }
-    
-    // Si entramos a la pestaña de SG, refrescamos los datos
     if (tabId === 'sg' && window.SGPageComponent) {
       SGPageComponent.onEnter();
     }
@@ -148,18 +142,10 @@ const DashboardComponent = (() => {
   function renderTopbarUser(user) {
     const container = document.getElementById('topbar-user');
     if (!container) return;
- 
     const isAdmin   = user.role === 'ADMIN';
-    const roleLabel = isAdmin
-                      ? 'Administrador'
-                      : user.area === 'ALL' || !user.area
-                      ? 'Taller'
-                      : `Taller · ${user.area}`;
+    const roleLabel = isAdmin ? 'Administrador' : user.area === 'ALL' || !user.area ? 'Taller' : `Taller · ${user.area}`;
     const initials  = (user.name || '').trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
-    const avatar    = user.picture
-      ? `<img class="topbar-avatar" src="${user.picture}" alt="${user.name}" referrerpolicy="no-referrer">`
-      : `<div class="topbar-avatar-placeholder">${initials}</div>`;
- 
+    const avatar    = user.picture ? `<img class="topbar-avatar" src="${user.picture}" alt="${user.name}" referrerpolicy="no-referrer">` : `<div class="topbar-avatar-placeholder">${initials}</div>`;
     container.innerHTML = `
       <div class="topbar-user-info">
         <span class="topbar-user-name">${user.givenName ?? user.name}</span>
@@ -167,14 +153,7 @@ const DashboardComponent = (() => {
       </div>
       ${avatar}
       <div class="topbar-divider"></div>
-      <button class="btn-logout" onclick="AuthService.signOut()">
-        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2">
-          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-          <polyline points="16 17 21 12 16 7"/>
-          <line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-        Salir
-      </button>`;
+      <button class="btn-logout" onclick="AuthService.signOut()">Salir</button>`;
   }
 
   return { mount, onEnter, _switchTab };

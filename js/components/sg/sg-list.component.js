@@ -42,17 +42,23 @@ const SGListComponent = (() => {
   }
 
   function _render(sgs) {
+
+    const user = window.AuthService?.getUser() || {};
+    const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+    
     const listHtml = sgs.length === 0 
       ? `<div style="padding: 2rem; text-align: center; color: #6b7280;">No hay órdenes de Servicios Generales registradas.</div>`
       : `<div id="sg-cards-container">` + sgs.map(sg => SGCardComponent.render(sg)).join('') + `</div>`;
+
+      const btnHtml = uArea !== 'SERVICIOS GENERALES' 
+      ? `<button class="btn-modal-primary" id="btn-new-sg-manual">${SGUI.Icon('plus')} Nueva SG Manual</button>` 
+      : '';
 
     _container.innerHTML = `
       <div class="sg-main-content" style="position: relative;">
         <div class="ot-tab-header ot-modal-section" style="margin-bottom: 1rem;">
           <div class="ot-tab-title ot-modal-section-title">Servicios Generales</div>
-          <button class="btn-modal-primary" id="btn-new-sg-manual">
-            ${SGUI.Icon('plus')} Nueva SG Manual
-          </button>
+          ${btnHtml}
         </div>
         
         <div id="sg-list-dynamic-body">

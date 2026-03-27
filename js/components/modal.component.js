@@ -351,6 +351,9 @@ const ModalComponent = (() => {
   // ══════════════════════════════════════════════════════════
   // FOOTER
   // ══════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════
+  // FOOTER (DENTRO DE ModalComponent)
+  // ══════════════════════════════════════════════════════════
   function _refreshFooter() {
     const footerRight = document.getElementById('modal-footer-actions');
     if (!footerRight) return;
@@ -359,33 +362,27 @@ const ModalComponent = (() => {
     const enTabOTs  = _activeTab === 'ots';
   
     if (_editMode) {
-      // Modo edición: siempre mostrar Cancelar + Guardar
       footerRight.innerHTML = `
         <button class="btn-modal-secondary" id="btn-cancel-edit">Cancelar</button>
         <button class="btn-modal-save" id="btn-save-edit" ${_saving ? 'disabled' : ''}>
-          ${_saving
-            ? `<div class="spinner-sm"></div> Guardando…`
-            : `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Guardar cambios`}
+          ${_saving ? `<div class="spinner-sm"></div> Guardando…` : `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Guardar cambios`}
         </button>`;
     } else {
       footerRight.innerHTML = `
-        
-  
         ${enTabInfo ? `
+          <button class="btn-modal-secondary" id="btn-derivar-sg" style="color: #166534; border-color: #166534; display: flex; align-items: center; gap: 0.4rem;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Nueva OM SG
+          </button>
+
           <button class="btn-modal-edit" id="btn-modal-edit">
-            <svg viewBox="0 0 24 24">
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Editar
           </button>` : ''}
   
         ${!enTabOTs ? `
           <button class="btn-modal-primary" id="btn-ver-ots">
-            <svg viewBox="0 0 24 24">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Ver OTs
           </button>` : ''}`;
     }
@@ -403,6 +400,23 @@ const ModalComponent = (() => {
     if (id === 'btn-modal-edit')         _enterEditMode();
     if (id === 'btn-cancel-edit')        _cancelEdit();
     if (id === 'btn-save-edit')          _saveEdit();
+    
+    // 👇 LOGICA PARA ENVIAR DATOS A SG
+    if (id === 'btn-derivar-sg') {
+      const omData = { ..._currentOM }; // Copiamos los datos actuales
+      close(); // Cerramos el modal de la orden
+
+      // 1. Cambiamos a la pestaña de Servicios Generales
+      if (window.DashboardComponent) DashboardComponent._switchTab('sg');
+
+      // 2. Abrimos el Formulario de SG enviándole los datos base
+      if (window.SGFormComponent) {
+        window.SGFormComponent.mount('sg-module-container', {
+          onCancel: () => { if (window.SGListComponent) SGListComponent.mount('sg-module-container'); },
+          onSuccess: () => { if (window.SGListComponent) SGListComponent.mount('sg-module-container'); }
+        }, omData); // 👈 Pasamos omData como parámetro inicial
+      }
+    }
   }
 
   // ══════════════════════════════════════════════════════════

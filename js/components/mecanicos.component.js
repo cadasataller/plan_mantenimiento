@@ -62,7 +62,7 @@ const MecanicoSelectComponent = (() => {
   function renderHtml() {
     _injectCSS();
     return `
-      <select id="ot-mec-select" disabled>
+      <select id="ot-mec-select" class="sg-field-input" style="width: 100%;" disabled>
         <option value="">Cargando mecánicos...</option>
       </select>
       <div id="ot-mec-loader" class="mecanico-loader"></div>
