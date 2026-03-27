@@ -63,13 +63,13 @@ const OTStore = (() => {
       Observaciones:   row['Observaciones'],
       Cantidad:        row['Cantidad'],
       Etapa:           row['Etapa'],
+      // 👇 NUEVO: Exportamos la bandera IS_SG para que el Modal sepa cómo comportarse
+      IS_SG:           row['IS_SG'] === true 
     };
   }
 
   // ── Carga COMPLETA con paginación automática ─────────────
-  // Supabase devuelve máx 1000 filas por request.
-  // Este loop sigue pidiendo páginas hasta que no haya más.
-  async function _fetchAll(db, userArea) {
+  async function _fetchAll(db, uArea) {
     let allRows = [];
     let from    = 0;
     const size  = PAGE_LOAD;
@@ -80,10 +80,15 @@ const OTStore = (() => {
         .select('*')
         .range(from, from + size - 1);
 
-      // Si el usuario no es admin, filtrar por área directo en la query
-      if (userArea) {
-        query = query.eq('Área', userArea);
+      // 👇 LA MAGIA DE LOS PERMISOS:
+      if (uArea === 'SERVICIOS GENERALES') {
+        // SG ve todas las áreas, pero SOLO las órdenes derivadas a ellos
+        query = query.eq('IS_SG', true);
+      } else if (uArea && uArea !== 'ALL') {
+        // Un área normal solo ve sus órdenes (hayan sido o no derivadas a SG)
+        query = query.eq('Área', uArea);
       }
+      // (Si es ALL, no aplica ningún filtro y trae la base de datos completa)
 
       const { data, error } = await query;
 
@@ -91,9 +96,7 @@ const OTStore = (() => {
 
       allRows = allRows.concat(data || []);
 
-      // Si devolvió menos de PAGE_LOAD, ya no hay más páginas
       if (!data || data.length < size) break;
-
       from += size;
     }
 
@@ -109,16 +112,21 @@ const OTStore = (() => {
       const db   = window.SupabaseClient;
       const user = AuthService.getUser();
 
-      // Solo filtrar por área en la query si no es admin
-      const userArea = (authenticated && user?.role !== 'ADMIN' && user?.area)
-        ? user.area
-        : null;
+      let uArea = null;
+      if (authenticated && user) {
+        // Obtenemos el área formateada
+        uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+        // Si es Admin, forzamos ALL
+        if (user.role === 'ADMIN') uArea = 'ALL';
+      }
 
-      const raw  = await _fetchAll(db, userArea);
+      // Mandamos el área al fetcher para que aplique la regla correspondiente
+      const raw  = await _fetchAll(db, uArea);
+      
       _allOrders = raw.map(_mapRow);
       _source    = _allOrders.length > 0 ? 'live' : 'demo';
 
-      console.log(`[OTStore] ${_allOrders.length} órdenes cargadas desde Supabase.`);
+      console.log(`[OTStore] ${_allOrders.length} órdenes cargadas desde Supabase. (Filtro Área: ${uArea || 'Ninguno'})`);
 
       applyFilters();
 
@@ -131,10 +139,7 @@ const OTStore = (() => {
     }
   }
 
-  // ── Filtros (client-side sobre los datos ya cargados) ────
-  // La búsqueda por texto opera sobre _allOrders en memoria.
-  // Si el dataset es muy grande (>50k filas) considera mover
-  // el filtro de texto a server-side con ilike de Supabase.
+  // ── Filtros (client-side) ────────────────────────────────
   function setFilter(key, value) {
     _filters[key] = value;
     applyFilters();
@@ -148,7 +153,7 @@ const OTStore = (() => {
     if (search) {
       const q = search.toLowerCase();
       data = data.filter(o =>
-        (o.ID_Orden    || '').toLowerCase().includes(q) ||
+        (o.ID_Orden   || '').toLowerCase().includes(q) ||
         (o.Descripcion || '').toLowerCase().includes(q) ||
         (o.ITEM        || '').toLowerCase().includes(q) ||
         (o.Sistema     || '').toLowerCase().includes(q) ||
@@ -200,22 +205,21 @@ const OTStore = (() => {
 
   // ── Getters ──────────────────────────────────────────────
   function getAll()      { return _allOrders; }
+  
   function empties() {
-  _allOrders = [];        // array
-  _filtered  = [];        // array
-  _grouped   = {};        // objeto
-  _loading   = false;     // boolean
-  _source    = 'demo';    // string (valor por defecto)
+    _allOrders = [];        
+    _filtered  = [];        
+    _grouped   = {};        
+    _loading   = false;     
+    _source    = 'demo';    
 
-  // resetear filtros respetando estructura
-  _filters.search  = '';
-  _filters.area    = '';
-  _filters.estatus = '';
-  _filters.proceso = '';
-  _filters.semana  = '';
+    _filters.search  = '';
+    _filters.area    = '';
+    _filters.estatus = '';
+    _filters.proceso = '';
+    _filters.semana  = '';
+  }
 
-  // NO tocar ETAPAS (constante)
-}
   function getFiltered() { return _filtered;  }
   function getGrouped()  { return _grouped;   }
   function isLoading()   { return _loading;   }
@@ -253,7 +257,7 @@ const OTStore = (() => {
     setFilter, getFilters,
     getAll, getFiltered, getGrouped,
     isLoading, getSource,
-    getKPIs, getAreas, getSemanas, getEtapas,empties,
+    getKPIs, getAreas, getSemanas, getEtapas, empties,
     updateLocal  
   };
 })();
