@@ -43,10 +43,8 @@ const SGService = (() => {
   }
 
   // Actualizar una SG en Base de Datos y Caché
-  // Actualizar una SG en Base de Datos y Caché
   async function updateSG(id_sg, id_orden_base, editState, perms) {
     try {
-      // 1. Logs de depuración para que veas en la consola (F12) qué está intentando enviar
       console.log('--- INICIANDO UPDATE DB ---');
       console.log('ID SG:', id_sg);
       console.log('ID Base:', id_orden_base);
@@ -55,7 +53,8 @@ const SGService = (() => {
       const omPayload = {};
       const sgPayload = {};
 
-      if (perms.statusObs || perms.all) {
+      // 1. Permisos básicos (o heredados por ser Dios)
+      if (perms.statusObs || perms.all || perms.godMode) {
         omPayload.Estatus = editState.estatus;
         omPayload.Observaciones = editState.observaciones;
         omPayload['Fecha inicio'] = editState.fecha_inicio || null;
@@ -63,7 +62,8 @@ const SGService = (() => {
         omPayload.Semana = editState.semana || null;
       }
 
-      if (perms.all) {
+      // 2. Permisos totales o Dios
+      if (perms.all || perms.godMode) {
         omPayload['Fecha Entrega'] = editState.fecha_entrega || null;
         omPayload['Tiene solicitud de compra?'] = editState.tiene_compra === 'true';
         omPayload['N° solicitud'] = editState.n_solicitud || null;
@@ -78,7 +78,6 @@ const SGService = (() => {
       console.log('Payload OM a enviar:', omPayload);
       console.log('Payload SG a enviar:', sgPayload);
 
-      // Si no hay nada que actualizar, cortamos aquí
       if (Object.keys(omPayload).length === 0 && Object.keys(sgPayload).length === 0) {
          console.warn('Los permisos bloquearon la actualización. No se enviaron datos.');
          return { ok: false, error: 'Sin permisos para editar.' };
@@ -86,13 +85,12 @@ const SGService = (() => {
 
       const tasks = [];
       
-      // 2. IMPORTANTE: Agregamos .select() al final para obligar a Supabase a devolver lo que modificó
       if (Object.keys(omPayload).length > 0) {
         tasks.push(
           db.from('ORDEN_MANTENIMIENTO')
             .update(omPayload)
             .eq('ID_Orden mantenimiento', id_orden_base)
-            .select() // <--- ESTO ES VITAL
+            .select() 
         );
       }
       
@@ -101,17 +99,15 @@ const SGService = (() => {
           db.from('OM_SG')
             .update(sgPayload)
             .eq('id_sg', id_sg)
-            .select() // <--- ESTO ES VITAL
+            .select() 
         );
       }
 
       const results = await Promise.all(tasks);
       
-      // 3. Revisamos qué nos respondió Supabase
       for (let res of results) {
         if (res.error) throw res.error;
         
-        // Si data está vacío, la consulta pasó pero afectó a CERO filas (RLS o ID erróneo)
         if (!res.data || res.data.length === 0) {
           console.error('ALERTA: Supabase devolvió un arreglo vacío. Verifica Políticas RLS o si el ID existe.', res);
           throw new Error('Supabase no actualizó ninguna fila. Verifica RLS en la tabla.');
@@ -140,7 +136,7 @@ const SGService = (() => {
     }
   }
 
-  // Crear una SG Manual (Crea la base en ORDEN_MANTENIMIENTO y luego el detalle en OM_SG)
+  // Crear una SG Manual
   async function createManualSG(baseData, sgData) {
     try {
       baseData.IS_SG = true;
@@ -172,7 +168,6 @@ const SGService = (() => {
         fecha_solicitud: new Date().toLocaleString('es-PA', { timeZone: 'America/Panama' }) 
       };
 
-      // Inyectar en caché al principio de la lista
       _sgCache.unshift(nuevaSG);
 
       return { ok: true, data: nuevaSG };
@@ -190,7 +185,6 @@ const SGService = (() => {
     return `${prefijo}-${fecha}`;
   }
 
-  // Devolver la caché directamente si otros componentes la necesitan
   function getCache() {
     return _sgCache;
   }

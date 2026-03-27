@@ -6,7 +6,7 @@ const SGModalComponent = (() => {
   let _currentSG = null;
   let _editMode = false;
   let _editState = {};
-  let _perms = { statusObs: false, all: false };
+  let _perms = { statusObs: false, all: false, godMode: false };
 
   function open(sg) {
     _currentSG = sg;
@@ -45,15 +45,24 @@ const SGModalComponent = (() => {
   }
 
   function _calcularPermisos(sg) {
-    _perms = { statusObs: false, all: false };
+    _perms = { statusObs: false, all: false, godMode: false };
     const user = window.AuthService?.getUser() || {};
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
     const om = sg.ORDEN_MANTENIMIENTO || {};
     const omArea = String(om['Área'] || '').trim().toUpperCase();
     const estatus = String(om.Estatus || 'Programado').trim().toUpperCase();
 
-    if (uArea === 'SERVICIOS GENERALES') _perms.statusObs = true;
-    if (uArea === omArea || uArea === 'ALL') {
+    // 1. ALL es Dios (puede editar casi todo siempre)
+    if (uArea === 'ALL') {
+      _perms.godMode = true;
+      _perms.statusObs = true;
+    } 
+    // 2. Si es SG, solo estado y obs
+    else if (uArea === 'SERVICIOS GENERALES') {
+      _perms.statusObs = true;
+    }
+    // 3. Si es el dueño del área, necesita que esté en PROGRAMADO
+    else if (uArea === omArea) {
       if (estatus === 'PROGRAMADO') {
         _perms.all = true;
         _perms.statusObs = true; 
@@ -102,7 +111,7 @@ const SGModalComponent = (() => {
     btn.disabled = true;
     btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando...`;
 
-    // 👇 VALIDACIÓN MEDIANTE CONSULTA A SUPABASE ANTES DE GUARDAR
+    // VALIDACIÓN MEDIANTE CONSULTA A SUPABASE ANTES DE GUARDAR
     if (_editState.estatus === 'Concluida') {
       try {
         const db = window.SupabaseClient;
@@ -116,12 +125,11 @@ const SGModalComponent = (() => {
           
         if (error) throw error;
 
-        // Validamos si no hay fecha de inicio en la base de datos Y tampoco en el estado de edición actual
         if (!data['Fecha inicio'] && !_editState.fecha_inicio) {
           window.ToastService?.show('No se puede concluir: La orden no tiene Fecha de Inicio registrada.', 'warning');
           btn.disabled = false;
           btn.innerHTML = btnOriginalHTML;
-          return; // Detiene el guardado
+          return; 
         }
       } catch (err) {
         console.error('Error al consultar Supabase:', err);
@@ -271,10 +279,12 @@ const SGModalComponent = (() => {
       { value: 'Bateria', label: 'Batería' }
     ];
 
+    const canEditFull = _perms.all || _perms.godMode; // Helper para simplificar
+
     bodyContainer.innerHTML = `
       <div class="ot-modal-tab-panel active">
         
-        ${_editMode ? `<div style="background:#E0F2FE; color:#0284C7; padding:0.5rem 1rem; border-radius:6px; margin-bottom:1rem; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:0.5rem;">${SGUI.Icon('edit')} Modo edición activo</div>` : ''}
+        ${_editMode ? `<div style="background:#E0F2FE; color:#0284C7; padding:0.5rem 1rem; border-radius:6px; margin-bottom:1rem; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:0.5rem;">${SGUI.Icon('edit')} Modo edición activo ${(_perms.godMode) ? '(ALL)' : ''}</div>` : ''}
 
         <div class="ot-modal-section">
           <div class="ot-modal-section-title">Estado y Observaciones</div>
@@ -287,9 +297,9 @@ const SGModalComponent = (() => {
         <div class="ot-modal-section">
           <div class="ot-modal-section-title">Detalles del Trabajo (SG)</div>
           <div class="ot-modal-grid">
-            ${SGUI.EditableField({ id: 'edit-tipo_trabajo', label: 'Tipo Trabajo', value: v('tipo_trabajo', sg.tipo_trabajo), type: 'select', options: tipoTrabajoOptions, isEditMode: _editMode, canEdit: _perms.all })}
-            ${SGUI.EditableField({ id: 'edit-estimacion_horas', label: 'Estimación (h)', value: v('estimacion_horas', sg.estimacion_horas), type: 'number', isEditMode: _editMode, canEdit: _perms.all })}
-            ${SGUI.EditableField({ id: 'edit-solicitar_personal', label: 'Personal Solicitado', value: v('solicitar_personal', sg.solicitar_personal), type: 'text', isEditMode: _editMode, canEdit: _perms.all, fullWidth: true })}
+            ${SGUI.EditableField({ id: 'edit-tipo_trabajo', label: 'Tipo Trabajo', value: v('tipo_trabajo', sg.tipo_trabajo), type: 'select', options: tipoTrabajoOptions, isEditMode: _editMode, canEdit: canEditFull })}
+            ${SGUI.EditableField({ id: 'edit-estimacion_horas', label: 'Estimación (h)', value: v('estimacion_horas', sg.estimacion_horas), type: 'number', isEditMode: _editMode, canEdit: canEditFull })}
+            ${SGUI.EditableField({ id: 'edit-solicitar_personal', label: 'Personal Solicitado', value: v('solicitar_personal', sg.solicitar_personal), type: 'text', isEditMode: _editMode, canEdit: canEditFull, fullWidth: true })}
           </div>
         </div>
 
@@ -298,7 +308,7 @@ const SGModalComponent = (() => {
           <div class="ot-modal-grid">
             <div class="ot-modal-field"><div class="ot-modal-label">Semana</div><div class="ot-modal-val" id="disp-semana">${v('semana', om.Semana || '—')}</div></div>
             
-            ${_editMode && _perms.all 
+            ${_editMode && canEditFull 
               ? SGUI.EditableField({ id: 'edit-fecha_entrega', label: 'Fecha Entrega Esperada', value: v('fecha_entrega', fechaEntregaReal), type: 'date', isEditMode: true, canEdit: true })
               : `
               <div class="ot-modal-field">
@@ -319,9 +329,9 @@ const SGModalComponent = (() => {
         <div class="ot-modal-section">
           <div class="ot-modal-section-title">Gestión de Compras</div>
           <div class="ot-modal-grid">
-            ${SGUI.EditableField({ id: 'edit-tiene_compra', label: 'Tiene solicitud?', value: v('tiene_compra', om['Tiene solicitud de compra?'] ? 'true' : 'false'), type: 'select', options: booleanOptions, isEditMode: _editMode, canEdit: _perms.all })}
-            ${SGUI.EditableField({ id: 'edit-n_solicitud', label: 'N° Solicitud', value: v('n_solicitud', om['N° solicitud']), type: 'text', isEditMode: _editMode, canEdit: _perms.all })}
-            ${SGUI.EditableField({ id: 'edit-n_oc', label: 'N° OC', value: v('n_oc', om['N° Orden de compra']), type: 'text', isEditMode: _editMode, canEdit: _perms.all })}
+            ${SGUI.EditableField({ id: 'edit-tiene_compra', label: 'Tiene solicitud?', value: v('tiene_compra', om['Tiene solicitud de compra?'] ? 'true' : 'false'), type: 'select', options: booleanOptions, isEditMode: _editMode, canEdit: canEditFull })}
+            ${SGUI.EditableField({ id: 'edit-n_solicitud', label: 'N° Solicitud', value: v('n_solicitud', om['N° solicitud']), type: 'text', isEditMode: _editMode, canEdit: canEditFull })}
+            ${SGUI.EditableField({ id: 'edit-n_oc', label: 'N° OC', value: v('n_oc', om['N° Orden de compra']), type: 'text', isEditMode: _editMode, canEdit: canEditFull })}
           </div>
         </div>
 
@@ -339,7 +349,7 @@ const SGModalComponent = (() => {
             ${SGUI.Icon('save')} Guardar Cambios
           </button>
         ` : `
-          ${(_perms.statusObs || _perms.all) ? `
+          ${(_perms.statusObs || _perms.all || _perms.godMode) ? `
             <button class="btn-modal-primary" id="btn-sg-modal-edit" style="background:#0284C7; border-color:#0284C7;">
               ${SGUI.Icon('edit')} Editar
             </button>
@@ -368,7 +378,6 @@ const SGModalComponent = (() => {
 
           _editState.estatus = nuevoEstado;
 
-          // Se actualiza el color de los botones
           document.querySelectorAll('#edit-estatus .sg-status-btn').forEach(b => {
             b.classList.toggle('active', b.dataset.sgStatus === nuevoEstado);
           });
@@ -386,7 +395,7 @@ const SGModalComponent = (() => {
           } else if (nuevoEstado === 'Concluida') {
             if (!_editState.fecha_conclusion) _editState.fecha_conclusion = panamaTime.timestamp;
             
-          } else if (nuevoEstado === 'Detenido') { // 👇 SE LIMPIA CONCLUSIÓN SI SE DETIENE
+          } else if (nuevoEstado === 'Detenido') { 
             _editState.fecha_conclusion = ''; 
             
           } else if (nuevoEstado === 'Programado') {
