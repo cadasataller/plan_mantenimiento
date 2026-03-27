@@ -204,7 +204,7 @@ const SGFormComponent = (() => {
       // Datos exclusivos de la tabla OM_SG (comunes para ambos métodos)
       const sgData = {
         tipo_trabajo: tipoTrabajoVal,
-        "Estatus": "Programado"
+        "Estatus": "Programado",
         estimacion_horas: parseInt(document.getElementById('sg-horas').value, 10),
         solicitar_personal: personalIdStr,
         fecha_entrega: fechaEntrega 
