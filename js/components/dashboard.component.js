@@ -1,5 +1,7 @@
 const DashboardComponent = (() => {
 
+  let _containerId = null; // Guardará el id pero no dibujará nada todavía
+  let _hasRendered = false; // Bandera para saber si ya dibujamos la UI
   let _activeTab = 'ordenes'; // default
 
   const TABS = [
@@ -26,19 +28,26 @@ const DashboardComponent = (() => {
     },
   ];
 
+  // ── 1. MOUNT AHORA ES PEREZOSO ─────────────────────────────
   function mount(containerId) {
-    const el = document.getElementById(containerId);
+    _containerId = containerId;
+    _hasRendered = false;
+    // 🛑 IMPORTANTE: Ya no dibujamos nada aquí. 
+    // Esperamos a que el Router nos llame a onEnter()
+  }
+
+  // ── 2. FUNCIÓN PRIVADA QUE DIBUJA LA UI ────────────────────
+  function _renderUI(user) {
+    const el = document.getElementById(_containerId);
     if (!el) return;
 
-    // 👇 OBTENER USUARIO Y FILTRAR PESTAÑAS
-    const user = window.AuthService?.getUser() || {};
+    // Aquí ya estamos 100% seguros de que 'user' tiene los datos de Supabase
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
     
     let visibleTabs = TABS;
     if (uArea === 'SERVICIOS GENERALES') {
-      // Si es SG, solo mostramos la pestaña de SG
       visibleTabs = TABS.filter(t => t.id === 'sg');
-      _activeTab = 'sg'; // Forzamos la pestaña activa
+      _activeTab = 'sg'; 
     }
 
     el.innerHTML = `
@@ -93,13 +102,37 @@ const DashboardComponent = (() => {
       </div>
     `;
 
-    if (uArea !== 'SERVICIOS GENERALES') {
+    // Montamos los sub-componentes ahora que el HTML ya existe
+    if (uArea !== 'SERVICIOS GENERALES' && window.OTComponent) {
       OTComponent.mount('ot-module-container');
     }
     
     if (window.SGPageComponent) {
+      // Al montar SGPageComponent aquí, garantizamos que las validaciones
+      // internas de SG (como el botón "Nueva SG Manual") también tengan
+      // al usuario disponible.
       SGPageComponent.mount('sg-module-container');
     }
+
+    _hasRendered = true; // Evitamos volver a pintar todo el HTML entero en futuros clics
+  }
+
+  // ── 3. ON ENTER: SE EJECUTA CUANDO EL ROUTER LO AUTORIZA ──
+  function onEnter() {
+    const user = AuthService.getUser();
+    if (!user) { Router.navigate('login'); return; }
+
+    // 👇 LA MAGIA: Dibujamos el HTML ahora que ya sabemos quién es el usuario
+    if (!_hasRendered) {
+      _renderUI(user);
+    }
+
+    renderTopbarUser(user);
+    
+    if (_activeTab === 'ordenes' && window.OTComponent) OTComponent.onEnter();
+    if (_activeTab === 'sg' && window.SGPageComponent) SGPageComponent.onEnter();
+    
+    setTimeout(updateTabBadges, 1200);
   }
 
   function _switchTab(tabId) {
@@ -110,7 +143,7 @@ const DashboardComponent = (() => {
     document.querySelectorAll('.tab-panel').forEach(el =>
       el.classList.toggle('active', el.id === `tab-panel-${tabId}`));
       
-    if (tabId === 'ordenes') {
+    if (tabId === 'ordenes' && window.OTComponent) {
       OTComponent.onEnter();
       setTimeout(updateTabBadges, 800);
     }
@@ -128,15 +161,6 @@ const DashboardComponent = (() => {
       if (val) { badge.textContent = val; badge.style.display = 'inline'; }
       else      { badge.style.display = 'none'; }
     });
-  }
-
-  function onEnter() {
-    const user = AuthService.getUser();
-    if (!user) { Router.navigate('login'); return; }
-    renderTopbarUser(user);
-    if (_activeTab === 'ordenes') OTComponent.onEnter();
-    if (_activeTab === 'sg' && window.SGPageComponent) SGPageComponent.onEnter();
-    setTimeout(updateTabBadges, 1200);
   }
 
   function renderTopbarUser(user) {
