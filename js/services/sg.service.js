@@ -43,6 +43,7 @@ const SGService = (() => {
   }
 
   // Actualizar una SG en Base de Datos y Caché
+  // Actualizar una SG en Base de Datos y Caché
   async function updateSG(id_sg, id_orden_base, editState, perms) {
     try {
       console.log('--- INICIANDO UPDATE DB ---');
@@ -73,6 +74,15 @@ const SGService = (() => {
         sgPayload.estimacion_horas = parseInt(editState.estimacion_horas, 10) || null;
         sgPayload.solicitar_personal = editState.solicitar_personal || null;
         sgPayload.fecha_entrega = editState.fecha_entrega || null;
+      }
+
+      // 👇 3. PERMISOS EXCLUSIVOS DE "ALL" (God Mode)
+      if (perms.godMode) {
+        omPayload['Área'] = editState.area_om || null;
+        omPayload['ID_#EQUIPO'] = editState.equipo || null;
+        omPayload['ITEM'] = editState.item || null;
+        omPayload['Sistema'] = editState.sistema || null;
+        omPayload['Descripcion'] = editState.descripcion || null;
       }
 
       console.log('Payload OM a enviar:', omPayload);
@@ -107,14 +117,12 @@ const SGService = (() => {
       
       for (let res of results) {
         if (res.error) throw res.error;
-        
         if (!res.data || res.data.length === 0) {
-          console.error('ALERTA: Supabase devolvió un arreglo vacío. Verifica Políticas RLS o si el ID existe.', res);
           throw new Error('Supabase no actualizó ninguna fila. Verifica RLS en la tabla.');
         }
       }
 
-      // 4. Actualizar la caché local
+      // Actualizar la caché local
       const cacheIndex = _sgCache.findIndex(item => item.id_sg === id_sg);
       if (cacheIndex !== -1) {
         const cachedItem = _sgCache[cacheIndex];
@@ -127,7 +135,6 @@ const SGService = (() => {
         _sgCache[cacheIndex] = cachedItem;
       }
 
-      console.log('--- UPDATE COMPLETADO CON ÉXITO ---');
       return { ok: true, data: _sgCache[cacheIndex] };
       
     } catch (err) {
@@ -135,7 +142,6 @@ const SGService = (() => {
       return { ok: false, error: err.message || err };
     }
   }
-
   // Crear una SG Manual
   async function createManualSG(baseData, sgData) {
     try {

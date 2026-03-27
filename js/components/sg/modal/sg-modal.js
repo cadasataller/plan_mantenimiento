@@ -52,17 +52,12 @@ const SGModalComponent = (() => {
     const omArea = String(om['Área'] || '').trim().toUpperCase();
     const estatus = String(om.Estatus || 'Programado').trim().toUpperCase();
 
-    // 1. ALL es Dios (puede editar casi todo siempre)
     if (uArea === 'ALL') {
       _perms.godMode = true;
       _perms.statusObs = true;
-    } 
-    // 2. Si es SG, solo estado y obs
-    else if (uArea === 'SERVICIOS GENERALES') {
+    } else if (uArea === 'SERVICIOS GENERALES') {
       _perms.statusObs = true;
-    }
-    // 3. Si es el dueño del área, necesita que esté en PROGRAMADO
-    else if (uArea === omArea) {
+    } else if (uArea === omArea) {
       if (estatus === 'PROGRAMADO') {
         _perms.all = true;
         _perms.statusObs = true; 
@@ -94,7 +89,14 @@ const SGModalComponent = (() => {
       n_oc: om['N° Orden de compra'] || '',
       fecha_inicio: om['Fecha inicio'] || '',
       fecha_conclusion: om['Fecha conclusion'] || '',
-      semana: om.Semana || ''
+      semana: om.Semana || '',
+      
+      // Nuevos campos para God Mode
+      area_om: om['Área'] || '',
+      equipo: om['ID_#EQUIPO'] || '',
+      item: om.ITEM || '',
+      sistema: om.Sistema || '',
+      descripcion: om.Descripcion || ''
     };
     _renderContent();
   }
@@ -111,7 +113,6 @@ const SGModalComponent = (() => {
     btn.disabled = true;
     btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando...`;
 
-    // VALIDACIÓN MEDIANTE CONSULTA A SUPABASE ANTES DE GUARDAR
     if (_editState.estatus === 'Concluida') {
       try {
         const db = window.SupabaseClient;
@@ -140,7 +141,6 @@ const SGModalComponent = (() => {
       }
     }
 
-    // LLAMADA A LA BD PARA ACTUALIZAR
     const resultado = await SGService.updateSG(
       _currentSG.id_sg, 
       _currentSG.ORDEN_MANTENIMIENTO['ID_Orden mantenimiento'], 
@@ -156,6 +156,22 @@ const SGModalComponent = (() => {
     }
 
     _currentSG = resultado.data; 
+
+    // 👇 ACTUALIZAR EL HEADER DEL MODAL CON LOS NUEVOS DATOS (Por si ALL editó la identidad)
+    if (_perms.godMode) {
+      const om = _currentSG.ORDEN_MANTENIMIENTO;
+      const titleEl = document.querySelector('#sg-backdrop .ot-modal-title');
+      const areaEl = document.querySelector('#sg-backdrop .ot-modal-area');
+      
+      if (titleEl) titleEl.innerText = om.Descripcion || 'Sin descripción';
+      if (areaEl) {
+        areaEl.innerHTML = `
+          <span>${om['Área'] || 'N/A'}</span>
+          <span class="ot-modal-area-sep">·</span>
+          <span>${om['ID_#EQUIPO'] || 'N/A'} — ${om.ITEM || 'N/A'}</span>
+        `;
+      }
+    }
 
     _editMode = false;
     _editState = {};
@@ -279,12 +295,28 @@ const SGModalComponent = (() => {
       { value: 'Bateria', label: 'Batería' }
     ];
 
-    const canEditFull = _perms.all || _perms.godMode; // Helper para simplificar
+    const canEditFull = _perms.all || _perms.godMode;
 
     bodyContainer.innerHTML = `
       <div class="ot-modal-tab-panel active">
         
-        ${_editMode ? `<div style="background:#E0F2FE; color:#0284C7; padding:0.5rem 1rem; border-radius:6px; margin-bottom:1rem; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:0.5rem;">${SGUI.Icon('edit')} Modo edición activo ${(_perms.godMode) ? '(ALL)' : ''}</div>` : ''}
+        ${_editMode ? `<div style="background:#E0F2FE; color:#0284C7; padding:0.5rem 1rem; border-radius:6px; margin-bottom:1rem; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:0.5rem;">${SGUI.Icon('edit')} Modo edición activo ${(_perms.godMode) ? '(Acceso ALL)' : ''}</div>` : ''}
+
+        <div class="ot-modal-section">
+          <div class="ot-modal-section-title">Identificación y Ubicación</div>
+          <div class="ot-modal-grid">
+            ${(_editMode && _perms.godMode) ? `
+              ${SGUI.EditableField({ id: 'edit-descripcion', label: 'Descripción', value: v('descripcion', om.Descripcion), type: 'textarea', isEditMode: true, canEdit: true, fullWidth: true })}
+              ${SGUI.EditableField({ id: 'edit-area_om', label: 'Área', value: v('area_om', om['Área']), type: 'text', isEditMode: true, canEdit: true })}
+              ${SGUI.EditableField({ id: 'edit-equipo', label: 'Equipo', value: v('equipo', om['ID_#EQUIPO']), type: 'text', isEditMode: true, canEdit: true })}
+              ${SGUI.EditableField({ id: 'edit-item', label: 'Item', value: v('item', om.ITEM), type: 'text', isEditMode: true, canEdit: true })}
+              ${SGUI.EditableField({ id: 'edit-sistema', label: 'Sistema', value: v('sistema', om.Sistema), type: 'text', isEditMode: true, canEdit: true })}
+            ` : `
+              <div class="ot-modal-field"><div class="ot-modal-label">Sistema</div><div class="ot-modal-val">${om.Sistema || '—'}</div></div>
+            `}
+            <div class="ot-modal-field"><div class="ot-modal-label">Tipo de Proceso</div><div class="ot-modal-val">${om['Tipo de Proceso'] || '—'}</div></div>
+          </div>
+        </div>
 
         <div class="ot-modal-section">
           <div class="ot-modal-section-title">Estado y Observaciones</div>
@@ -375,6 +407,15 @@ const SGModalComponent = (() => {
         
         const nuevoEstado = btn.getAttribute('data-sg-status');
         if (_editState.estatus !== nuevoEstado) {
+
+          if (nuevoEstado === 'Concluida' && !_editState.fecha_inicio) {
+            if (window.ToastService) {
+              window.ToastService.show('Debe iniciar la orden (estado "En Proceso") antes de poder concluirla.', 'warning');
+            } else {
+              alert('Debe iniciar la orden (estado "En Proceso") antes de poder concluirla.');
+            }
+            return; 
+          }
 
           _editState.estatus = nuevoEstado;
 
