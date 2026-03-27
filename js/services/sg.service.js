@@ -5,19 +5,35 @@ const SGService = (() => {
   let _sgCache = []; 
 
   // Obtener todas las SG (Utiliza caché si ya existen, a menos que se fuerce)
+  // Obtener todas las SG (Utiliza caché si ya existen, a menos que se fuerce)
   async function fetchSGs(forceRefresh = false) {
     if (!forceRefresh && _sgCache.length > 0) {
       return _sgCache;
     }
 
-    const { data, error } = await db
+    // 1. Obtenemos el área del usuario logueado
+    const user = window.AuthService?.getUser() || {};
+    const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+
+    // 2. Preparamos la consulta base. 
+    // OJO al !inner: Es vital para poder filtrar por una columna de la tabla unida.
+    let query = db
       .from('OM_SG')
       .select(`
         *,
         fecha_solicitud::timestamptz,
-        ORDEN_MANTENIMIENTO (*)
+        ORDEN_MANTENIMIENTO!inner (*)
       `)
       .order('fecha_solicitud', { ascending: false });
+
+    // 3. Aplicamos el filtro si NO es ALL y NO es SERVICIOS GENERALES
+    if (uArea !== 'ALL' && uArea !== 'SERVICIOS GENERALES') {
+      // Usamos .ilike para ignorar mayúsculas/minúsculas y evitar problemas de tipeo
+      query = query.ilike('ORDEN_MANTENIMIENTO.Área', uArea);
+    }
+
+    // 4. Ejecutamos la consulta
+    const { data, error } = await query;
 
     if (error) {
       console.error('[SGService] Error fetchSGs:', error);
