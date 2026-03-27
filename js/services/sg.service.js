@@ -198,6 +198,49 @@ const SGService = (() => {
       return { ok: false, error: err };
     }
   }
+  // Crear una SG Automática (Asociada a una orden existente)
+  async function createAutoSG(id_orden_existente, sgData) {
+    try {
+      // 1. Asignar el ID de la orden base que ya existe
+      sgData.id_orden_base = id_orden_existente;
+
+      // 2. Insertar SOLO en la tabla OM_SG
+      const { data: sgResult, error: sgError } = await db
+        .from('OM_SG')
+        .insert([sgData])
+        .select()
+        .single();
+
+      if (sgError) throw sgError;
+
+      // Opcional pero recomendado: Actualizar la orden base para marcarla como SG
+      await db.from('ORDEN_MANTENIMIENTO')
+        .update({ IS_SG: true })
+        .eq('ID_Orden mantenimiento', id_orden_existente);
+
+      // 3. Consultar la orden base para armar el objeto completo para la caché
+      const { data: baseResult } = await db
+        .from('ORDEN_MANTENIMIENTO')
+        .select('*')
+        .eq('ID_Orden mantenimiento', id_orden_existente)
+        .single();
+
+      const nuevaSG = { 
+        ...sgResult, 
+        ORDEN_MANTENIMIENTO: baseResult || {},
+        fecha_solicitud: new Date().toLocaleString('es-PA', { timeZone: 'America/Panama' }) 
+      };
+
+      // 4. Agregar a la caché local
+      _sgCache.unshift(nuevaSG);
+
+      return { ok: true, data: nuevaSG };
+    } catch (err) {
+      console.error('[SGService] Error createAutoSG:', err);
+      return { ok: false, error: err };
+    }
+  }
+
 
   function generarIdMantenimiento({ area, equipo, item, sistema }) {
     const getFirst = (str) => (str || '').charAt(0).toUpperCase();
@@ -211,7 +254,7 @@ const SGService = (() => {
     return _sgCache;
   }
 
-  return { fetchSGs, updateSG, createManualSG, generarIdMantenimiento, getCache };
+  return { fetchSGs, updateSG, createManualSG, generarIdMantenimiento, getCache,createAutoSG };
 })();
 
 window.SGService = SGService;

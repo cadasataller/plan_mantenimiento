@@ -22,7 +22,7 @@ const SGFormComponent = (() => {
 
   function _render(data) {
     const user = window.AuthService?.getUser() || {};
-    const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+    const uArea = String(user.Area || user.area || user.Área || '').trim();
     const isAll = uArea === 'ALL';
 
     // Usamos data.Area si viene desde otra pantalla, o el área del usuario como fallback
@@ -190,31 +190,10 @@ const SGFormComponent = (() => {
       btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando...`;
 
       const fechaEntrega = document.getElementById('sg-fecha-entrega').value;
-      let idMantenimiento = document.getElementById('sg-id-base').value.trim();
-
-      if(idMantenimiento === ''){
-        idMantenimiento = SGService.generarIdMantenimiento({
-          area: areaVal,
-          equipo: document.getElementById('sg-equipo').value,
-          item: document.getElementById('sg-item').value,
-          sistema: document.getElementById('sg-sistema').value
-        });
-      }
-
-      const baseData = {
-        'ID_Orden mantenimiento': idMantenimiento,
-        'Área': areaVal,
-        'ID_#EQUIPO': document.getElementById('sg-equipo').value.trim(),
-        'ITEM': document.getElementById('sg-item').value.trim(),
-        'Sistema': document.getElementById('sg-sistema').value.trim(),
-        'Descripcion': document.getElementById('sg-desc').value.trim(),
-        'Estatus': 'Programado', 
-        'Tiene solicitud de compra?': document.getElementById('sg-tiene-compra').value === 'true',
-        'N° solicitud': document.getElementById('sg-n-solicitud').value.trim() || null,
-        'N° Orden de compra': document.getElementById('sg-n-oc').value.trim() || null,
-        'Fecha Entrega': fechaEntrega, 
-        'Observaciones': document.getElementById('sg-obs').value.trim() || null,
-      };
+      
+      // LÓGICA DE DECISIÓN: ¿Viene de initialData o es nuevo?
+      const idBaseExistente = document.getElementById('sg-id-base').value.trim();
+      const esAutomatico = idBaseExistente !== '';
 
       let personalIdStr = null;
       if (window.MecanicoSelectComponent) {
@@ -222,20 +201,55 @@ const SGFormComponent = (() => {
         if (mecId) personalIdStr = String(mecId);
       }
 
+      // Datos exclusivos de la tabla OM_SG (comunes para ambos métodos)
       const sgData = {
         tipo_trabajo: tipoTrabajoVal,
+        "Estatus": "Programado"
         estimacion_horas: parseInt(document.getElementById('sg-horas').value, 10),
         solicitar_personal: personalIdStr,
         fecha_entrega: fechaEntrega 
       };
 
-      const res = await SGService.createManualSG(baseData, sgData);
+      let res;
 
+      if (esAutomatico) {
+        // --- CAMINO 1: AUTOMÁTICO (Solo OM_SG) ---
+        console.log('Ejecutando creación Automática para la orden:', idBaseExistente);
+        res = await SGService.createAutoSG(idBaseExistente, sgData);
+      } else {
+        // --- CAMINO 2: MANUAL (Ambas tablas) ---
+        console.log('Ejecutando creación Manual desde cero');
+        const nuevoId = SGService.generarIdMantenimiento({
+          area: areaVal,
+          equipo: document.getElementById('sg-equipo').value,
+          item: document.getElementById('sg-item').value,
+          sistema: document.getElementById('sg-sistema').value
+        });
+
+        const baseData = {
+          'ID_Orden mantenimiento': nuevoId,
+          'Área': areaVal,
+          'ID_#EQUIPO': document.getElementById('sg-equipo').value.trim(),
+          'ITEM': document.getElementById('sg-item').value.trim(),
+          'Sistema': document.getElementById('sg-sistema').value.trim(),
+          'Descripcion': document.getElementById('sg-desc').value.trim(),
+          'Estatus': 'Programado', 
+          'Tiene solicitud de compra?': document.getElementById('sg-tiene-compra').value === 'true',
+          'N° solicitud': document.getElementById('sg-n-solicitud').value.trim() || null,
+          'N° Orden de compra': document.getElementById('sg-n-oc').value.trim() || null,
+          'Fecha Entrega': fechaEntrega, 
+          'Observaciones': document.getElementById('sg-obs').value.trim() || null,
+        };
+
+        res = await SGService.createManualSG(baseData, sgData);
+      }
+
+      // Manejo de la respuesta
       if (res.ok) {
-        window.ToastService?.show('SG Creada exitosamente', 'success');
+        window.ToastService?.show(esAutomatico ? 'SG vinculada exitosamente' : 'SG creada exitosamente', 'success');
         if (_onSuccess) _onSuccess();
       } else {
-        window.ToastService?.show('Error al crear SG', 'danger');
+        window.ToastService?.show('Error al procesar la SG', 'danger');
         console.error(res.error);
         btn.disabled = false;
         btn.textContent = 'Guardar OM SG';

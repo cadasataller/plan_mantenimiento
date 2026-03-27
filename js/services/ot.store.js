@@ -88,7 +88,7 @@ const OTStore = (() => {
         const user = AuthService.getUser();
         // Un área normal solo ve sus órdenes (hayan sido o no derivadas a SG)
         query = query.eq('Área', user.area);
-      }
+      } 
       // (Si es ALL, no aplica ningún filtro y trae la base de datos completa)
 
       const { data, error } = await query;
