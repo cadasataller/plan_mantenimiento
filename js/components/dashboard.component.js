@@ -1,7 +1,7 @@
 const DashboardComponent = (() => {
 
-  let _containerId = null; // Guardará el id pero no dibujará nada todavía
-  let _hasRendered = false; // Bandera para saber si ya dibujamos la UI
+  let _containerId = null;
+  let _hasRendered = false;
   let _activeTab = 'ordenes'; // default
 
   const TABS = [
@@ -28,25 +28,21 @@ const DashboardComponent = (() => {
     },
   ];
 
-  // ── 1. MOUNT AHORA ES PEREZOSO ─────────────────────────────
   function mount(containerId) {
     _containerId = containerId;
     _hasRendered = false;
-    // 🛑 IMPORTANTE: Ya no dibujamos nada aquí. 
-    // Esperamos a que el Router nos llame a onEnter()
   }
 
-  // ── 2. FUNCIÓN PRIVADA QUE DIBUJA LA UI ────────────────────
   function _renderUI(user) {
     const el = document.getElementById(_containerId);
     if (!el) return;
 
-    // Aquí ya estamos 100% seguros de que 'user' tiene los datos de Supabase
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
     
+    // Si es SG, filtramos la pestaña de OTs y forzamos a mostrar 'sg'
     let visibleTabs = TABS;
     if (uArea === 'SERVICIOS GENERALES') {
-      visibleTabs = TABS.filter(t => t.id === 'sg');
+      visibleTabs = TABS.filter(t => t.id !== 'ordenes');
       _activeTab = 'sg'; 
     }
 
@@ -54,10 +50,7 @@ const DashboardComponent = (() => {
       <nav class="topbar" id="topbar">
         <a class="topbar-logo" href="#dashboard">
           <div class="topbar-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="18" height="18">
-              <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
-              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-            </svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="18" height="18"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
           </div>
           <div class="topbar-brand">
             <span class="topbar-name">CADASA</span>
@@ -70,11 +63,8 @@ const DashboardComponent = (() => {
 
       <div class="dash-tabs" id="dash-tabs">
         ${visibleTabs.map(tab => `
-          <div class="dash-tab ${tab.id === _activeTab ? 'active' : ''}"
-               data-tab="${tab.id}"
-               onclick="DashboardComponent._switchTab('${tab.id}')">
-            ${tab.icon()}
-            ${tab.label}
+          <div class="dash-tab ${tab.id === _activeTab ? 'active' : ''}" data-tab="${tab.id}" onclick="DashboardComponent._switchTab('${tab.id}')">
+            ${tab.icon()} ${tab.label}
             <span class="dash-tab-badge" id="tab-badge-${tab.id}" style="display:none"></span>
           </div>`).join('')}
       </div>
@@ -86,9 +76,10 @@ const DashboardComponent = (() => {
           </div>
         </div>
 
+        ${uArea !== 'SERVICIOS GENERALES' ? `
         <div class="tab-panel ${_activeTab==='ordenes'?'active':''}" id="tab-panel-ordenes">
           <div id="ot-module-container"></div>
-        </div>
+        </div>` : ''}
 
         <div class="tab-panel ${_activeTab==='sg'?'active':''}" id="tab-panel-sg">
           <div id="sg-module-container" style="width:100%; height:100%;"></div>
@@ -102,34 +93,32 @@ const DashboardComponent = (() => {
       </div>
     `;
 
-    // Montamos los sub-componentes ahora que el HTML ya existe
-    if (uArea !== 'SERVICIOS GENERALES' && window.OTComponent) {
-      OTComponent.mount('ot-module-container');
+    // 👇 Corrección: Llamamos a OTComponent directamente sin validar si existe en "window"
+    if (uArea !== 'SERVICIOS GENERALES') {
+      try {
+        OTComponent.mount('ot-module-container');
+      } catch(e) { console.error('Error al montar OTComponent', e); }
     }
     
     if (window.SGPageComponent) {
-      // Al montar SGPageComponent aquí, garantizamos que las validaciones
-      // internas de SG (como el botón "Nueva SG Manual") también tengan
-      // al usuario disponible.
       SGPageComponent.mount('sg-module-container');
     }
 
-    _hasRendered = true; // Evitamos volver a pintar todo el HTML entero en futuros clics
+    _hasRendered = true;
   }
 
-  // ── 3. ON ENTER: SE EJECUTA CUANDO EL ROUTER LO AUTORIZA ──
   function onEnter() {
     const user = AuthService.getUser();
     if (!user) { Router.navigate('login'); return; }
 
-    // 👇 LA MAGIA: Dibujamos el HTML ahora que ya sabemos quién es el usuario
-    if (!_hasRendered) {
-      _renderUI(user);
-    }
+    if (!_hasRendered) _renderUI(user);
 
     renderTopbarUser(user);
     
-    if (_activeTab === 'ordenes' && window.OTComponent) OTComponent.onEnter();
+    // 👇 Corrección: Llamamos a OTComponent.onEnter directamente
+    if (_activeTab === 'ordenes') {
+      try { OTComponent.onEnter(); } catch(e) { }
+    }
     if (_activeTab === 'sg' && window.SGPageComponent) SGPageComponent.onEnter();
     
     setTimeout(updateTabBadges, 1200);
@@ -138,13 +127,11 @@ const DashboardComponent = (() => {
   function _switchTab(tabId) {
     if (_activeTab === tabId) return;
     _activeTab = tabId;
-    document.querySelectorAll('.dash-tab').forEach(el =>
-      el.classList.toggle('active', el.dataset.tab === tabId));
-    document.querySelectorAll('.tab-panel').forEach(el =>
-      el.classList.toggle('active', el.id === `tab-panel-${tabId}`));
+    document.querySelectorAll('.dash-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tabId));
+    document.querySelectorAll('.tab-panel').forEach(el => el.classList.toggle('active', el.id === `tab-panel-${tabId}`));
       
-    if (tabId === 'ordenes' && window.OTComponent) {
-      OTComponent.onEnter();
+    if (tabId === 'ordenes') {
+      try { OTComponent.onEnter(); } catch(e) {}
       setTimeout(updateTabBadges, 800);
     }
     if (tabId === 'sg' && window.SGPageComponent) {
@@ -169,7 +156,11 @@ const DashboardComponent = (() => {
     const isAdmin   = user.role === 'ADMIN';
     const roleLabel = isAdmin ? 'Administrador' : user.area === 'ALL' || !user.area ? 'Taller' : `Taller · ${user.area}`;
     const initials  = (user.name || '').trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
-    const avatar    = user.picture ? `<img class="topbar-avatar" src="${user.picture}" alt="${user.name}" referrerpolicy="no-referrer">` : `<div class="topbar-avatar-placeholder">${initials}</div>`;
+    
+    const avatar = user.picture 
+      ? `<img class="topbar-avatar" src="${user.picture}" alt="${user.name}" referrerpolicy="no-referrer">` 
+      : `<div class="topbar-avatar-placeholder">${initials}</div>`;
+
     container.innerHTML = `
       <div class="topbar-user-info">
         <span class="topbar-user-name">${user.givenName ?? user.name}</span>
@@ -177,7 +168,13 @@ const DashboardComponent = (() => {
       </div>
       ${avatar}
       <div class="topbar-divider"></div>
-      <button class="btn-logout" onclick="AuthService.signOut()">Salir</button>`;
+      <button class="btn-logout" onclick="AuthService.signOut()">
+        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2">
+          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg> Salir
+      </button>`;
   }
 
   return { mount, onEnter, _switchTab };
