@@ -28,6 +28,24 @@ const DashboardComponent = (() => {
     },
   ];
 
+  /**
+   * Nueva función para validar visibilidad de pestañas
+   * Si no se reconoce el área, devuelve todas las pestañas.
+   */
+  function _getVisibleTabs(user) {
+    if (!user) return TABS;
+    
+    const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+
+    if (uArea === 'SERVICIOS GENERALES') {
+      // Si es de SG, ocultamos la pestaña 'sg' y forzamos 'ordenes' como activa
+      _activeTab = 'ordenes';
+      return TABS.filter(t => t.id !== 'sg');
+    }
+
+    return TABS;
+  }
+
   function mount(containerId) {
     _containerId = containerId;
     _hasRendered = false;
@@ -37,16 +55,9 @@ const DashboardComponent = (() => {
     const el = document.getElementById(_containerId);
     if (!el) return;
 
-    const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
-
-    // Si el usuario es de Servicios Generales, ocultamos la pestaña 'sg'
-    // y nos aseguramos que la pestaña activa sea 'ordenes'
-    let visibleTabs = TABS;
-    if (uArea === 'SERVICIOS GENERALES') {
-      visibleTabs = TABS.filter(t => t.id !== 'sg');
-      _activeTab = 'ordenes';
-    }
-
+    // Invocamos la lógica de filtrado separada
+    //const visibleTabs = _getVisibleTabs(user);
+    const visibleTabs =TABS;
     el.innerHTML = `
       <nav class="topbar" id="topbar">
         <a class="topbar-logo" href="#dashboard">
@@ -95,22 +106,13 @@ const DashboardComponent = (() => {
       </div>
     `;
 
-    // Montamos OTComponent si la pestaña 'ordenes' es visible
+    // Montaje condicional seguro
     if (visibleTabs.some(t => t.id === 'ordenes')) {
-      try {
-        OTComponent.mount('ot-module-container');
-      } catch (e) {
-        console.error('Error al montar OTComponent:', e);
-      }
+      try { OTComponent.mount('ot-module-container'); } catch (e) { console.error('Error OT:', e); }
     }
 
-    // Montamos SGPageComponent si la pestaña 'sg' es visible
     if (visibleTabs.some(t => t.id === 'sg')) {
-      try {
-        SGPageComponent.mount('sg-module-container');
-      } catch (e) {
-        console.error('Error al montar SGPageComponent:', e);
-      }
+      try { SGPageComponent.mount('sg-module-container'); } catch (e) { console.error('Error SG:', e); }
     }
 
     _hasRendered = true;

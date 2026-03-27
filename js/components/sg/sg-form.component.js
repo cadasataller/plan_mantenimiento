@@ -205,6 +205,7 @@ const SGFormComponent = (() => {
       const sgData = {
         tipo_trabajo: tipoTrabajoVal,
         "Estatus": "Programado",
+        "Observaciones":document.getElementById('sg-obs').value.trim() || null,
         estimacion_horas: parseInt(document.getElementById('sg-horas').value, 10),
         solicitar_personal: personalIdStr,
         fecha_entrega: fechaEntrega 
