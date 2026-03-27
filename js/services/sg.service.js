@@ -66,33 +66,38 @@ const SGService = (() => {
       console.log('ID SG:', id_sg);
       console.log('ID Base:', id_orden_base);
       console.log('Permisos aplicados:', perms);
-
+  
       const omPayload = {};
       const sgPayload = {};
-
+  
       // 1. Permisos básicos (o heredados por ser Dios)
       if (perms.statusObs || perms.all || perms.godMode) {
-        omPayload.Estatus = editState.estatus;
-        omPayload.Observaciones = editState.observaciones;
+        // 👇 Movidos a OM_SG (sgPayload) respetando el schema
+        sgPayload['Estatus'] = editState.estatus || null;
+        sgPayload['Observaciones'] = editState.observaciones || null;
+        sgPayload['Fecha conclusion'] = editState.fecha_conclusion || null;
+        sgPayload.semana = editState.semana || null;
+        sgPayload.fecha_ejecucion = editState.fecha_ejecucion || null; 
+  
+        // Se queda en OM_MANTENIMIENTO (si aún lo usas ahí)
         omPayload['Fecha inicio'] = editState.fecha_inicio || null;
-        omPayload['Fecha conclusion'] = editState.fecha_conclusion || null;
-        omPayload.Semana = editState.semana || null;
       }
-
+  
       // 2. Permisos totales o Dios
       if (perms.all || perms.godMode) {
-        omPayload['Fecha Entrega'] = editState.fecha_entrega || null;
+        // 👇 Datos que se quedan en ORDEN_MANTENIMIENTO
         omPayload['Tiene solicitud de compra?'] = editState.tiene_compra === 'true';
         omPayload['N° solicitud'] = editState.n_solicitud || null;
         omPayload['N° Orden de compra'] = editState.n_oc || null;
-
+  
+        // 👇 Datos que van a OM_SG
         sgPayload.tipo_trabajo = editState.tipo_trabajo || null;
         sgPayload.estimacion_horas = parseInt(editState.estimacion_horas, 10) || null;
         sgPayload.solicitar_personal = editState.solicitar_personal || null;
-        sgPayload.fecha_entrega = editState.fecha_entrega || null;
+        sgPayload.fecha_entrega = editState.fecha_entrega || null; 
       }
-
-      // 👇 3. PERMISOS EXCLUSIVOS DE "ALL" (God Mode)
+  
+      // 3. PERMISOS EXCLUSIVOS DE "ALL" (God Mode)
       if (perms.godMode) {
         omPayload['Área'] = editState.area_om || null;
         omPayload['ID_#EQUIPO'] = editState.equipo || null;
@@ -100,15 +105,15 @@ const SGService = (() => {
         omPayload['Sistema'] = editState.sistema || null;
         omPayload['Descripcion'] = editState.descripcion || null;
       }
-
+  
       console.log('Payload OM a enviar:', omPayload);
       console.log('Payload SG a enviar:', sgPayload);
-
+  
       if (Object.keys(omPayload).length === 0 && Object.keys(sgPayload).length === 0) {
          console.warn('Los permisos bloquearon la actualización. No se enviaron datos.');
          return { ok: false, error: 'Sin permisos para editar.' };
       }
-
+  
       const tasks = [];
       
       if (Object.keys(omPayload).length > 0) {
@@ -128,7 +133,7 @@ const SGService = (() => {
             .select() 
         );
       }
-
+  
       const results = await Promise.all(tasks);
       
       for (let res of results) {
@@ -137,7 +142,7 @@ const SGService = (() => {
           throw new Error('Supabase no actualizó ninguna fila. Verifica RLS en la tabla.');
         }
       }
-
+  
       // Actualizar la caché local
       const cacheIndex = _sgCache.findIndex(item => item.id_sg === id_sg);
       if (cacheIndex !== -1) {
@@ -150,7 +155,7 @@ const SGService = (() => {
         }
         _sgCache[cacheIndex] = cachedItem;
       }
-
+  
       return { ok: true, data: _sgCache[cacheIndex] };
       
     } catch (err) {
