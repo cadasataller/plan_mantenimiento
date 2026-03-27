@@ -97,27 +97,19 @@ const DashboardComponent = (() => {
 
     // Montamos OTComponent si la pestaña 'ordenes' es visible
     if (visibleTabs.some(t => t.id === 'ordenes')) {
-      if (window.OTComponent) {
-        try {
-          OTComponent.mount('ot-module-container');
-        } catch (e) {
-          console.error('Error al montar OTComponent:', e);
-        }
-      } else {
-        console.warn('DashboardComponent: OTComponent no está disponible en window.');
+      try {
+        OTComponent.mount('ot-module-container');
+      } catch (e) {
+        console.error('Error al montar OTComponent:', e);
       }
     }
 
     // Montamos SGPageComponent si la pestaña 'sg' es visible
     if (visibleTabs.some(t => t.id === 'sg')) {
-      if (window.SGPageComponent) {
-        try {
-          SGPageComponent.mount('sg-module-container');
-        } catch (e) {
-          console.error('Error al montar SGPageComponent:', e);
-        }
-      } else {
-        console.warn('DashboardComponent: SGPageComponent no está disponible en window.');
+      try {
+        SGPageComponent.mount('sg-module-container');
+      } catch (e) {
+        console.error('Error al montar SGPageComponent:', e);
       }
     }
 
