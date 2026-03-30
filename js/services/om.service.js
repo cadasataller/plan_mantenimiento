@@ -89,6 +89,10 @@ const OMService = (() => {
       payload['Observaciones'] = cambios.observaciones?.trim() || null;
     }
 
+    if (cambios.fechaInicio !== undefined) {
+      payload['Fecha inicio'] = cambios.fechaInicio?.trim() || null;
+    }
+
     // N° Solicitud → también deriva TieneSolicitud
     if (cambios.nSolicitud !== undefined) {
       const val = cambios.nSolicitud?.trim() || null;
