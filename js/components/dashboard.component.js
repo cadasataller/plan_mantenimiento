@@ -56,8 +56,8 @@ const DashboardComponent = (() => {
     if (!el) return;
 
     // Invocamos la lógica de filtrado separada
-    //const visibleTabs = _getVisibleTabs(user);
-    const visibleTabs =TABS;
+    const visibleTabs = _getVisibleTabs(user);
+  
     el.innerHTML = `
       <nav class="topbar" id="topbar">
         <a class="topbar-logo" href="#dashboard">
