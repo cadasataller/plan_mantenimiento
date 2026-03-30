@@ -64,7 +64,7 @@ const SGUI = (() => {
   };
 
   const Badge = (status) => {
-    const s = (status || 'Programado').toLowerCase();
+    const s = (status).toLowerCase();
     let cls = 'st-prog';
     if (s.includes('proceso')) cls = 'st-proc';
     if (s.includes('concluida')) cls = 'st-conc';

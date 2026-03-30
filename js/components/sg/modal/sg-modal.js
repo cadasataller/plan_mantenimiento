@@ -52,7 +52,7 @@ const SGModalComponent = (() => {
     const omArea = String(om['Área'] || '').trim().toUpperCase();
     
     // 👇 Leemos el estatus desde OM_SG
-    const estatus = String(sg.Estatus || 'Programado').trim().toUpperCase();
+    const estatus = String(sg.Estatus).trim().toUpperCase();
 
     if (uArea === 'ALL') {
       _perms.godMode = true;
@@ -246,7 +246,7 @@ const SGModalComponent = (() => {
               <button class="btn-modal-close" id="btn-sg-modal-close">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
-              <span id="sg-modal-header-badge">${SGUI.Badge(om.Estatus || sg.estado)}</span>
+              <span id="sg-modal-header-badge">${SGUI.Badge(sg.Estatus)}</span>
             </div>
           </div>
 
@@ -323,7 +323,7 @@ const SGModalComponent = (() => {
         <div class="ot-modal-section">
           <div class="ot-modal-section-title">Estado y Observaciones</div>
           <div class="ot-modal-grid">
-            ${SGUI.StatusPicker({ id: 'edit-estatus', label: 'Estatus', value: v('estatus', sg.Estatus || 'Programado'), options: estatusOptions, isEditMode: _editMode, canEdit: _perms.statusObs })}
+            ${SGUI.StatusPicker({ id: 'edit-estatus', label: 'Estatus', value: v('estatus', sg.Estatus), options: estatusOptions, isEditMode: _editMode, canEdit: _perms.statusObs })}
             
             ${SGUI.EditableField({ id: 'edit-observaciones', label: 'Observaciones', value: v('observaciones', sg.Observaciones || ''), type: 'textarea', placeholder: 'Notas de Servicios Generales...', isEditMode: _editMode, canEdit: _perms.statusObs, fullWidth: true })}
           </div>
