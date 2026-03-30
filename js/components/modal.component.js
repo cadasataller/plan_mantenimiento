@@ -95,7 +95,7 @@ const ModalComponent = (() => {
                 </svg>
               </button>
               <span class="ot-status ${omStatusClass(om.Estatus)}" id="header-status-badge">
-                <span class="ot-status-dot"></span>${h(om.Estatus)}
+                ${!om.Estatus ? '-' : `<span class="ot-status-dot"></span>${h(om.Estatus)}`}
               </span>
             </div>
           </div>
@@ -165,9 +165,8 @@ const ModalComponent = (() => {
     const om     = _currentOM;
     const omSC   = omStatusClass(om.Estatus);
     const eIdx   = ETAPA_IDX[om.TipoProceso] ?? 'x';
-    const isSG   = false;
 
-    // Verificar Rol
+    // Verificar Rol (se mantiene para bloquear/permitir campos de compras)
     const user = window.AuthService?.getUser() || {};
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
     const isSGRole = uArea === 'SERVICIOS GENERALES';
@@ -181,127 +180,74 @@ const ModalComponent = (() => {
       html += `
         <div class="edit-mode-banner">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Modo edición activo — ${isSGRole ? 'Actualiza tu estatus y observaciones' : 'modifica los campos y guarda los cambios'}
+          Modo edición activo — modifica los campos y guarda los cambios
         </div>`;
     }
 
-    // 👇 SI ES UNA ORDEN DE SERVICIOS GENERALES, MOSTRAMOS EL DISEÑO SG
-    if (isSG) {
-      if (!_currentSGDetail) {
-        panel.innerHTML = html + `<div style="padding:3rem;text-align:center;"><div class="spinner"></div> Cargando detalles SG...</div>`;
-        return;
-      }
-      
-      const sgDet = _currentSGDetail;
-
-      html += `
-        <div class="ot-modal-section">
-          <div class="ot-modal-section-title">Identificación y Ubicación</div>
-          <div class="ot-modal-grid">
-            ${mf('Área', om.Area)}
-            ${mf('Equipo (ID)', om.ID_EQUIPO)}
-            ${mf('Item / Equipo', om.ITEM)}
-            ${mf('Sistema', om.Sistema)}
-          </div>
+    // DISEÑO PARA ORDEN DE MANTENIMIENTO NORMAL
+    html += `
+      <div class="ot-modal-section">
+        <div class="ot-modal-section-title">Identificación</div>
+        <div class="ot-modal-grid">
+          ${mf('ID de Orden',    om.ID_Orden)}
+          ${mf('Área',           om.Area)}
+          ${mf('Equipo (ID)',    om.ID_EQUIPO)}
+          ${mf('Item / Equipo', om.ITEM)}
+          ${mf('Sistema',        om.Sistema)}
+          ${mf('Tipo de Proceso', '', `<span class="ot-etapa-chip etapa-${eIdx}">${ETAPA_SHORT[om.TipoProceso] ?? h(om.TipoProceso || '—')}</span>`)}
         </div>
+      </div>
 
-        <div class="ot-modal-section">
-          <div class="ot-modal-section-title">Detalles del Trabajo (SG)</div>
-          <div class="ot-modal-grid">
-            ${mf('Tipo Trabajo', sgDet.tipo_trabajo || '—')}
-            ${mf('Estimación (h)', sgDet.estimacion_horas || '—')}
-            ${mf('Personal Solicitado', sgDet.solicitar_personal || '—')}
+      <div class="ot-modal-section">
+        <div class="ot-modal-section-title">Planificación ${_editMode ? '<span class="edit-section-tag">editable</span>' : ''}</div>
+        <div class="ot-modal-grid">
+          <div class="ot-modal-field" style="grid-column:1/-1;">
+            <div class="ot-modal-label">Estado</div>
+            ${_editMode ? _renderStatusPicker(v('estatus', om.Estatus)) : `<span class="ot-status ${omSC}">${!om.Estatus ? '-' : `<span class="ot-status-dot"></span>${h(om.Estatus)}`}</span>`}
           </div>
-        </div>
-
-        <div class="ot-modal-section">
-          <div class="ot-modal-section-title">Planificación y Estado ${_editMode ? '<span class="edit-section-tag">editable</span>' : ''}</div>
-          <div class="ot-modal-grid">
-            <div class="ot-modal-field" style="grid-column:1/-1;">
-              <div class="ot-modal-label">Estado</div>
-              ${_editMode ? _renderStatusPicker(v('estatus', om.Estatus)) : `<span class="ot-status ${omSC}"><span class="ot-status-dot"></span>${h(om.Estatus)}</span>`}
+          ${mf('Semana asignada', '', `<div class="ot-modal-val">${semDisplay}</div> `)}
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">
+              Fecha de inicio 
+              ${(_editMode && !om.Estatus) ? '<span class="edit-section-tag">editable</span>' : ''}
+              ${(_editMode && _editState.estatus === 'Programado') ? '<span style="color:var(--color-danger); font-weight:bold;"> *</span>' : ''}
             </div>
-            ${mf('Semana', '', `<div class="ot-modal-val">${semDisplay}</div>`)}
-            ${mf('Fecha Entrega Esperada', om.FechaEntrega)}
-            ${mf('Fecha Inicio (Real)', om.FechaInicio)}
-            ${mf('Fecha Conclusión (Real)', om.FechaConclusion)}
+            ${(_editMode && !om.Estatus) 
+              ? `<input type="date" id="edit-fecha-inicio" class="edit-input" value="${_isoDateValue(v('fechaInicio', om.FechaInicio))}" required />` 
+              : `<div class="ot-modal-val${!om.FechaInicio ? ' empty' : ''}">${om.FechaInicio || '—'}</div>`
+            }
+          </div>
+          ${mf('Fecha conclusión', om.FechaConclusion)}
+        </div>
+      </div>
+
+      <div class="ot-modal-section">
+        <div class="ot-modal-section-title">Compras y Materiales ${_editMode && !isSGRole ? '<span class="edit-section-tag">editable</span>' : ''}</div>
+        <div class="ot-modal-grid">
+          ${mf('Tiene solicitud', om.TieneSolicitud)}
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">N° Solicitud ${(_editMode && !isSGRole) ? '<span class="edit-field-optional">editable</span>' : ''}</div>
+            ${(_editMode && !isSGRole) ? `<input type="text" id="edit-n-solicitud" class="edit-input" value="${h(v('nSolicitud', om.NSolicitud ?? ''))}" />` : `<div class="ot-modal-val${!om.NSolicitud ? ' empty' : ''}">${om.NSolicitud || '—'}</div>`}
+          </div>
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">N° Orden Compra ${(_editMode && !isSGRole) ? '<span class="edit-field-optional">editable</span>' : ''}</div>
+            ${(_editMode && !isSGRole) ? `<input type="text" id="edit-n-orden-compra" class="edit-input" value="${h(v('nOrdenCompra', om.NOrdenCompra ?? ''))}" />` : `<div class="ot-modal-val${!om.NOrdenCompra ? ' empty' : ''}">${om.NOrdenCompra || '—'}</div>`}
+          </div>
+          <div class="ot-modal-field">
+            <div class="ot-modal-label">Fecha entrega ${(_editMode && !isSGRole) ? '<span class="edit-field-optional">editable</span>' : ''}</div>
+            ${(_editMode && !isSGRole) ? `<input type="date" id="edit-fecha-entrega" class="edit-input" value="${_isoDateValue(v('fechaEntrega', om.FechaEntrega))}" />` : `<div class="ot-modal-val${!om.FechaEntrega ? ' empty' : ''}">${om.FechaEntrega || '—'}</div>`}
           </div>
         </div>
+      </div>
 
-        <div class="ot-modal-section">
-          <div class="ot-modal-section-title">Gestión de Compras</div>
-          <div class="ot-modal-grid">
-            ${mf('Tiene solicitud?', om.TieneSolicitud)}
-            ${mf('N° Solicitud', om.NSolicitud)}
-            ${mf('N° Orden Compra', om.NOrdenCompra)}
-          </div>
-        </div>
-
-        <div class="ot-modal-section">
-          <div class="ot-modal-section-title">Observaciones ${_editMode ? '<span class="edit-section-tag">editable</span>' : ''}</div>
-          ${_editMode
-            ? `<textarea id="edit-observaciones" class="edit-textarea" placeholder="Notas..." rows="3">${h(v('observaciones', om.Observaciones ?? ''))}</textarea>`
-            : (om.Observaciones ? `<div style="font-size:0.85rem;background:var(--color-gray-50);padding:0.85rem 1rem;border-radius:4px;">${h(om.Observaciones)}</div>` : `<div style="font-size:0.82rem;color:var(--color-gray-300);font-style:italic;">Sin observaciones.</div>`)
-          }
-        </div>
-      `;
-    } 
-    // 👇 SI ES UNA ORDEN DE MANTENIMIENTO NORMAL
-    else {
-      html += `
-        <div class="ot-modal-section">
-          <div class="ot-modal-section-title">Identificación</div>
-          <div class="ot-modal-grid">
-            ${mf('ID de Orden',    om.ID_Orden)}
-            ${mf('Área',           om.Area)}
-            ${mf('Equipo (ID)',    om.ID_EQUIPO)}
-            ${mf('Item / Equipo', om.ITEM)}
-            ${mf('Sistema',        om.Sistema)}
-            ${mf('Tipo de Proceso', '', `<span class="ot-etapa-chip etapa-${eIdx}">${ETAPA_SHORT[om.TipoProceso] ?? h(om.TipoProceso || '—')}</span>`)}
-          </div>
-        </div>
-
-        <div class="ot-modal-section">
-          <div class="ot-modal-section-title">Planificación ${_editMode ? '<span class="edit-section-tag">editable</span>' : ''}</div>
-          <div class="ot-modal-grid">
-            <div class="ot-modal-field" style="grid-column:1/-1;">
-              <div class="ot-modal-label">Estado</div>
-              ${_editMode ? _renderStatusPicker(v('estatus', om.Estatus)) : `<span class="ot-status ${omSC}"><span class="ot-status-dot"></span>${h(om.Estatus)}</span>`}
-            </div>
-            ${mf('Semana asignada', '', `<div class="ot-modal-val">${semDisplay}</div> `)}
-            ${mf('Fecha de inicio', om.FechaInicio)}
-            ${mf('Fecha conclusión', om.FechaConclusion)}
-          </div>
-        </div>
-
-        <div class="ot-modal-section">
-          <div class="ot-modal-section-title">Compras y Materiales ${_editMode && !isSGRole ? '<span class="edit-section-tag">editable</span>' : ''}</div>
-          <div class="ot-modal-grid">
-            ${mf('Tiene solicitud', om.TieneSolicitud)}
-            <div class="ot-modal-field">
-              <div class="ot-modal-label">N° Solicitud ${(_editMode && !isSGRole) ? '<span class="edit-field-optional">editable</span>' : ''}</div>
-              ${(_editMode && !isSGRole) ? `<input type="text" id="edit-n-solicitud" class="edit-input" value="${h(v('nSolicitud', om.NSolicitud ?? ''))}" />` : `<div class="ot-modal-val${!om.NSolicitud ? ' empty' : ''}">${om.NSolicitud || '—'}</div>`}
-            </div>
-            <div class="ot-modal-field">
-              <div class="ot-modal-label">N° Orden Compra ${(_editMode && !isSGRole) ? '<span class="edit-field-optional">editable</span>' : ''}</div>
-              ${(_editMode && !isSGRole) ? `<input type="text" id="edit-n-orden-compra" class="edit-input" value="${h(v('nOrdenCompra', om.NOrdenCompra ?? ''))}" />` : `<div class="ot-modal-val${!om.NOrdenCompra ? ' empty' : ''}">${om.NOrdenCompra || '—'}</div>`}
-            </div>
-            <div class="ot-modal-field">
-              <div class="ot-modal-label">Fecha entrega ${(_editMode && !isSGRole) ? '<span class="edit-field-optional">editable</span>' : ''}</div>
-              ${(_editMode && !isSGRole) ? `<input type="date" id="edit-fecha-entrega" class="edit-input" value="${_isoDateValue(v('fechaEntrega', om.FechaEntrega))}" />` : `<div class="ot-modal-val${!om.FechaEntrega ? ' empty' : ''}">${om.FechaEntrega || '—'}</div>`}
-            </div>
-          </div>
-        </div>
-
-        <div class="ot-modal-section">
-          <div class="ot-modal-section-title">Observaciones ${_editMode ? '<span class="edit-section-tag">editable</span>' : ''}</div>
-          ${_editMode
-            ? `<textarea id="edit-observaciones" class="edit-textarea" placeholder="Escribe las observaciones aquí…" rows="4">${h(v('observaciones', om.Observaciones ?? ''))}</textarea>`
-            : (om.Observaciones ? `<div style="font-size:0.85rem;background:var(--color-gray-50);padding:0.85rem 1rem;border-radius:4px;">${h(om.Observaciones)}</div>` : `<div style="font-size:0.82rem;color:var(--color-gray-300);font-style:italic;">Sin observaciones.</div>`)
-          }
-        </div>
-      `;
-    }
+      <div class="ot-modal-section">
+        <div class="ot-modal-section-title">Observaciones ${_editMode ? '<span class="edit-section-tag">editable</span>' : ''}</div>
+        ${_editMode
+          ? `<textarea id="edit-observaciones" class="edit-textarea" placeholder="Escribe las observaciones aquí…" rows="4">${h(v('observaciones', om.Observaciones ?? ''))}</textarea>`
+          : (om.Observaciones ? `<div style="font-size:0.85rem;background:var(--color-gray-50);padding:0.85rem 1rem;border-radius:4px;">${h(om.Observaciones)}</div>` : `<div style="font-size:0.82rem;color:var(--color-gray-300);font-style:italic;">Sin observaciones.</div>`)
+        }
+      </div>
+    `;
 
     panel.innerHTML = html;
 
@@ -312,6 +258,7 @@ const ModalComponent = (() => {
         ['edit-n-orden-compra',  'nOrdenCompra'],
         ['edit-fecha-entrega',   'fechaEntrega'],
         ['edit-observaciones',   'observaciones'],
+        ['edit-fecha-inicio',    'fechaInicio'] 
       ];
       binds.forEach(([id, key]) => {
         document.getElementById(id)?.addEventListener('input', e => {
@@ -344,7 +291,21 @@ const ModalComponent = (() => {
   function _onStatusPick(e) {
     const btn = e.target.closest('[data-status-pick]');
     if (!btn) return;
-    _editState.estatus = btn.dataset.statusPick;
+    
+    const nuevoEstado = btn.dataset.statusPick;
+    const estadoOriginal = _currentOM.Estatus;
+
+    // 👇 NUEVO: Si no tiene estado previo y elige algo distinto a Programado
+    if (!estadoOriginal && nuevoEstado !== 'Programado') {
+      if (window.ToastService) {
+        ToastService.show('Primero debe programar la orden.', 'warning');
+      } else {
+        alert('Primero debe programar la orden.');
+      }
+      return; // Detenemos la ejecución aquí, no se selecciona el botón
+    }
+
+    _editState.estatus = nuevoEstado;
     document.querySelectorAll('.status-pick-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.statusPick === _editState.estatus));
   }
@@ -437,8 +398,9 @@ const ModalComponent = (() => {
       estatus:       _currentOM.Estatus,
       observaciones: _currentOM.Observaciones    ?? '',
       nSolicitud:    _currentOM.NSolicitud       ?? '',
-      nOrdenCompra:  _currentOM.NOrdenCompra      ?? '',
-      fechaEntrega:  _currentOM.FechaEntrega      ?? '',
+      nOrdenCompra:  _currentOM.NOrdenCompra     ?? '',
+      fechaEntrega:  _currentOM.FechaEntrega     ?? '',
+      fechaInicio:   _currentOM.FechaInicio      ?? '', // 
     };
     _refreshInfoPanel();
     _refreshFooter();
@@ -453,12 +415,28 @@ const ModalComponent = (() => {
 
   async function _saveEdit() {
     if (_saving) return;
+
+    // --- NUEVA VALIDACIÓN: Fecha de inicio obligatoria para Programado ---
+    // Verificamos el estado que está en el selector y el valor de la fecha
+    const estadoSeleccionado = _editState.estatus;
+    const fechaSeleccionada = _editState.fechaInicio;
+
+    if (estadoSeleccionado === 'Programado') {
+      if (!fechaSeleccionada || fechaSeleccionada.trim() === '' || fechaSeleccionada === '—') {
+        if (window.ToastService) {
+          ToastService.show('La fecha de inicio es obligatoria para el estado PROGRAMADO.', 'danger');
+        } else {
+          alert('La fecha de inicio es obligatoria para el estado PROGRAMADO.');
+        }
+        return; // Detener el guardado
+      }
+    }
+    // ----------------------------------------------------------------------
+
     _saving = true;
     _refreshFooter();
 
-    const omSnapshot      = _currentOM;
-    // Si el usuario es de SG, en este modal SOLO le mandamos Estatus y Observaciones.
-    // OMService los actualizará perfectamente.
+    const omSnapshot = _currentOM;
     const cambiosSnapshot = { ..._editState };
     
     const resultado = await OMService.actualizar(omSnapshot, cambiosSnapshot);
@@ -472,7 +450,7 @@ const ModalComponent = (() => {
       _refreshInfoPanel();
       _refreshFooter();
       _refreshHeaderBadge();
-      OTComponent._updateGauge();
+      if (window.OTComponent) OTComponent._updateGauge();
     } else {
       if(resultado.error){ ToastService?.show(resultado.error, 'danger'); }
       else{ ToastService?.show('Error al guardar. Intenta de nuevo.', 'danger'); }
@@ -621,15 +599,26 @@ const ModalComponent = (() => {
   function _refreshHeaderBadge() {
     const badge = document.getElementById('header-status-badge');
     if (!badge) return;
-    badge.className = `ot-status ${omStatusClass(_currentOM.Estatus)}`;
-    badge.innerHTML = `<span class="ot-status-dot"></span>${h(_currentOM.Estatus)}`;
+    const currentStatus = _currentOM.Estatus;
+    badge.className = `ot-status ${omStatusClass(currentStatus)}`;
+    badge.innerHTML = !currentStatus ? '-' : `<span class="ot-status-dot"></span>${h(currentStatus)}`;
   }
 
   function h(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   function mf(label, val, customHtml) { const empty = !val || String(val).trim() === ''; const body = customHtml ?? `<div class="ot-modal-val${empty?' empty':''}">${empty?'—':h(String(val))}</div>`; return `<div class="ot-modal-field"><div class="ot-modal-label">${label}</div>${body}</div>`; }
   
   function omStatusClass(s) {
-    return { 'Programado': 'status-programado', 'En Proceso': 'status-en-proceso', 'En proceso': 'status-en-proceso', 'Concluida':  'status-completado', 'Completado': 'status-completado', 'Detenido':   'status-pendiente', 'Pendiente':  'status-pendiente' }[s] ?? 'status-programado';
+    if (!s || s.trim() === '') return ''; // 👈 Si está vacío, no aplica clase
+    
+    return { 
+      'Programado': 'status-programado', 
+      'En Proceso': 'status-en-proceso', 
+      'En proceso': 'status-en-proceso', 
+      'Concluida':  'status-completado', 
+      'Completado': 'status-completado', 
+      'Detenido':   'status-pendiente', 
+      'Pendiente':  'status-pendiente' 
+    }[s] ?? ''; 
   }
 
   const ETAPA_IDX = { 'Desmontaje y diagnóstico': 0, 'Lavado e inspección': 1, 'Reparación o reemplazo': 2, 'Ensamblaje y ajuste; pruebas finales': 3 };
