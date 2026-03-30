@@ -104,7 +104,7 @@ const SGService = (() => {
         tasks.push(
           db.from('OM_SG')
             .update(sgPayload)
-            .eq('id_sg', false)
+            .eq('id_sg', id_sg)
             .select() 
         );
       }
