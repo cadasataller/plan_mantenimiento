@@ -4,19 +4,16 @@ const SGService = (() => {
   // ── CACHÉ LOCAL ───────────────────────────────────────────────
   let _sgCache = []; 
 
-  // Obtener todas las SG (Utiliza caché si ya existen, a menos que se fuerce)
-  // Obtener todas las SG (Utiliza caché si ya existen, a menos que se fuerce)
+  // 1. OBTENER Y CARGAR INFORMACIÓN (fetchSGs)
   async function fetchSGs(forceRefresh = false) {
     if (!forceRefresh && _sgCache.length > 0) {
       return _sgCache;
     }
 
-    // 1. Obtenemos el área del usuario logueado
     const user = window.AuthService?.getUser() || {};
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
 
-    // 2. Preparamos la consulta base. 
-    // OJO al !inner: Es vital para poder filtrar por una columna de la tabla unida.
+    // Traemos todo de OM_SG (raíz) y anidamos ORDEN_MANTENIMIENTO
     let query = db
       .from('OM_SG')
       .select(`
@@ -26,13 +23,10 @@ const SGService = (() => {
       `)
       .order('fecha_solicitud', { ascending: false });
 
-    // 3. Aplicamos el filtro si NO es ALL y NO es SERVICIOS GENERALES
     if (uArea !== 'ALL' && uArea !== 'SERVICIOS GENERALES') {
-      // Usamos .ilike para ignorar mayúsculas/minúsculas y evitar problemas de tipeo
       query = query.ilike('ORDEN_MANTENIMIENTO.Área', uArea);
     }
 
-    // 4. Ejecutamos la consulta
     const { data, error } = await query;
 
     if (error) {
@@ -44,60 +38,45 @@ const SGService = (() => {
         ...row,
         fecha_solicitud: new Date(row.fecha_solicitud).toLocaleString('es-PA', {
           timeZone: 'America/Panama',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
         })
     }));
 
-    // Guardar en caché
     _sgCache = dataFormateada;
     return _sgCache;
   }
 
-  // Actualizar una SG en Base de Datos y Caché
-  // Actualizar una SG en Base de Datos y Caché
+  // 2. GUARDAR Y ACTUALIZAR INFORMACIÓN (updateSG)
   async function updateSG(id_sg, id_orden_base, editState, perms) {
     try {
-      console.log('--- INICIANDO UPDATE DB ---');
-      console.log('ID SG:', id_sg);
-      console.log('ID Base:', id_orden_base);
-      console.log('Permisos aplicados:', perms);
-  
       const omPayload = {};
       const sgPayload = {};
-  
-      // 1. Permisos básicos (o heredados por ser Dios)
+
+      // A. Permisos básicos (Estatus y Fechas de ejecución van 100% a OM_SG)
       if (perms.statusObs || perms.all || perms.godMode) {
-        // 👇 Movidos a OM_SG (sgPayload) respetando el schema
         sgPayload['Estatus'] = editState.estatus || null;
         sgPayload['Observaciones'] = editState.observaciones || null;
         sgPayload['Fecha conclusion'] = editState.fecha_conclusion || null;
         sgPayload.semana = editState.semana || null;
         sgPayload.fecha_ejecucion = editState.fecha_ejecucion || null; 
-  
-        // Se queda en OM_MANTENIMIENTO (si aún lo usas ahí)
-        omPayload['Fecha inicio'] = editState.fecha_inicio || null;
       }
-  
-      // 2. Permisos totales o Dios
+
+      // B. Permisos de gestión (Trabajo y Compras)
       if (perms.all || perms.godMode) {
-        // 👇 Datos que se quedan en ORDEN_MANTENIMIENTO
+        // Compras se queda en la orden base
         omPayload['Tiene solicitud de compra?'] = editState.tiene_compra === 'true';
         omPayload['N° solicitud'] = editState.n_solicitud || null;
         omPayload['N° Orden de compra'] = editState.n_oc || null;
-  
-        // 👇 Datos que van a OM_SG
+
+        // Gestión de SG va a OM_SG
         sgPayload.tipo_trabajo = editState.tipo_trabajo || null;
         sgPayload.estimacion_horas = parseInt(editState.estimacion_horas, 10) || null;
         sgPayload.solicitar_personal = editState.solicitar_personal || null;
         sgPayload.fecha_entrega = editState.fecha_entrega || null; 
       }
-  
-      // 3. PERMISOS EXCLUSIVOS DE "ALL" (God Mode)
+
+      // C. God Mode (Info Core del Equipo en ORDEN_MANTENIMIENTO)
       if (perms.godMode) {
         omPayload['Área'] = editState.area_om || null;
         omPayload['ID_#EQUIPO'] = editState.equipo || null;
@@ -105,15 +84,11 @@ const SGService = (() => {
         omPayload['Sistema'] = editState.sistema || null;
         omPayload['Descripcion'] = editState.descripcion || null;
       }
-  
-      console.log('Payload OM a enviar:', omPayload);
-      console.log('Payload SG a enviar:', sgPayload);
-  
+
       if (Object.keys(omPayload).length === 0 && Object.keys(sgPayload).length === 0) {
-         console.warn('Los permisos bloquearon la actualización. No se enviaron datos.');
          return { ok: false, error: 'Sin permisos para editar.' };
       }
-  
+
       const tasks = [];
       
       if (Object.keys(omPayload).length > 0) {
@@ -133,29 +108,31 @@ const SGService = (() => {
             .select() 
         );
       }
-  
+
       const results = await Promise.all(tasks);
       
       for (let res of results) {
         if (res.error) throw res.error;
-        if (!res.data || res.data.length === 0) {
-          throw new Error('Supabase no actualizó ninguna fila. Verifica RLS en la tabla.');
-        }
       }
-  
-      // Actualizar la caché local
+
+      // D. ACTUALIZAR CACHÉ (Fusionamos los payloads directamente en memoria)
       const cacheIndex = _sgCache.findIndex(item => item.id_sg === id_sg);
       if (cacheIndex !== -1) {
         const cachedItem = _sgCache[cacheIndex];
-        if (Object.keys(omPayload).length > 0) {
-          cachedItem.ORDEN_MANTENIMIENTO = { ...cachedItem.ORDEN_MANTENIMIENTO, ...omPayload };
-        }
+        
+        // Lo que es de OM_SG va a la raíz del objeto
         if (Object.keys(sgPayload).length > 0) {
           Object.assign(cachedItem, sgPayload);
         }
+        
+        // Lo que es de ORDEN_MANTENIMIENTO va al objeto anidado
+        if (Object.keys(omPayload).length > 0) {
+          cachedItem.ORDEN_MANTENIMIENTO = { ...cachedItem.ORDEN_MANTENIMIENTO, ...omPayload };
+        }
+        
         _sgCache[cacheIndex] = cachedItem;
       }
-  
+
       return { ok: true, data: _sgCache[cacheIndex] };
       
     } catch (err) {
@@ -163,7 +140,8 @@ const SGService = (() => {
       return { ok: false, error: err.message || err };
     }
   }
-  // Crear una SG Manual
+
+  // 3. CREAR SG MANUAL
   async function createManualSG(baseData, sgData) {
     try {
       baseData.IS_SG = true;
@@ -177,6 +155,7 @@ const SGService = (() => {
       if (baseError) throw baseError;
 
       sgData.id_orden_base = baseResult['ID_Orden mantenimiento'];
+      sgData.Estatus = sgData.Estatus || 'Programado'; // Aseguramos estatus inicial
 
       const { data: sgResult, error: sgError } = await db
         .from('OM_SG')
@@ -196,20 +175,19 @@ const SGService = (() => {
       };
 
       _sgCache.unshift(nuevaSG);
-
       return { ok: true, data: nuevaSG };
     } catch (err) {
       console.error('[SGService] Error createManualSG:', err);
       return { ok: false, error: err };
     }
   }
-  // Crear una SG Automática (Asociada a una orden existente)
+
+  // 4. CREAR SG AUTOMÁTICA
   async function createAutoSG(id_orden_existente, sgData) {
     try {
-      // 1. Asignar el ID de la orden base que ya existe
       sgData.id_orden_base = id_orden_existente;
+      sgData.Estatus = sgData.Estatus || 'Programado'; // Aseguramos estatus inicial
 
-      // 2. Insertar SOLO en la tabla OM_SG
       const { data: sgResult, error: sgError } = await db
         .from('OM_SG')
         .insert([sgData])
@@ -218,12 +196,10 @@ const SGService = (() => {
 
       if (sgError) throw sgError;
 
-      // Opcional pero recomendado: Actualizar la orden base para marcarla como SG
       await db.from('ORDEN_MANTENIMIENTO')
         .update({ IS_SG: true })
         .eq('ID_Orden mantenimiento', id_orden_existente);
 
-      // 3. Consultar la orden base para armar el objeto completo para la caché
       const { data: baseResult } = await db
         .from('ORDEN_MANTENIMIENTO')
         .select('*')
@@ -236,9 +212,7 @@ const SGService = (() => {
         fecha_solicitud: new Date().toLocaleString('es-PA', { timeZone: 'America/Panama' }) 
       };
 
-      // 4. Agregar a la caché local
       _sgCache.unshift(nuevaSG);
-
       return { ok: true, data: nuevaSG };
     } catch (err) {
       console.error('[SGService] Error createAutoSG:', err);
@@ -246,7 +220,7 @@ const SGService = (() => {
     }
   }
 
-
+  // UTILIDADES
   function generarIdMantenimiento({ area, equipo, item, sistema }) {
     const getFirst = (str) => (str || '').charAt(0).toUpperCase();
     const prefijo = `SG-${getFirst(area)}${getFirst(equipo)}${getFirst(item)}${getFirst(sistema)}`;
@@ -259,7 +233,7 @@ const SGService = (() => {
     return _sgCache;
   }
 
-  return { fetchSGs, updateSG, createManualSG, generarIdMantenimiento, getCache,createAutoSG };
+  return { fetchSGs, updateSG, createManualSG, generarIdMantenimiento, getCache, createAutoSG };
 })();
 
 window.SGService = SGService;

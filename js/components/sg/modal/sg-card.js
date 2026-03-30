@@ -14,7 +14,10 @@ const SGCardComponent = (() => {
 
   function render(sg) {
     const om = sg.ORDEN_MANTENIMIENTO || {};
-    const estatus = om.Estatus || 'Programado';
+    
+    // 👇 CAMBIO CLAVE: Leemos Estatus y Observaciones desde la raíz (OM_SG)
+    const estatus = sg.Estatus || 'Programado';
+    const observaciones = sg.Observaciones || '';
     
     // Convertimos el objeto a un string base64 o inyectamos el ID para recuperarlo
     const dataString = encodeURIComponent(JSON.stringify(sg));
@@ -25,7 +28,8 @@ const SGCardComponent = (() => {
           <div class="sg-card-title-comp">${om.Descripcion || 'Sin descripción'}</div>
           <div class="sg-card-id-comp">${om['ID_#EQUIPO'] || 'N/A'}</div>
         </div>
-        ${om.Observaciones ? `<div style="font-size:0.85rem; color:#4B5563;"><strong>Obs:</strong> ${om.Observaciones}</div>` : ''}
+        
+        ${observaciones ? `<div style="font-size:0.85rem; color:#4B5563;"><strong>Obs:</strong> ${observaciones}</div>` : ''}
         
         <div class="sg-card-footer-comp">
           <span style="display:flex; align-items:center; gap:0.3rem;">
@@ -53,8 +57,8 @@ const SGCardComponent = (() => {
       
       const payload = card.getAttribute('data-sg-payload');
       if (payload) {
-        const sg = JSON.parse(decodeURIComponent(payload));
-        onCardClick(sg);
+        const sgObj = JSON.parse(decodeURIComponent(payload));
+        onCardClick(sgObj);
       }
     });
   }

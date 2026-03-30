@@ -78,8 +78,8 @@ const SGModalComponent = (() => {
     const om = _currentSG.ORDEN_MANTENIMIENTO || {};
     
     _editState = {
-      estatus: om.Estatus || 'Programado',
-      observaciones: om.Observaciones || '',
+      estatus: _currentSG.Estatus || 'Programado', // Ojo: ahora leemos de SG
+      observaciones: _currentSG.Observaciones || '', // Ojo: ahora leemos de SG
       tipo_trabajo: _currentSG.tipo_trabajo || '',
       estimacion_horas: _currentSG.estimacion_horas || '',
       solicitar_personal: _currentSG.solicitar_personal || '',
@@ -87,9 +87,9 @@ const SGModalComponent = (() => {
       tiene_compra: om['Tiene solicitud de compra?'] ? 'true' : 'false',
       n_solicitud: om['N° solicitud'] || '',
       n_oc: om['N° Orden de compra'] || '',
-      fecha_inicio: om['Fecha inicio'] || '',
-      fecha_conclusion: om['Fecha conclusion'] || '',
-      semana: om.Semana || '',
+      fecha_ejecucion: _currentSG.fecha_ejecucion || '', // <-- CAMBIO AQUÍ
+      fecha_conclusion: _currentSG['Fecha conclusion'] || '', // <-- CAMBIO AQUÍ
+      semana: _currentSG.semana || '', // <-- CAMBIO AQUÍ
       
       area_om: om['Área'] || '',
       equipo: om['ID_#EQUIPO'] || '',
@@ -115,18 +115,19 @@ const SGModalComponent = (() => {
     if (_editState.estatus === 'Concluida') {
       try {
         const db = window.SupabaseClient;
-        const idOrden = _currentSG.ORDEN_MANTENIMIENTO['ID_Orden mantenimiento'];
         
+        // <-- CAMBIO: Consultamos OM_SG en lugar de ORDEN_MANTENIMIENTO
         const { data, error } = await db
-          .from('ORDEN_MANTENIMIENTO')
-          .select('"Fecha inicio"')
-          .eq('ID_Orden mantenimiento', idOrden)
+          .from('OM_SG')
+          .select('fecha_ejecucion')
+          .eq('id_sg', _currentSG.id_sg)
           .single();
           
         if (error) throw error;
 
-        if (!data['Fecha inicio'] && !_editState.fecha_inicio) {
-          window.ToastService?.show('No se puede concluir: La orden no tiene Fecha de Inicio registrada.', 'warning');
+        // <-- CAMBIO: Validamos fecha_ejecucion
+        if (!data.fecha_ejecucion && !_editState.fecha_ejecucion) {
+          window.ToastService?.show('No se puede concluir: La orden no tiene Fecha de Ejecución registrada.', 'warning');
           btn.disabled = false;
           btn.innerHTML = btnOriginalHTML;
           return; 
@@ -344,7 +345,7 @@ const SGModalComponent = (() => {
         <div class="ot-modal-section">
           <div class="ot-modal-section-title">Fechas y Planificación</div>
           <div class="ot-modal-grid">
-            <div class="ot-modal-field"><div class="ot-modal-label">Semana</div><div class="ot-modal-val" id="disp-semana">${v('semana', om.Semana || '—')}</div></div>
+            <div class="ot-modal-field"><div class="ot-modal-label">Semana</div><div class="ot-modal-val" id="disp-semana">${v('semana', sg.semana || '—')}</div></div>
             
             ${_editMode && canEditFull 
               ? SGUI.EditableField({ id: 'edit-fecha_entrega', label: 'Fecha Entrega Esperada', value: v('fecha_entrega', fechaEntregaReal), type: 'date', isEditMode: true, canEdit: true })
@@ -359,8 +360,8 @@ const SGModalComponent = (() => {
               `
             }
             
-            <div class="ot-modal-field"><div class="ot-modal-label">Fecha Inicio (OM)</div><div class="ot-modal-val" id="disp-fecha-inicio">${formatDate(v('fecha_inicio', om['Fecha inicio']))}</div></div>
-            <div class="ot-modal-field"><div class="ot-modal-label">Fecha Conclusión (OM)</div><div class="ot-modal-val" id="disp-fecha-conclusion">${formatDate(v('fecha_conclusion', om['Fecha conclusion']))}</div></div>
+            <div class="ot-modal-field"><div class="ot-modal-label">Fecha Ejecución (SG)</div><div class="ot-modal-val" id="disp-fecha-ejecucion">${formatDate(v('fecha_ejecucion', sg.fecha_ejecucion))}</div></div>
+            <div class="ot-modal-field"><div class="ot-modal-label">Fecha Conclusión (SG)</div><div class="ot-modal-val" id="disp-fecha-conclusion">${formatDate(v('fecha_conclusion', sg['Fecha conclusion']))}</div></div>
           </div>
         </div>
 
@@ -463,9 +464,9 @@ const SGModalComponent = (() => {
           const panamaTime = _getPanamaNow();
 
           if (nuevoEstado === 'En Proceso') {
-            if (!_editState.fecha_inicio) _editState.fecha_inicio = panamaTime.timestamp;
+            if (!_editState.fecha_ejecucion) _editState.fecha_ejecucion = panamaTime.timestamp;
             if (!_editState.semana) _editState.semana = String(_getWeekNumber(panamaTime.dateObj));
-            _editState.fecha_conclusion = ''; 
+            _editState.fecha_conclusion = '';
 
           } else if (nuevoEstado === 'Concluida') {
             if (!_editState.fecha_conclusion) _editState.fecha_conclusion = panamaTime.timestamp;
@@ -474,17 +475,17 @@ const SGModalComponent = (() => {
             _editState.fecha_conclusion = ''; 
             
           } else if (nuevoEstado === 'Programado') {
-            _editState.fecha_inicio = '';
+            _editState.fecha_ejecucion = '';
             _editState.semana = '';
             _editState.fecha_conclusion = '';
           }
 
           const dispSemana = document.getElementById('disp-semana');
-          const dispInicio = document.getElementById('disp-fecha-inicio');
+          const dispEjecucion = document.getElementById('disp-fecha-ejecucion');
           const dispConclusion = document.getElementById('disp-fecha-conclusion');
 
           if (dispSemana) dispSemana.innerText = _editState.semana || '—';
-          if (dispInicio) dispInicio.innerText = formatDate(_editState.fecha_inicio);
+          if (dispEjecucion) dispEjecucion.innerText = formatDate(_editState.fecha_ejecucion);
           if (dispConclusion) dispConclusion.innerText = formatDate(_editState.fecha_conclusion);
         }
       });
