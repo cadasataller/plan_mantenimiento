@@ -7,11 +7,13 @@ const SGModalComponent = (() => {
   let _editMode = false;
   let _editState = {};
   let _perms = { statusObs: false, all: false, godMode: false };
+  let _activeTab = 'info'; // <-- NUEVO: Control de pestañas
 
   function open(sg) {
     _currentSG = sg;
     _editMode = false;
     _editState = {};
+    _activeTab = 'info';
     _calcularPermisos(sg);
 
     const root = document.getElementById('sg-modal-root'); 
@@ -19,6 +21,7 @@ const SGModalComponent = (() => {
     
     _renderShell(sg);
     _renderContent();
+    loadOTs(sg, true); // <-- NUEVO: Carga las OTs en segundo plano
     
     document.body.style.overflow = 'hidden'; 
   }
@@ -28,6 +31,10 @@ const SGModalComponent = (() => {
     
     const root = document.getElementById('sg-modal-root');
     const bd = document.getElementById('sg-backdrop');
+    
+    // <-- NUEVO: Limpiamos el componente de OTs para que no se dupliquen eventos
+    if (window.OTTabComponent) window.OTTabComponent.destroy();
+
     _currentSG = null;
     _editMode = false;
     _editState = {};
@@ -250,11 +257,25 @@ const SGModalComponent = (() => {
             </div>
           </div>
 
-          <div class="ot-modal-tabs">
-            <div class="ot-modal-tab active">Información General</div>
+          <div class="ot-modal-tabs" id="sg-modal-tabs">
+            <div class="ot-modal-tab active" data-tab="info">
+               Información General
+            </div>
+            <div class="ot-modal-tab" data-tab="ots">
+               Órdenes de Trabajo 
+               <span class="dash-tab-badge" id="sg-modal-ot-badge" style="display:none">0</span>
+            </div>
           </div>
 
-          <div class="ot-modal-body" id="sg-dynamic-body"></div>
+          <div class="ot-modal-body">
+            <div class="ot-modal-tab-panel active" id="sg-tab-info"></div>
+            <div class="ot-modal-tab-panel" id="sg-tab-ots">
+               <div id="sg-ots-content" style="padding: 1rem;">
+                 <div class="ot-work-loading"><div class="spinner"></div> Cargando órdenes de trabajo…</div>
+               </div>
+            </div>
+          </div>
+          
           <div class="ot-modal-footer" id="sg-dynamic-footer"></div>
 
         </div>
@@ -265,10 +286,16 @@ const SGModalComponent = (() => {
     document.getElementById('sg-backdrop')?.addEventListener('click', e => {
       if (e.target === e.currentTarget) close();
     });
+
+    // Evento para cambiar de pestaña
+    document.getElementById('sg-modal-tabs')?.addEventListener('click', e => {
+      const tab = e.target.closest('[data-tab]');
+      if (tab) switchTab(tab.dataset.tab);
+    });
   }
 
   function _renderContent() {
-    const bodyContainer = document.getElementById('sg-dynamic-body');
+    const bodyContainer = document.getElementById('sg-tab-info');
     const footerContainer = document.getElementById('sg-dynamic-footer');
     if (!bodyContainer || !footerContainer) return;
 
@@ -300,7 +327,6 @@ const SGModalComponent = (() => {
     const canEditFull = _perms.all || _perms.godMode;
 
     bodyContainer.innerHTML = `
-      <div class="ot-modal-tab-panel active">
         
         ${_editMode ? `<div style="background:#E0F2FE; color:#0284C7; padding:0.5rem 1rem; border-radius:6px; margin-bottom:1rem; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:0.5rem;">${SGUI.Icon('edit')} Modo edición activo ${(_perms.godMode) ? '(Acceso ALL)' : ''}</div>` : ''}
 
@@ -378,7 +404,6 @@ const SGModalComponent = (() => {
           </div>
         </div>
 
-      </div>
     `;
 
     footerContainer.innerHTML = `
@@ -500,6 +525,57 @@ const SGModalComponent = (() => {
           _editState[key] = e.target.value;
         });
       });
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // PESTAÑAS Y CARGA DE OTs
+  // ══════════════════════════════════════════════════════════
+  function switchTab(tabId) {
+    _activeTab = tabId;
+    // Ocultar/Mostrar Pestañas (Botones)
+    document.querySelectorAll('#sg-modal-tabs .ot-modal-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.tab === tabId);
+    });
+    // Ocultar/Mostrar Paneles de contenido
+    document.querySelectorAll('.ot-modal-tab-panel').forEach(p => {
+      p.classList.toggle('active', p.id === `sg-tab-${tabId}`);
+    });
+  }
+
+  async function loadOTs(sg, authenticated) {
+    const om = sg.ORDEN_MANTENIMIENTO || {};
+    
+    const mappedOM = {
+      ...om,
+      ID_Orden: om['ID_Orden mantenimiento'], // Para visualización en el Tab
+      Area: om['Área'],
+      Descripcion: om.Descripcion,
+      ID_EQUIPO: om['ID_#EQUIPO'],
+      
+      // 👇 NUEVO: Banderas clave para que el Store sepa cómo buscar
+      IS_SG: true, 
+      id_sg: sg.id_sg 
+    };
+
+    if (!window.OTWorkStore || !window.OTTabComponent) {
+      console.warn("Componentes de OTs no encontrados.");
+      return;
+    }
+
+    // 👇 CAMBIO VITAL: Ahora le pasamos sg.id_sg (el UUID) como primer parámetro
+    const ots = await window.OTWorkStore.getForOM(sg.id_sg, mappedOM, authenticated);
+    
+    const badge = document.getElementById('sg-modal-ot-badge');
+    if (badge) {
+      badge.textContent = ots.length;
+      badge.style.display = 'inline-block';
+    }
+    
+    const otsEl = document.getElementById('sg-ots-content');
+    if (otsEl) {
+      window.OTTabComponent.init('sg-ots-content', mappedOM, ots, () => {}); 
+      window.OTTabComponent.bindEvents();
     }
   }
 

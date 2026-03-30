@@ -42,13 +42,26 @@ const OTWorkStore = (() => {
   }
 
   // ── Fetch desde Supabase ─────────────────────────────────
-  async function _fetchFromSupabase(omId) {
+  async function _fetchFromSupabase(omId, isSG = false) {
     const db = window.SupabaseClient;
 
-    const { data, error } = await db
+    // 1. Iniciamos la consulta base
+    let query = db
       .from('ORDEN_TRABAJO')
-      .select('*')
-      .eq('ID_Orden mantenimiento', String(omId));
+      .select('*');
+
+    // 2. Evaluamos qué columna usar según tu Constraint de base de datos
+    if (isSG) {
+      // Si es de Servicios Generales, filtramos por la nueva columna id_sg
+      query = query.eq('id_sg', String(omId));
+    } else {
+      // Si es normal, usamos la columna que ya tenías
+      // (Si en tu DB ahora se llama 'id_om', cámbialo aquí. Si no, déjalo tal cual)
+      query = query.eq('id_om', String(omId)); 
+    }
+
+    // 3. Ejecutamos la consulta
+    const { data, error } = await query;
 
     if (error) throw new Error(error.message);
 
@@ -63,7 +76,8 @@ const OTWorkStore = (() => {
 
     let ots;
     try {
-      ots = await _fetchFromSupabase(omId);
+      // 👇 CAMBIO: Le pasamos la bandera IS_SG a la consulta
+      ots = await _fetchFromSupabase(omId, omRow?.IS_SG);
     } catch (err) {
       console.warn('[OTWorkStore] Supabase falló, usando mock:', err.message);
       ots = typeof MockOTService !== 'undefined'
