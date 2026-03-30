@@ -490,7 +490,7 @@ const ModalComponent = (() => {
   }
 
   async function loadOTs(om, authenticated) {
-    omRow?.IS_SG=false;
+    om.IS_SG=false;
     const ots = await OTWorkStore.getForOM(om.ID_Orden, om, authenticated);
     const badge = document.getElementById('modal-ot-badge');
     if (badge) { badge.textContent = ots.length; badge.style.display = 'inline'; }
