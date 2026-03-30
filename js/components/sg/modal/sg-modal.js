@@ -50,7 +50,9 @@ const SGModalComponent = (() => {
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
     const om = sg.ORDEN_MANTENIMIENTO || {};
     const omArea = String(om['Área'] || '').trim().toUpperCase();
-    const estatus = String(om.Estatus || 'Programado').trim().toUpperCase();
+    
+    // 👇 Leemos el estatus desde OM_SG
+    const estatus = String(sg.Estatus || 'Programado').trim().toUpperCase();
 
     if (uArea === 'ALL') {
       _perms.godMode = true;
@@ -60,7 +62,6 @@ const SGModalComponent = (() => {
     } else if (uArea === omArea) {
       if (estatus === 'PROGRAMADO') {
         _perms.all = true;
-        _perms.statusObs = true; 
       }
     }
   }
@@ -278,7 +279,9 @@ const SGModalComponent = (() => {
     const fechaEntregaReal = sg.fecha_entrega || om['Fecha Entrega'];
 
     const headerBadge = document.getElementById('sg-modal-header-badge');
-    if (headerBadge) headerBadge.innerHTML = SGUI.Badge(v('estatus', om.Estatus || sg.estado));
+    
+    // 👇 CAMBIO 1: Leemos el estatus desde sg.Estatus
+    if (headerBadge) headerBadge.innerHTML = SGUI.Badge(v('estatus', sg.Estatus || 'Programado'));
 
     const estatusOptions = [
       { value: 'Programado', label: 'Programado' },
@@ -320,8 +323,9 @@ const SGModalComponent = (() => {
         <div class="ot-modal-section">
           <div class="ot-modal-section-title">Estado y Observaciones</div>
           <div class="ot-modal-grid">
-            ${SGUI.StatusPicker({ id: 'edit-estatus', label: 'Estatus', value: v('estatus', om.Estatus), options: estatusOptions, isEditMode: _editMode, canEdit: _perms.statusObs })}
-            ${SGUI.EditableField({ id: 'edit-observaciones', label: 'Observaciones', value: v('observaciones', om.Observaciones), type: 'textarea', placeholder: 'Notas de Servicios Generales...', isEditMode: _editMode, canEdit: _perms.statusObs, fullWidth: true })}
+            ${SGUI.StatusPicker({ id: 'edit-estatus', label: 'Estatus', value: v('estatus', sg.Estatus || 'Programado'), options: estatusOptions, isEditMode: _editMode, canEdit: _perms.statusObs })}
+            
+            ${SGUI.EditableField({ id: 'edit-observaciones', label: 'Observaciones', value: v('observaciones', sg.Observaciones || ''), type: 'textarea', placeholder: 'Notas de Servicios Generales...', isEditMode: _editMode, canEdit: _perms.statusObs, fullWidth: true })}
           </div>
         </div>
 

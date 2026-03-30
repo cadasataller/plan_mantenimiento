@@ -54,7 +54,7 @@ const SGService = (() => {
       const sgPayload = {};
 
       // A. Permisos básicos (Estatus y Fechas de ejecución van 100% a OM_SG)
-      if (perms.statusObs || perms.all || perms.godMode) {
+      if (perms.statusObs) {
         sgPayload['Estatus'] = editState.estatus || null;
         sgPayload['Observaciones'] = editState.observaciones || null;
         sgPayload['Fecha conclusion'] = editState.fecha_conclusion || null;
