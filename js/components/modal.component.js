@@ -165,7 +165,7 @@ const ModalComponent = (() => {
     const om     = _currentOM;
     const omSC   = omStatusClass(om.Estatus);
     const eIdx   = ETAPA_IDX[om.TipoProceso] ?? 'x';
-    const isSG   = om.IS_SG === true;
+    const isSG   = false;
 
     // Verificar Rol
     const user = window.AuthService?.getUser() || {};
