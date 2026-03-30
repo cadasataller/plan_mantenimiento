@@ -235,6 +235,13 @@ const SGModalComponent = (() => {
     const root = document.getElementById('sg-modal-root');
     const om = sg.ORDEN_MANTENIMIENTO || {};
 
+    // 👇 OBTENEMOS EL ÁREA DEL USUARIO LOGUEADO
+    const user = window.AuthService?.getUser() || {};
+    const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+    
+    // 👇 DEFINIMOS SI TIENE PERMISO PARA VER OTs
+    const puedeVerOTs = uArea === 'ALL' || uArea === 'SERVICIOS GENERALES';
+
     root.innerHTML = `
       <div class="ot-modal-backdrop" id="sg-backdrop" style="opacity: 1; transition: opacity 0.2s ease;">
         <div class="ot-modal" role="dialog" aria-modal="true">
@@ -261,19 +268,25 @@ const SGModalComponent = (() => {
             <div class="ot-modal-tab active" data-tab="info">
                Información General
             </div>
-            <div class="ot-modal-tab" data-tab="ots">
-               Órdenes de Trabajo 
-               <span class="dash-tab-badge" id="sg-modal-ot-badge" style="display:none">0</span>
-            </div>
+            
+            ${puedeVerOTs ? `
+              <div class="ot-modal-tab" data-tab="ots">
+                 Órdenes de Trabajo 
+                 <span class="dash-tab-badge" id="sg-modal-ot-badge" style="display:none">0</span>
+              </div>
+            ` : ''}
           </div>
 
           <div class="ot-modal-body">
             <div class="ot-modal-tab-panel active" id="sg-tab-info"></div>
-            <div class="ot-modal-tab-panel" id="sg-tab-ots">
-               <div id="sg-ots-content" style="padding: 1rem;">
-                 <div class="ot-work-loading"><div class="spinner"></div> Cargando órdenes de trabajo…</div>
-               </div>
-            </div>
+            
+            ${puedeVerOTs ? `
+              <div class="ot-modal-tab-panel" id="sg-tab-ots">
+                 <div id="sg-ots-content" style="padding: 1rem;">
+                   <div class="ot-work-loading"><div class="spinner"></div> Cargando órdenes de trabajo…</div>
+                 </div>
+              </div>
+            ` : ''}
           </div>
           
           <div class="ot-modal-footer" id="sg-dynamic-footer"></div>
@@ -472,7 +485,7 @@ const SGModalComponent = (() => {
         const nuevoEstado = btn.getAttribute('data-sg-status');
         if (_editState.estatus !== nuevoEstado) {
 
-          if (nuevoEstado === 'Concluida' && !_editState.fecha_inicio) {
+          if (nuevoEstado === 'Concluida' && !_editState.fecha_ejecucion) {
             if (window.ToastService) {
               window.ToastService.show('Debe iniciar la orden (estado "En Proceso") antes de poder concluirla.', 'warning');
             } else {
@@ -544,6 +557,9 @@ const SGModalComponent = (() => {
   }
 
   async function loadOTs(sg, authenticated) {
+    const user = window.AuthService?.getUser() || {};
+    const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+    if (uArea !== 'ALL' && uArea !== 'SERVICIOS GENERALES') return; // No carga nada
     const om = sg.ORDEN_MANTENIMIENTO || {};
     
     const mappedOM = {
