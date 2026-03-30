@@ -28,7 +28,8 @@ const OTWorkStore = (() => {
 
     return {
       ID_RowNumber:  row['ID_OT']                        ?? '',
-      ID_OrdenMant:  row['ID_Orden mantenimiento']       ?? '',
+      id_om:         row['id_om'] ?? null,
+      id_sg:         row['id_sg'] ?? null,
       ID_Mecanico:   row['ID_Mecanico']                  ?? '',
       EquipoTrabajo: row['Equipo de trabajo']            ?? '',
       Fecha:         fechaDisplay,

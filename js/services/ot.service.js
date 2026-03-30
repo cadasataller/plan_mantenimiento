@@ -104,8 +104,7 @@ const OTService = (() => {
       ? (data.Fecha.length === 10 ? data.Fecha + 'T00:00:00' : data.Fecha)
       : new Date().toISOString();
 
-    return {
-      'ID_Orden mantenimiento': String(omId),
+    const payload = {
       'Fecha':                  fechaISO,
       'ID_Mecanico':            data.ID_Mecanico,
       'Duración (horas)':       data.Duracion        ?? 0,
@@ -115,6 +114,19 @@ const OTService = (() => {
       'Comentario':             data.Comentario      ?? '',
       'Semana':                 data.Semana != null  ? String(data.Semana) : null,
     };
+
+    // 👇 LA MAGIA: Asignar la FK correcta según lo que mandó OTTabComponent
+    if (data.id_sg) {
+      payload['id_sg'] = data.id_sg;
+    } else if (data.id_om) {
+      payload['id_om'] = data.id_om;
+    } else {
+      // Fallback por si acaso algún otro componente no manda ni id_om ni id_sg
+      // (Asumimos que omId es de la tabla ORDEN_MANTENIMIENTO)
+      payload['id_om'] = String(omId); 
+    }
+
+    return payload;
   }
 
   function _mapToDBUpdate(data) {
@@ -133,7 +145,8 @@ const OTService = (() => {
     if (data.Causa          !== undefined) out['Causa']             = data.Causa;
     if (data.Comentario     !== undefined) out['Comentario']        = data.Comentario;
     if (data.Semana         !== undefined) out['Semana']            = data.Semana != null ? String(data.Semana) : null;
-
+    if (data.id_om !== undefined) out['id_om'] = data.id_om;
+    if (data.id_sg !== undefined) out['id_sg'] = data.id_sg;
     return out;
   }
 
@@ -151,15 +164,18 @@ const OTService = (() => {
 
     return {
       ID_RowNumber:  row['ID_OT'],
-      ID_OrdenMant:  row['ID_Orden mantenimiento'] ?? '',
-      ID_Mecanico:   row['ID_Mecanico']            ?? '',
+      // Leemos ambas posibles llaves foráneas:
+      id_om:         row['id_om'] ?? null,
+      id_sg:         row['id_sg'] ?? null,
+      
+      ID_Mecanico:   row['ID_Mecanico']    ?? '',
       Fecha:         fechaDisplay,
       Duracion:      parseFloat(row['Duración (horas)']) || 0,
-      Estatus:       row['Estatus']                ?? 'Retrasado',
+      Estatus:       row['Estatus']        ?? 'Retrasado',
       Retraso:       parseFloat(row['Retraso (horas)'])  || 0,
-      Causa:         row['Causa']                  ?? '',
-      Comentario:    row['Comentario']             ?? '',
-      Semana:        row['Semana']                 ?? null,
+      Causa:         row['Causa']          ?? '',
+      Comentario:    row['Comentario']     ?? '',
+      Semana:        row['Semana']         ?? null,
     };
   }
 
