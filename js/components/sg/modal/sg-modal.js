@@ -140,6 +140,19 @@ const SGModalComponent = (() => {
           btn.innerHTML = btnOriginalHTML;
           return; 
         }
+
+        const idBusqueda = _currentSG.id_sg;
+        const todasLasOTs = OTWorkStore.getOTsByOM(idBusqueda);
+
+        // 2. Filtramos las que NO están concluidas
+        const pendientes = todasLasOTs.filter(ot => ot.Estatus !== 'Concluida');
+        if (pendientes.length > 0) {
+          const msg = `No se puede concluir: Faltan ${pendientes.length} tareas por terminar.`;
+          if (window.ToastService) ToastService.show(msg, 'warning');
+          else alert(msg);
+          
+          return; 
+        }
       } catch (err) {
         console.error('Error al consultar Supabase:', err);
         window.ToastService?.show('Error al validar la orden en la base de datos.', 'danger');
@@ -310,7 +323,7 @@ const SGModalComponent = (() => {
   function _renderContent() {
     const bodyContainer = document.getElementById('sg-tab-info');
     const footerContainer = document.getElementById('sg-dynamic-footer');
-    if (!bodyContainer || !footerContainer) return;
+    if (!bodyContainer) return;
 
     const sg = _currentSG;
     const om = sg.ORDEN_MANTENIMIENTO || {};
@@ -419,6 +432,21 @@ const SGModalComponent = (() => {
 
     `;
 
+    _refreshFooter();
+  }
+
+  function _refreshFooter() {
+    const footerContainer = document.getElementById('sg-dynamic-footer');
+    if (!footerContainer) return;
+
+    const sg = _currentSG;
+    
+    // 👇 REGLA: Si no estamos en la pestaña 'info', el footer solo muestra "Cerrar"
+    if (_activeTab !== 'info') {
+      return;
+    }
+
+    // 👇 Si estamos en 'info', usamos la lógica original de editar/guardar
     footerContainer.innerHTML = `
       <div class="ot-modal-footer-left">
         <span style="font-size:0.72rem;color:var(--text-muted);">Registrado: ${sg.fecha_solicitud || '—'}</span>
@@ -440,9 +468,9 @@ const SGModalComponent = (() => {
       </div>
     `;
 
+    // Re-vincular eventos del footer
     _bindDynamicEvents();
   }
-
   function _bindDynamicEvents() {
     document.getElementById('btn-sg-modal-cerrar')?.addEventListener('click', close);
     document.getElementById('btn-sg-modal-edit')?.addEventListener('click', _enterEditMode);
@@ -546,16 +574,18 @@ const SGModalComponent = (() => {
   // ══════════════════════════════════════════════════════════
   function switchTab(tabId) {
     _activeTab = tabId;
-    // Ocultar/Mostrar Pestañas (Botones)
+    
     document.querySelectorAll('#sg-modal-tabs .ot-modal-tab').forEach(t => {
       t.classList.toggle('active', t.dataset.tab === tabId);
     });
-    // Ocultar/Mostrar Paneles de contenido
+    
     document.querySelectorAll('.ot-modal-tab-panel').forEach(p => {
       p.classList.toggle('active', p.id === `sg-tab-${tabId}`);
     });
+    
+    // 👇 LLAMADA CLAVE: Limpia o pone los botones según la pestaña
+    _refreshFooter();
   }
-
   async function loadOTs(sg, authenticated) {
     const user = window.AuthService?.getUser() || {};
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
