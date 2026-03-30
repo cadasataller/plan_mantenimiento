@@ -39,8 +39,8 @@ const DashboardComponent = (() => {
 
     if (uArea === 'SERVICIOS GENERALES') {
       // Si es de SG, ocultamos la pestaña 'sg' y forzamos 'ordenes' como activa
-      _activeTab = 'ordenes';
-      return TABS.filter(t => t.id !== 'sg');
+      _activeTab = 'sg';
+      return TABS.filter(t => t.id !== 'ordenes');
     }
 
     return TABS;
