@@ -472,6 +472,7 @@ const ModalComponent = (() => {
       _refreshInfoPanel();
       _refreshFooter();
       _refreshHeaderBadge();
+      OTComponent._updateGauge();
     } else {
       if(resultado.error){ ToastService?.show(resultado.error, 'danger'); }
       else{ ToastService?.show('Error al guardar. Intenta de nuevo.', 'danger'); }

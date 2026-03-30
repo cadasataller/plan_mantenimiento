@@ -253,8 +253,10 @@ const OTComponent = (() => {
 
     const rows      = _getSearchRows();
     const total     = rows.length;
-    const completed = rows.filter(r => r.Estatus === 'Completado').length;
+    const completed = rows.filter(r => r.Estatus === 'Concluida').length;
     const pct       = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    console.log(pct)
 
     const dom = document.getElementById('ot-gauge-chart');
     if (!dom) return;
@@ -266,6 +268,9 @@ const OTComponent = (() => {
 
     const option = {
       backgroundColor: 'transparent',
+      animationDuration: 1500,      // Duración del movimiento en milisegundos
+      animationEasing: 'quarticOut', // Tipo de suavizado (quarticOut es muy elegante)
+      animationDurationUpdate: 1000,
       series: [
         // Arco de fondo (gris claro)
         {
@@ -653,5 +658,6 @@ const OTComponent = (() => {
     _applyPreset, _clearGroups,
     _goPage, _goTablePage,
     _filterByKPI,
+    _updateGauge
   };
 })();
