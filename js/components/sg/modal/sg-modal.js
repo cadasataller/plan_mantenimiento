@@ -150,7 +150,8 @@ const SGModalComponent = (() => {
           const msg = `No se puede concluir: Faltan ${pendientes.length} tareas por terminar.`;
           if (window.ToastService) ToastService.show(msg, 'warning');
           else alert(msg);
-          
+          btn.disabled = false;
+          btn.innerHTML = btnOriginalHTML;
           return; 
         }
       } catch (err) {
@@ -441,8 +442,14 @@ const SGModalComponent = (() => {
 
     const sg = _currentSG;
     
-    // 👇 REGLA: Si no estamos en la pestaña 'info', el footer solo muestra "Cerrar"
+    // 👇 CORRECCIÓN: Ahora sí dibujamos el botón de Cerrar y vaciamos el resto
     if (_activeTab !== 'info') {
+      footerContainer.innerHTML = `
+        <div class="ot-modal-footer-left"></div>
+        <div class="ot-modal-footer-right" style="display:flex; gap:0.5rem;">
+        </div>
+      `;
+      _bindDynamicEvents(); // Volvemos a vincular para que el botón Cerrar funcione
       return;
     }
 
@@ -463,7 +470,6 @@ const SGModalComponent = (() => {
               ${SGUI.Icon('edit')} Editar
             </button>
           ` : ''}
-          <button class="btn-modal-secondary" id="btn-sg-modal-cerrar">Cerrar</button>
         `}
       </div>
     `;
@@ -471,6 +477,7 @@ const SGModalComponent = (() => {
     // Re-vincular eventos del footer
     _bindDynamicEvents();
   }
+  
   function _bindDynamicEvents() {
     document.getElementById('btn-sg-modal-cerrar')?.addEventListener('click', close);
     document.getElementById('btn-sg-modal-edit')?.addEventListener('click', _enterEditMode);
