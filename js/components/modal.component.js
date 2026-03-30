@@ -54,14 +54,14 @@ const ModalComponent = (() => {
     loadOTs(om, true);
 
     // 👇 NUEVO: Si es una orden de Servicios Generales, buscamos sus detalles extra
-    if (om.IS_SG) {
+    /*if (om.IS_SG) {
       try {
         const db = window.SupabaseClient;
         const { data } = await db.from('OM_SG').select('*').eq('id_orden_base', om.ID_Orden).single();
         _currentSGDetail = data || {};
         _refreshInfoPanel(); // Repintamos la pestaña de info con los datos nuevos
       } catch(e) { console.error('Error cargando detalle SG:', e); }
-    }
+    }*/
   }
 
   // ══════════════════════════════════════════════════════════
@@ -490,6 +490,7 @@ const ModalComponent = (() => {
   }
 
   async function loadOTs(om, authenticated) {
+    omRow?.IS_SG=false;
     const ots = await OTWorkStore.getForOM(om.ID_Orden, om, authenticated);
     const badge = document.getElementById('modal-ot-badge');
     if (badge) { badge.textContent = ots.length; badge.style.display = 'inline'; }
