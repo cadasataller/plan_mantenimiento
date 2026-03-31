@@ -355,12 +355,23 @@ const ModalComponent = (() => {
         </button>`;
     } else {
       let html = '';
+
+      
       
       if (enTabInfo && !isSGRole) {
         html += `
           <button class="btn-modal-secondary" id="btn-derivar-sg" style="color: #166534; border-color: #166534; display: flex; align-items: center; gap: 0.4rem;">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             Nueva OM SG
+          </button>`;
+      }
+
+      if (_currentOM.Estatus !== 'Concluida') {
+        html += `
+          <button class="btn-modal-primary" id="btn-quick-concluir" style="background:#166534; border-color:#166534;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Concluir Rápido
           </button>`;
       }
 
@@ -369,14 +380,6 @@ const ModalComponent = (() => {
           <button class="btn-modal-edit" id="btn-modal-edit">
             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Editar
-          </button>`;
-      }
-  
-      if (!enTabOTs) {
-        html += `
-          <button class="btn-modal-primary" id="btn-ver-ots">
-            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Ver OTs
           </button>`;
       }
 
@@ -396,6 +399,8 @@ const ModalComponent = (() => {
     if (id === 'btn-modal-edit')         _enterEditMode();
     if (id === 'btn-cancel-edit')        _cancelEdit();
     if (id === 'btn-save-edit')          _saveEdit();
+
+    if (id === 'btn-quick-concluir') _quickConcluirOM();
     
     if (id === 'btn-derivar-sg') {
       const omData = { ..._currentOM };
@@ -412,6 +417,56 @@ const ModalComponent = (() => {
     }
   }
 
+  async function _quickConcluirOM() {
+    const om = _currentOM;
+
+    // 1. Validar OTs pendientes
+    const ots = window.OTWorkStore?.getOTsByOM(om.ID_Orden) || [];
+    const pendientes = ots.filter(ot => ot.Estatus !== 'Concluida');
+    
+    if (pendientes.length > 0) {
+      const msg = `No se puede concluir: Faltan ${pendientes.length} OTs por terminar.`;
+      if (window.ToastService) window.ToastService.show(msg, 'warning');
+      else alert(msg);
+      return;
+    }
+
+    // 2. Preparar los datos
+    const hoyIso = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    const cambios = { estatus: 'Concluida', fechaConclusion: hoyIso };
+
+    // Si no tiene fecha de inicio, le asignamos la de hoy también
+    if (!om.FechaInicio || om.FechaInicio === '—' || om.FechaInicio.trim() === '') {
+      cambios.fechaInicio = hoyIso;
+    }
+
+    // 3. UI de "Cargando"
+    const btn = document.getElementById('btn-quick-concluir');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando...`;
+
+    // 4. Guardar en BD
+    const resultado = await OMService.actualizar(om, cambios);
+
+    if (resultado.ok) {
+      window.ToastService?.show('Orden concluida exitosamente.', 'success');
+      
+      // 5. Actualizar caché y UI local
+      _currentOM.Estatus = 'Concluida';
+      _currentOM.FechaConclusion = hoyIso;
+      if (cambios.fechaInicio) _currentOM.FechaInicio = hoyIso;
+
+      _refreshInfoPanel();
+      _refreshHeaderBadge();
+      _refreshFooter(); // Esto desaparecerá el botón de "Concluir Rápido"
+      
+    } else {
+      window.ToastService?.show('Error al concluir la orden.', 'danger');
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
   // ══════════════════════════════════════════════════════════
   // MODO EDICIÓN
   // ══════════════════════════════════════════════════════════

@@ -543,6 +543,14 @@ const SGModalComponent = (() => {
             ${SGUI.Icon('save')} Guardar Cambios
           </button>
         ` : `
+          ${/* 👇 NUEVO: Botón de Acción Rápida (Solo si NO está concluida y tiene permisos) */ ''}
+          ${(sg.Estatus !== 'Concluida' && (_perms.statusObs || _perms.all || _perms.godMode)) ? `
+            <button class="btn-modal-primary" id="btn-sg-quick-concluir" style="background:#166534; border-color:#166534;">
+              ${SGUI.Icon('save')} Concluir SG
+            </button>
+          ` : ''}
+
+          ${/* Botón original de Editar */ ''}
           ${(_perms.statusObs || _perms.all || _perms.godMode) ? `
             <button class="btn-modal-primary" id="btn-sg-modal-edit" style="background:#0284C7; border-color:#0284C7;">
               ${SGUI.Icon('edit')} Editar
@@ -555,12 +563,15 @@ const SGModalComponent = (() => {
     // Re-vincular eventos del footer
     _bindDynamicEvents();
   }
+
+
   
   function _bindDynamicEvents() {
     document.getElementById('btn-sg-modal-cerrar')?.addEventListener('click', close);
     document.getElementById('btn-sg-modal-edit')?.addEventListener('click', _enterEditMode);
     document.getElementById('btn-sg-modal-cancel')?.addEventListener('click', _cancelEdit);
     document.getElementById('btn-sg-modal-save')?.addEventListener('click', _saveEdit);
+    document.getElementById('btn-sg-quick-concluir')?.addEventListener('click', _quickConcluirSG);
 
     const canEditFull = _perms.all || _perms.godMode;
     const currentMecId = _editMode ? _editState.solicitar_personal : (_currentSG?.solicitar_personal || null);
@@ -716,6 +727,69 @@ const SGModalComponent = (() => {
       }
     }
   }
+
+  async function _quickConcluirSG() {
+  const sg = _currentSG;
+
+  // 1. Validar OTs pendientes
+  const todasLasOTs = window.OTWorkStore?.getOTsByOM(sg.id_sg) || [];
+  const pendientes = todasLasOTs.filter(ot => ot.Estatus !== 'Concluida');
+  
+  if (pendientes.length > 0) {
+    const msg = `No se puede concluir: Faltan ${pendientes.length} tareas por terminar.`;
+    if (window.ToastService) window.ToastService.show(msg, 'warning');
+    else alert(msg);
+    return;
+  }
+
+  // 2. Preparar los datos
+  const panamaTime = _getPanamaNow();
+  const cambiosSG = { estatus: 'Concluida', fecha_conclusion: panamaTime.timestamp };
+
+  // Si no tiene fecha de ejecución (inicio), le asignamos la de hoy
+  if (!sg.fecha_ejecucion || sg.fecha_ejecucion.trim() === '') {
+    cambiosSG.fecha_ejecucion = panamaTime.soloFecha; // o panamaTime.timestamp dependiendo de tu BD
+  }
+
+  // 3. UI de "Cargando"
+  const btn = document.getElementById('btn-sg-quick-concluir');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>...`;
+
+  // 4. Guardar en BD
+  const resultado = await SGService.updateSG(
+    sg.id_sg, 
+    sg.ORDEN_MANTENIMIENTO['ID_Orden mantenimiento'], 
+    cambiosSG, 
+    _perms
+  );
+
+  if (resultado.ok) {
+    window.ToastService?.show('Orden SG concluida.', 'success');
+    
+    // 5. Actualizar caché y UI local
+    _currentSG = resultado.data; // Asumiendo que updateSG devuelve el registro actualizado
+    
+    // Por si no devuelve la data completa, forzamos la actualización visual:
+    _currentSG.Estatus = 'Concluida';
+    _currentSG['Fecha conclusion'] = cambiosSG.fecha_conclusion;
+    if (cambiosSG.fecha_ejecucion) _currentSG.fecha_ejecucion = cambiosSG.fecha_ejecucion;
+
+    _renderContent(); // Repinta el panel de info
+    
+    const headerBadge = document.getElementById('sg-modal-header-badge');
+    if (headerBadge) headerBadge.innerHTML = SGUI.Badge('Concluida');
+
+    if (window.SGListComponent && typeof window.SGListComponent.refresh === 'function') {
+      window.SGListComponent.refresh();
+    }
+  } else {
+    window.ToastService?.show('Error al concluir SG.', 'danger');
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
 
   // ══════════════════════════════════════════════════════════
   // PESTAÑAS Y CARGA DE OTs
