@@ -596,6 +596,17 @@ const SGModalComponent = (() => {
         if (!btn) return;
         
         const nuevoEstado = btn.getAttribute('data-sg-status');
+
+        const estadoOriginal = _currentSG.Estatus || ''; // Si es null, lo lee como vacío
+        if (estadoOriginal === '' && nuevoEstado !== 'Programado') {
+            if (window.ToastService) {
+                window.ToastService.show('La orden debe estar "Programada" y guardada antes de cambiar a otro estado.', 'warning');
+            } else {
+                alert('La orden debe estar "Programada" y guardada antes de cambiar a otro estado.');
+            }
+            return; // Detiene la ejecución aquí, no cambia el botón ni el estado
+        }
+        
         if (_editState.estatus !== nuevoEstado) {
 
           if (nuevoEstado === 'Concluida' && !_editState.fecha_ejecucion) {
@@ -628,7 +639,7 @@ const SGModalComponent = (() => {
             _editState.fecha_conclusion = ''; 
             
           } else if (nuevoEstado === 'Programado') {
-            _editState.semana = '';
+            
             _editState.fecha_conclusion = '';
           }
 
