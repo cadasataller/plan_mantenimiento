@@ -86,7 +86,7 @@ const SGModalComponent = (() => {
     const om = _currentSG.ORDEN_MANTENIMIENTO || {};
     
     _editState = {
-      estatus: _currentSG.Estatus || 'Programado', // Ojo: ahora leemos de SG
+      estatus: _currentSG.Estatus || '', // Ojo: ahora leemos de SG
       observaciones: _currentSG.Observaciones || '', // Ojo: ahora leemos de SG
       tipo_trabajo: _currentSG.tipo_trabajo || '',
       estimacion_horas: _currentSG.estimacion_horas || '',
@@ -417,7 +417,23 @@ const SGModalComponent = (() => {
               `
             }
             
-            <div class="ot-modal-field"><div class="ot-modal-label">Fecha Ejecución (SG)</div><div class="ot-modal-val" id="disp-fecha-ejecucion">${formatDate(v('fecha_ejecucion', sg.fecha_ejecucion))}</div></div>
+            ${(() => {
+                const isProgramado = v('estatus', sg.Estatus) === 'Programado';
+                const rawEjec = v('fecha_ejecucion', sg.fecha_ejecucion) || '';
+                // Extraemos solo la parte YYYY-MM-DD para que el input type="date" lo lea bien
+                const isoEjec = rawEjec.includes('T') ? rawEjec.split('T')[0] : (rawEjec.includes(' ') ? rawEjec.split(' ')[0] : rawEjec);
+                
+                return `
+                <div class="ot-modal-field" id="container-fecha-ejecucion" style="cursor: ${(_editMode && isProgramado) ? 'pointer' : 'default'};">
+                  <div class="ot-modal-label">Fecha Ejecución (SG)</div>
+                  ${_editMode ? `
+                    <input type="date" id="edit-fecha_ejecucion" data-sg-edit class="sg-field-input" value="${isoEjec}" style="display: ${isProgramado ? 'block' : 'none'}; cursor: pointer; width: 100%; border: 1px solid var(--color-gray-200); border-radius: 4px; padding: 0.3rem; margin-top: 0.2rem;" />
+                    <div class="ot-modal-val" id="disp-fecha-ejecucion" style="display: ${!isProgramado ? 'block' : 'none'};">${formatDate(rawEjec)}</div>
+                  ` : `
+                    <div class="ot-modal-val" id="disp-fecha-ejecucion">${formatDate(rawEjec)}</div>
+                  `}
+                </div>`;
+            })()}
             <div class="ot-modal-field"><div class="ot-modal-label">Fecha Conclusión (SG)</div><div class="ot-modal-val" id="disp-fecha-conclusion">${formatDate(v('fecha_conclusion', sg['Fecha conclusion']))}</div></div>
           </div>
         </div>
@@ -552,7 +568,6 @@ const SGModalComponent = (() => {
             _editState.fecha_conclusion = ''; 
             
           } else if (nuevoEstado === 'Programado') {
-            _editState.fecha_ejecucion = '';
             _editState.semana = '';
             _editState.fecha_conclusion = '';
           }
@@ -562,8 +577,24 @@ const SGModalComponent = (() => {
           const dispConclusion = document.getElementById('disp-fecha-conclusion');
 
           if (dispSemana) dispSemana.innerText = _editState.semana || '—';
-          if (dispEjecucion) dispEjecucion.innerText = formatDate(_editState.fecha_ejecucion);
           if (dispConclusion) dispConclusion.innerText = formatDate(_editState.fecha_conclusion);
+
+          if (nuevoEstado === 'Programado') {
+             if (inputEjecucion) {
+                 inputEjecucion.style.display = 'block';
+                 const raw = _editState.fecha_ejecucion || '';
+                 inputEjecucion.value = raw.includes('T') ? raw.split('T')[0] : (raw.includes(' ') ? raw.split(' ')[0] : raw);
+             }
+             if (dispEjecucion) dispEjecucion.style.display = 'none';
+             if (containerEjecucion) containerEjecucion.style.cursor = 'pointer';
+          } else {
+             if (inputEjecucion) inputEjecucion.style.display = 'none';
+             if (dispEjecucion) {
+                 dispEjecucion.style.display = 'block';
+                 dispEjecucion.innerText = formatDate(_editState.fecha_ejecucion);
+             }
+             if (containerEjecucion) containerEjecucion.style.cursor = 'default';
+          }
         }
       });
 
@@ -573,6 +604,22 @@ const SGModalComponent = (() => {
           _editState[key] = e.target.value;
         });
       });
+
+      // 👇 NUEVO: Hace que hacer clic en cualquier parte del DIV abra el selector de fecha
+      const containerEjec = document.getElementById('container-fecha-ejecucion');
+      if (containerEjec) {
+        containerEjec.addEventListener('click', (e) => {
+          const input = document.getElementById('edit-fecha_ejecucion');
+          // Validamos que el input esté visible y que no hayamos hecho clic directamente en él
+          if (input && input.style.display !== 'none' && e.target !== input) {
+            try { 
+              input.showPicker(); // API moderna para abrir el calendario nativo
+            } catch (err) { 
+              input.focus(); // Fallback para navegadores antiguos
+            }
+          }
+        });
+      }
     }
   }
 

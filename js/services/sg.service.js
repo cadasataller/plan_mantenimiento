@@ -155,8 +155,6 @@ const SGService = (() => {
       if (baseError) throw baseError;
 
       sgData.id_orden_base = baseResult['ID_Orden mantenimiento'];
-      sgData.Estatus = sgData.Estatus || 'Programado'; // Aseguramos estatus inicial
-
       const { data: sgResult, error: sgError } = await db
         .from('OM_SG')
         .insert([sgData])
@@ -186,7 +184,6 @@ const SGService = (() => {
   async function createAutoSG(id_orden_existente, sgData) {
     try {
       sgData.id_orden_base = id_orden_existente;
-      sgData.Estatus = sgData.Estatus || 'Programado'; // Aseguramos estatus inicial
 
       const { data: sgResult, error: sgError } = await db
         .from('OM_SG')
