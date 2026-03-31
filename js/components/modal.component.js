@@ -298,17 +298,12 @@ const ModalComponent = (() => {
                       ? _editState.fechaInicio 
                       : _currentOM.FechaInicio;
 
-    // 👇 NUEVO: Si no tiene estado previo y elige algo distinto a Programado
     if (nuevoEstado !== 'Programado') {
-      
-      // 1. Validar que la orden no sea completamente nueva (sin estado)
       if (!estadoOriginal) {
         if (window.ToastService) ToastService.show('Primero debe programar la orden.', 'warning');
         else alert('Primero debe programar la orden.');
         return; 
       }
-      
-      // 2. Validar que tenga una fecha de inicio establecida
       if (!fechaActual || fechaActual === '—' || fechaActual.trim() === '') {
         if (window.ToastService) ToastService.show('Debe establecer una Fecha de inicio antes de cambiar a este estado.', 'warning');
         else alert('Debe establecer una Fecha de inicio antes de cambiar a este estado.');
@@ -316,9 +311,26 @@ const ModalComponent = (() => {
       }
     }
 
+    // 👇 NUEVO: Lógica para limpiar o asignar la Fecha de Conclusión
+    if (nuevoEstado === 'En Proceso' || nuevoEstado === 'Detenido') {
+        _editState.FechaConclusion = ''; // Limpiamos la fecha
+    } else if (nuevoEstado === 'Concluida') {
+        // Opcional: Si quieres que ponga la fecha de hoy automáticamente al concluir
+        const hoy = new Date();
+        const yyyy = hoy.getFullYear();
+        const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+        const dd = String(hoy.getDate()).padStart(2, '0');
+        _editState.FechaConclusion = `${yyyy}-${mm}-${dd}`;
+    } else if (nuevoEstado === 'Programado') {
+        _editState.FechaConclusion = '';
+    }
+
     _editState.estatus = nuevoEstado;
     document.querySelectorAll('.status-pick-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.statusPick === _editState.estatus));
+      
+    // 👇 NUEVO: Refrescamos el panel para que el usuario vea el cambio al instante
+    _refreshInfoPanel();
   }
 
   // ══════════════════════════════════════════════════════════
@@ -411,8 +423,12 @@ const ModalComponent = (() => {
       nSolicitud:    _currentOM.NSolicitud       ?? '',
       nOrdenCompra:  _currentOM.NOrdenCompra     ?? '',
       fechaEntrega:  _currentOM.FechaEntrega     ?? '',
-      fechaInicio:   _currentOM.FechaInicio      ?? '', // 
     };
+
+    if (!_currentOM.Estatus && _currentOM.FechaInicio) {
+        _editState.fechaInicio = _isoDateValue(_currentOM.FechaInicio);
+    }
+
     _refreshInfoPanel();
     _refreshFooter();
   }
@@ -430,7 +446,9 @@ const ModalComponent = (() => {
     // --- NUEVA VALIDACIÓN: Fecha de inicio obligatoria para Programado ---
     // Verificamos el estado que está en el selector y el valor de la fecha
     const estadoSeleccionado = _editState.estatus;
-    const fechaSeleccionada = _editState.fechaInicio;
+    const fechaSeleccionada = _editState.fechaInicio !== undefined 
+                              ? _editState.fechaInicio 
+                              : _currentOM.FechaInicio;
 
     if (estadoSeleccionado === 'Programado') {
       if (!fechaSeleccionada || fechaSeleccionada.trim() === '' || fechaSeleccionada === '—') {

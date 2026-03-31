@@ -67,7 +67,7 @@ const SGModalComponent = (() => {
     } else if (uArea === 'SERVICIOS GENERALES') {
       _perms.statusObs = true;
     } else if (uArea === omArea) {
-      if (estatus === 'PROGRAMADO') {
+      if (estatus === 'PROGRAMADO'|| estatus === '') {
         _perms.all = true;
       }
     }
@@ -606,7 +606,7 @@ const SGModalComponent = (() => {
             }
             return; // Detiene la ejecución aquí, no cambia el botón ni el estado
         }
-        
+
         if (_editState.estatus !== nuevoEstado) {
 
           if (nuevoEstado === 'Concluida' && !_editState.fecha_ejecucion) {

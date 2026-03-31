@@ -39,23 +39,22 @@ const OMService = (() => {
 
   // ── Fechas automáticas por transición de estado ──────────
   function _calcFechasAutomaticas(omActual, cambios) {
-    const hoy    = new Date().toISOString().split('T')[0];
+    const hoy = new Date().toISOString().split('T')[0];
     const fechas = {};
-
     const nuevoEstatus = cambios.estatus;
 
-    // Fecha inicio automática al pasar a "En Proceso" si estaba vacía
-    if (
-      nuevoEstatus === 'En Proceso' &&
-      omActual.Estatus !== 'En Proceso' &&
-      (!omActual.FechaInicio || omActual.FechaInicio === '—')
-    ) {
-      fechas['Fecha inicio'] = hoy;
+    // 1. ELIMINAMOS la asignación automática de Fecha de Inicio en "En Proceso".
+    // Esa responsabilidad ahora es del usuario al poner "Programado".
+
+    // 2. NUEVO: Limpiamos la fecha de conclusión si la orden está activa o pausada
+    if (nuevoEstatus === 'En Proceso' || nuevoEstatus === 'Detenido' || nuevoEstatus === 'Programado') {
+        // Le mandamos null o un string vacío para que la BD borre el dato
+        fechas['Fecha conclusion'] = null; 
     }
 
-    // Fecha conclusión al pasar a "Concluida"
+    // 3. Fecha conclusión al pasar a "Concluida"
     if (nuevoEstatus === 'Concluida' && omActual.Estatus !== 'Concluida') {
-      fechas['Fecha conclusion'] = hoy;
+        fechas['Fecha conclusion'] = hoy;
     }
 
     return fechas;
