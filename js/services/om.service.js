@@ -1,18 +1,4 @@
-// ============================================================
-// CADASA TALLER — OM SERVICE
-// Lógica de negocio para actualización de Órdenes de Mantenimiento.
-// Separado del componente modal para mantener responsabilidades claras.
-// Depende de: SupabaseClient, OTStore
-//
-// Campos editables:
-//   estatus, observaciones, nSolicitud, nOrdenCompra, fechaEntrega, fechaInicio
-//
-// Campos calculados automáticamente:
-//   TieneSolicitud  → 'Si' si nSolicitud tiene valor, 'No' si está vacío
-//   Semana          → ISO week number derivada de fechaInicio
-//   Fecha inicio    → se pone al pasar a "En Proceso" si estaba vacía
-//   Fecha conclusion→ se pone al pasar a "Concluida"
-// ============================================================
+
 
 const OMService = (() => {
 

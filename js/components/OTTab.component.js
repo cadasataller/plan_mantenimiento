@@ -571,6 +571,7 @@ async function _renderCard(ot, h) {
     }
 
     // ── Nueva OT ──
+    // ── Nueva OT ──
     if (btn.id === 'btn-add-ot') {
       if (_om.Estatus === 'Concluida') {
         window.ToastService
@@ -578,6 +579,19 @@ async function _renderCard(ot, h) {
           : alert('Debe cambiar el estado de la OM para agregar nuevas tareas.');
         return;
       }
+
+      // 👇 NUEVA VALIDACIÓN: Bloquear si no hay fecha programada
+      const fechaPadre = _om.IS_SG ? _om.fecha_ejecucion : (_om['Fecha inicio'] || _om.FechaInicio);
+      const tieneFechaPadre = fechaPadre && fechaPadre !== '—' && String(fechaPadre).trim() !== '';
+
+      if (!tieneFechaPadre || !_om.Estatus || _om.Estatus === 'Programado' && !tieneFechaPadre) {
+        const msg = 'Debe programar la Orden y asignarle una fecha de inicio (o ejecución) antes de agregar tareas.';
+        if (window.ToastService) window.ToastService.show(msg, 'warning');
+        else alert(msg);
+        return;
+      }
+      // 👆 FIN DE NUEVA VALIDACIÓN
+
       _state = 'create'; _editingOT = null; _render();
       return;
     }
@@ -895,7 +909,6 @@ async function _renderCard(ot, h) {
       let resEstado;
 
       if (_om.IS_SG) {
-        // 👇 LLAMADA CORRECTA A SGService.actualizarEstado 👇
         const hoy = new Date().toISOString().split('T')[0];
         const fechaActual = _om.fecha_ejecucion;
         

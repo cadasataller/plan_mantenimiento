@@ -476,6 +476,12 @@ const ModalComponent = (() => {
     _activeTab = tabId;
     document.querySelectorAll('.ot-modal-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
     document.querySelectorAll('.ot-modal-tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tabId}`));
+    
+    if (tabId === 'info') {
+      _refreshInfoPanel();
+      _refreshHeaderBadge(); // Por si el estatus cambió desde la pestaña de OTs
+    }
+    
     _refreshFooter();
   }
 

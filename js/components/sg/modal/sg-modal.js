@@ -589,6 +589,10 @@ const SGModalComponent = (() => {
     document.querySelectorAll('.ot-modal-tab-panel').forEach(p => {
       p.classList.toggle('active', p.id === `sg-tab-${tabId}`);
     });
+
+    if (tabId === 'info') {
+      _renderContent(); 
+    }
     
     // 👇 LLAMADA CLAVE: Limpia o pone los botones según la pestaña
     _refreshFooter();
