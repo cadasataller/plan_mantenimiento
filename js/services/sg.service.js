@@ -233,7 +233,32 @@ const SGService = (() => {
     return _sgCache;
   }
 
-  return { fetchSGs, updateSG, createManualSG, generarIdMantenimiento, getCache, createAutoSG };
+  // 5. ACTUALIZACIÓN LIGERA DIRECTA (Ideal para cambios de estado rápidos)
+  async function actualizarEstado(id_sg, payload) {
+    try {
+      const { data, error } = await db
+        .from('OM_SG')
+        .update(payload)
+        .eq('id_sg', id_sg)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Actualizar el caché local para que la UI no pierda sincronía
+      const cacheIndex = _sgCache.findIndex(item => item.id_sg === id_sg);
+      if (cacheIndex !== -1) {
+        Object.assign(_sgCache[cacheIndex], payload);
+      }
+
+      return { ok: true, data: data };
+    } catch (err) {
+      console.error('[SGService] Error actualizarEstado:', err);
+      return { ok: false, error: err.message || err };
+    }
+  }
+
+  return { fetchSGs, updateSG, createManualSG, generarIdMantenimiento, getCache, createAutoSG,actualizarEstado };
 })();
 
 window.SGService = SGService;

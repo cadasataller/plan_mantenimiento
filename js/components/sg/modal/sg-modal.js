@@ -606,7 +606,10 @@ const SGModalComponent = (() => {
       Descripcion: om.Descripcion,
       ID_EQUIPO: om['ID_#EQUIPO'],
       
-      // 👇 NUEVO: Banderas clave para que el Store sepa cómo buscar
+      
+      Estatus: sg.Estatus,
+      fecha_ejecucion: sg.fecha_ejecucion,
+
       IS_SG: true, 
       id_sg: sg.id_sg 
     };

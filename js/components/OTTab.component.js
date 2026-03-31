@@ -822,8 +822,6 @@ async function _renderCard(ot, h) {
   function _updateCardInPlace(ot) { _updateCardBadge(ot); }
 
   // ── Guardar OT ────────────────────────────────────────────
- // ── Guardar OT ────────────────────────────────────────────
-  // ── Guardar OT ────────────────────────────────────────────
   async function _handleSave(isEdit, otId, saveBtn) {
     const mecId       = MecanicoSelectComponent.getValue();
     const fechaRaw    = document.getElementById('ot-fecha')?.value                ?? '';
@@ -839,7 +837,7 @@ async function _renderCard(ot, h) {
     const fecha  = _toInputDate(fechaRaw);
     const semana = fecha ? String(_isoWeek(fecha) ?? '') : '';
 
-    // ── 1. Lógica de Validación ──
+    // ── 1. Lógica de Validación de la OT ──
     let errorMsg = '';
     if (mecId === null) errorMsg = 'El Mecánico es obligatorio.';
     else if (!fecha) errorMsg = 'La Fecha es obligatoria.';
@@ -850,14 +848,16 @@ async function _renderCard(ot, h) {
       else if (!causa) errorMsg = 'Debe indicar la causa del retraso.';
     }
 
+    // ── 1.1 Validación de la Orden Padre (OM o SG) ──
     if (!errorMsg) {
-      // Verificamos si la OM tiene fecha y un estado válido
-      const tieneFechaInicio = _om.FechaInicio && _om.FechaInicio !== '—' && _om.FechaInicio.trim() !== '';
-      const tieneEstadoValido = _om.Estatus && _om.Estatus.trim() !== '';
+      const estadoPadre = _om.Estatus; 
+      const fechaPadre = _om.IS_SG ? _om.fecha_ejecucion : (_om['Fecha inicio'] || _om.FechaInicio);
 
-      // Si no tiene estado, o si está Programado pero NO tiene fecha de inicio, bloqueamos.
-      if (!tieneEstadoValido || (_om.Estatus === 'Programado' && !tieneFechaInicio)) {
-        errorMsg = 'Debe programar la Orden de Mantenimiento y asignarle una fecha de inicio antes de guardar esta OT.';
+      const tieneFechaPadre  = fechaPadre && fechaPadre !== '—' && String(fechaPadre).trim() !== '';
+      const tieneEstadoPadre = estadoPadre && String(estadoPadre).trim() !== '';
+
+      if (!tieneEstadoPadre || (estadoPadre === 'Programado' && !tieneFechaPadre)) {
+        errorMsg = 'Debe programar la Orden y asignarle una fecha de inicio (o ejecución) antes de guardar trabajos.';
       }
     }
 
@@ -890,28 +890,41 @@ async function _renderCard(ot, h) {
     saveBtn.disabled  = true;
     saveBtn.innerHTML = `<div class="spinner-sm"></div> Guardando…`;
 
+    // ── 4. Actualización Automática del Padre a "En Proceso" ──
     if (_om.Estatus === 'Programado') {
-      const resOM = await window.OMService.actualizar(_om, { Estatus: 'En Proceso' });
+      let resEstado;
+
+      if (_om.IS_SG) {
+        // 👇 Si es SG, usamos la función auxiliar que va a SGService
+        resEstado = await _actualizarEstadoOrden('En Proceso');
+      } else {
+        // 👇 Si es OM normal, usamos directo OMService.actualizar
+        // Nota: OMService ya se encarga de ponerle la fecha de hoy por dentro si falta.
+        resEstado = await window.OMService.actualizar(_om, { estatus: 'En Proceso' });
+        
+        // Actualizamos la interfaz manualmente para que se refleje de inmediato
+        if (resEstado.ok) {
+          _om.Estatus = 'En Proceso';
+          const headerBadge = document.getElementById('header-status-badge');
+          if (headerBadge) {
+            headerBadge.className = 'ot-status status-en-proceso';
+            headerBadge.innerHTML = '<span class="ot-status-dot"></span>En Proceso';
+          }
+        }
+      }
       
-      if (!resOM.ok) {
-        // Si falla la actualización de la OM en base de datos, revertimos el botón y detenemos.
-        saveBtn.disabled = false;
+      // Si cualquiera de los dos falla, detenemos el guardado
+      if (!resEstado.ok) {
+        saveBtn.disabled  = false;
         saveBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ${isEdit ? 'Guardar cambios' : 'Crear OT'}`;
-        if (window.ToastService) ToastService.show('Error al iniciar la OM. Intente nuevamente.', 'danger');
-        else alert('Error al iniciar la OM.');
+        const mensajeError = resEstado.error || 'Error al actualizar la orden.';
+        if (window.ToastService) ToastService.show(mensajeError, 'danger');
+        else alert(mensajeError);
         return; 
       }
-
-      // Actualizamos el objeto en memoria y el badge del Header (UI) para que el usuario lo vea
-      _om.Estatus = 'En Proceso';
-      const headerBadge = document.getElementById('header-status-badge');
-      if (headerBadge) {
-        headerBadge.className = 'ot-status status-en-proceso';
-        headerBadge.innerHTML = '<span class="ot-status-dot"></span>En Proceso';
-      }
     }
-    // 👆 FIN ACTUALIZACIÓN DE OM 👆
 
+    // ── 5. Guardado de la OT ──
     const datos = {
       ID_Mecanico:  mecId,
       Fecha:        fecha,
@@ -923,7 +936,6 @@ async function _renderCard(ot, h) {
       Semana:       semana,
     };
 
-    // 👇 MAGIA DEL CONSTRAINT: Agregamos las columnas correctas según el origen
     if (_om.IS_SG) {
       datos.id_sg = _om.id_sg;
       datos.id_om = null;
@@ -932,13 +944,11 @@ async function _renderCard(ot, h) {
       datos.id_sg = null;
     }
     
-    // Definimos la llave correcta para que el caché sepa dónde meter la nueva tarjeta
     const llaveCache = _om.IS_SG ? _om.id_sg : _om.ID_Orden;
 
-    // Llamamos al servicio de guardado
     const res = isEdit
       ? await OTService.actualizarOT(otId, datos)
-      : await OTService.crearOT(llaveCache, datos); // <-- Usamos la llave correcta
+      : await OTService.crearOT(llaveCache, datos); 
 
     if (res.ok) {
       if (isEdit) {
