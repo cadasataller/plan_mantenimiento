@@ -294,15 +294,26 @@ const ModalComponent = (() => {
     
     const nuevoEstado = btn.dataset.statusPick;
     const estadoOriginal = _currentOM.Estatus;
+    const fechaActual = _editState.fechaInicio !== undefined 
+                      ? _editState.fechaInicio 
+                      : _currentOM.FechaInicio;
 
     // 👇 NUEVO: Si no tiene estado previo y elige algo distinto a Programado
-    if (!estadoOriginal && nuevoEstado !== 'Programado') {
-      if (window.ToastService) {
-        ToastService.show('Primero debe programar la orden.', 'warning');
-      } else {
-        alert('Primero debe programar la orden.');
+    if (nuevoEstado !== 'Programado') {
+      
+      // 1. Validar que la orden no sea completamente nueva (sin estado)
+      if (!estadoOriginal) {
+        if (window.ToastService) ToastService.show('Primero debe programar la orden.', 'warning');
+        else alert('Primero debe programar la orden.');
+        return; 
       }
-      return; // Detenemos la ejecución aquí, no se selecciona el botón
+      
+      // 2. Validar que tenga una fecha de inicio establecida
+      if (!fechaActual || fechaActual === '—' || fechaActual.trim() === '') {
+        if (window.ToastService) ToastService.show('Debe establecer una Fecha de inicio antes de cambiar a este estado.', 'warning');
+        else alert('Debe establecer una Fecha de inicio antes de cambiar a este estado.');
+        return; 
+      }
     }
 
     _editState.estatus = nuevoEstado;
