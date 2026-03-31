@@ -895,16 +895,34 @@ async function _renderCard(ot, h) {
       let resEstado;
 
       if (_om.IS_SG) {
-        // 👇 Si es SG, usamos la función auxiliar que va a SGService
-        resEstado = await _actualizarEstadoOrden('En Proceso');
-      } else {
-        // 👇 Si es OM normal, usamos directo OMService.actualizar
-        // Nota: OMService ya se encarga de ponerle la fecha de hoy por dentro si falta.
-        resEstado = await window.OMService.actualizar(_om, { estatus: 'En Proceso' });
+        // 👇 LLAMADA CORRECTA A SGService.actualizarEstado 👇
+        const hoy = new Date().toISOString().split('T')[0];
+        const fechaActual = _om.fecha_ejecucion;
         
-        // Actualizamos la interfaz manualmente para que se refleje de inmediato
+        const payloadSG = {
+          Estatus: 'En Proceso',
+          fecha_ejecucion: (fechaActual && fechaActual !== '—') ? fechaActual : hoy
+        };
+
+        resEstado = await window.SGService.actualizarEstado(_om.id_sg, payloadSG);
+
         if (resEstado.ok) {
           _om.Estatus = 'En Proceso';
+          _om.fecha_ejecucion = payloadSG.fecha_ejecucion;
+          
+          // Actualizamos el badge de SG usando SGUI si existe
+          const headerBadge = document.getElementById('sg-modal-header-badge');
+          if (headerBadge && window.SGUI) {
+            headerBadge.innerHTML = SGUI.Badge('En Proceso');
+          }
+        }
+      } else {
+        // 👇 LLAMADA CORRECTA A OMService.actualizar 👇
+        resEstado = await window.OMService.actualizar(_om, { estatus: 'En Proceso' });
+        
+        if (resEstado.ok) {
+          _om.Estatus = 'En Proceso';
+          
           const headerBadge = document.getElementById('header-status-badge');
           if (headerBadge) {
             headerBadge.className = 'ot-status status-en-proceso';
@@ -913,7 +931,7 @@ async function _renderCard(ot, h) {
         }
       }
       
-      // Si cualquiera de los dos falla, detenemos el guardado
+      // Manejo de error si falla cualquiera de las dos actualizaciones
       if (!resEstado.ok) {
         saveBtn.disabled  = false;
         saveBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ${isEdit ? 'Guardar cambios' : 'Crear OT'}`;
