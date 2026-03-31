@@ -178,11 +178,12 @@ const SGModalComponent = (() => {
     }
 
     _currentSG = resultado.data; 
+    loadOTs(_currentSG, true);
 
     if (_perms.godMode) {
       const om = _currentSG.ORDEN_MANTENIMIENTO;
       const titleEl = document.querySelector('#sg-backdrop .ot-modal-title');
-      const areaEl = document.querySelector('#sg-backdrop .ot-modal-area');
+      const areaEl =  document.querySelector('#sg-backdrop .ot-modal-area');
       
       if (titleEl) titleEl.innerText = om.Descripcion || 'Sin descripción';
       if (areaEl) {
@@ -334,7 +335,7 @@ const SGModalComponent = (() => {
 
     const headerBadge = document.getElementById('sg-modal-header-badge');
     
-    // 👇 CAMBIO 1: Leemos el estatus desde sg.Estatus
+    // Leemos el estatus actual
     if (headerBadge) headerBadge.innerHTML = SGUI.Badge(v('estatus', sg.Estatus || 'Programado'));
 
     const estatusOptions = [
@@ -352,9 +353,74 @@ const SGModalComponent = (() => {
     ];
 
     const canEditFull = _perms.all || _perms.godMode;
+    // 👇 Identificamos si el usuario es estrictamente de Servicios Generales
+    const esUsuarioSG = _perms.statusObs && !canEditFull;
 
-    bodyContainer.innerHTML = `
-        
+    // Helper para formatear fechas al formato YYYY-MM-DD que requieren los inputs nativos
+    const _isoDate = (val) => {
+      if (!val || val === '—') return '';
+      return val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val);
+    };
+
+    let html = '';
+
+    // =====================================================================
+    // VISTA 1: MODO EDICIÓN RESTRINGIDA (PANEL RÁPIDO PARA SG)
+    // =====================================================================
+    if (_editMode && esUsuarioSG) {
+      
+      const isProgramado = v('estatus', sg.Estatus) === 'Programado' || !v('estatus', sg.Estatus);
+      const rawEjec = v('fecha_ejecucion', sg.fecha_ejecucion) || '';
+      const rawConc = v('fecha_conclusion', sg['Fecha conclusion']) || '';
+
+      html = `
+        <div style="background:#F0F9FF; border: 1px solid #BAE6FD; padding:1.2rem; border-radius:8px; margin-bottom:1.5rem;">
+          <h4 style="margin-top:0; color:#0284C7; margin-bottom: 1.2rem; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+            ${SGUI.Icon('edit')} Panel de Edición Rápida (Servicios Generales)
+          </h4>
+          
+          <div class="ot-modal-grid">
+            ${SGUI.StatusPicker({ id: 'edit-estatus', label: 'Estatus', value: v('estatus', sg.Estatus), options: estatusOptions, isEditMode: true, canEdit: true })}
+            
+            <div class="ot-modal-field" id="container-fecha-ejecucion" style="cursor: pointer;">
+              <div class="ot-modal-label">Fecha Ejecución (SG)</div>
+              <input type="date" id="edit-fecha_ejecucion" data-sg-edit class="sg-field-input" value="${_isoDate(rawEjec)}" style="display: ${isProgramado ? 'block' : 'none'}; cursor: pointer; width: 100%; border: 1px solid var(--color-gray-200); border-radius: 4px; padding: 0.3rem; margin-top: 0.2rem;" />
+              <div class="ot-modal-val" id="disp-fecha-ejecucion" style="display: ${!isProgramado ? 'block' : 'none'};">${formatDate(rawEjec)}</div>
+            </div>
+
+            <div class="ot-modal-field">
+              <div class="ot-modal-label">Fecha Conclusión (SG)</div>
+              <div class="ot-modal-val" id="disp-fecha-conclusion">${formatDate(rawConc)}</div>
+            </div>
+
+            <div class="ot-modal-field"><div class="ot-modal-label">Semana</div><div class="ot-modal-val" id="disp-semana">${v('semana', sg.semana || '—')}</div></div>
+
+            ${SGUI.EditableField({ id: 'edit-observaciones', label: 'Observaciones', value: v('observaciones', sg.Observaciones || ''), type: 'textarea', placeholder: 'Notas de Servicios Generales...', isEditMode: true, canEdit: true, fullWidth: true })}
+          </div>
+        </div>
+
+        <div class="ot-modal-section" style="opacity: 0.85; pointer-events: none; filter: grayscale(50%);">
+          <div class="ot-modal-section-title">Contexto de la Orden (Solo lectura)</div>
+          <div class="ot-modal-grid">
+            <div class="ot-modal-field" style="grid-column: 1/-1;"><div class="ot-modal-label">Descripción</div><div class="ot-modal-val">${om.Descripcion || '—'}</div></div>
+            <div class="ot-modal-field"><div class="ot-modal-label">Área Solicitante</div><div class="ot-modal-val">${om['Área'] || '—'}</div></div>
+            <div class="ot-modal-field"><div class="ot-modal-label">Equipo / Item</div><div class="ot-modal-val">${om['ID_#EQUIPO'] || '—'} - ${om.ITEM || '—'}</div></div>
+            <div class="ot-modal-field"><div class="ot-modal-label">Tipo Trabajo</div><div class="ot-modal-val">${sg.tipo_trabajo || '—'}</div></div>
+            <div class="ot-modal-field"><div class="ot-modal-label">Mecánico Solicitado</div><div class="ot-modal-val">${sg.solicitar_personal || '—'}</div></div>
+            <div class="ot-modal-field"><div class="ot-modal-label">Fecha Entrega Esperada</div><div class="ot-modal-val">${formatDate(fechaEntregaReal)}</div></div>
+          </div>
+        </div>
+      `;
+    } 
+    // =====================================================================
+    // VISTA 2: VISTA CLÁSICA (Lectura General o Edición de Admin/ALL)
+    // =====================================================================
+    else {
+      
+      const isProgramado = v('estatus', sg.Estatus) === 'Programado' || !v('estatus', sg.Estatus);
+      const rawEjec = v('fecha_ejecucion', sg.fecha_ejecucion) || '';
+
+      html = `
         ${_editMode ? `<div style="background:#E0F2FE; color:#0284C7; padding:0.5rem 1rem; border-radius:6px; margin-bottom:1rem; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:0.5rem;">${SGUI.Icon('edit')} Modo edición activo ${(_perms.godMode) ? '(Acceso ALL)' : ''}</div>` : ''}
 
         <div class="ot-modal-section">
@@ -367,6 +433,10 @@ const SGModalComponent = (() => {
               ${SGUI.EditableField({ id: 'edit-item', label: 'Item', value: v('item', om.ITEM), type: 'text', isEditMode: true, canEdit: true })}
               ${SGUI.EditableField({ id: 'edit-sistema', label: 'Sistema', value: v('sistema', om.Sistema), type: 'text', isEditMode: true, canEdit: true })}
             ` : `
+              <div class="ot-modal-field" style="grid-column: 1/-1;"><div class="ot-modal-label">Descripción</div><div class="ot-modal-val">${om.Descripcion || '—'}</div></div>
+              <div class="ot-modal-field"><div class="ot-modal-label">Área</div><div class="ot-modal-val">${om['Área'] || '—'}</div></div>
+              <div class="ot-modal-field"><div class="ot-modal-label">Equipo</div><div class="ot-modal-val">${om['ID_#EQUIPO'] || '—'}</div></div>
+              <div class="ot-modal-field"><div class="ot-modal-label">Item</div><div class="ot-modal-val">${om.ITEM || '—'}</div></div>
               <div class="ot-modal-field"><div class="ot-modal-label">Sistema</div><div class="ot-modal-val">${om.Sistema || '—'}</div></div>
             `}
             <div class="ot-modal-field"><div class="ot-modal-label">Tipo de Proceso</div><div class="ot-modal-val">${om['Tipo de Proceso'] || '—'}</div></div>
@@ -377,7 +447,6 @@ const SGModalComponent = (() => {
           <div class="ot-modal-section-title">Estado y Observaciones</div>
           <div class="ot-modal-grid">
             ${SGUI.StatusPicker({ id: 'edit-estatus', label: 'Estatus', value: v('estatus', sg.Estatus), options: estatusOptions, isEditMode: _editMode, canEdit: _perms.statusObs })}
-            
             ${SGUI.EditableField({ id: 'edit-observaciones', label: 'Observaciones', value: v('observaciones', sg.Observaciones || ''), type: 'textarea', placeholder: 'Notas de Servicios Generales...', isEditMode: _editMode, canEdit: _perms.statusObs, fullWidth: true })}
           </div>
         </div>
@@ -395,7 +464,6 @@ const SGModalComponent = (() => {
                 : `<div class="ot-modal-val" id="disp-mecanico-solicitado">Cargando...</div>`
               }
             </div>
-
           </div>
         </div>
 
@@ -417,23 +485,16 @@ const SGModalComponent = (() => {
               `
             }
             
-            ${(() => {
-                const isProgramado = v('estatus', sg.Estatus) === 'Programado';
-                const rawEjec = v('fecha_ejecucion', sg.fecha_ejecucion) || '';
-                // Extraemos solo la parte YYYY-MM-DD para que el input type="date" lo lea bien
-                const isoEjec = rawEjec.includes('T') ? rawEjec.split('T')[0] : (rawEjec.includes(' ') ? rawEjec.split(' ')[0] : rawEjec);
-                
-                return `
-                <div class="ot-modal-field" id="container-fecha-ejecucion" style="cursor: ${(_editMode && isProgramado) ? 'pointer' : 'default'};">
-                  <div class="ot-modal-label">Fecha Ejecución (SG)</div>
-                  ${_editMode ? `
-                    <input type="date" id="edit-fecha_ejecucion" data-sg-edit class="sg-field-input" value="${isoEjec}" style="display: ${isProgramado ? 'block' : 'none'}; cursor: pointer; width: 100%; border: 1px solid var(--color-gray-200); border-radius: 4px; padding: 0.3rem; margin-top: 0.2rem;" />
-                    <div class="ot-modal-val" id="disp-fecha-ejecucion" style="display: ${!isProgramado ? 'block' : 'none'};">${formatDate(rawEjec)}</div>
-                  ` : `
-                    <div class="ot-modal-val" id="disp-fecha-ejecucion">${formatDate(rawEjec)}</div>
-                  `}
-                </div>`;
-            })()}
+            <div class="ot-modal-field" id="container-fecha-ejecucion" style="cursor: ${(_editMode && isProgramado && _perms.statusObs) ? 'pointer' : 'default'};">
+              <div class="ot-modal-label">Fecha Ejecución (SG)</div>
+              ${(_editMode && _perms.statusObs) ? `
+                <input type="date" id="edit-fecha_ejecucion" data-sg-edit class="sg-field-input" value="${_isoDate(rawEjec)}" style="display: ${isProgramado ? 'block' : 'none'}; cursor: pointer; width: 100%; border: 1px solid var(--color-gray-200); border-radius: 4px; padding: 0.3rem; margin-top: 0.2rem;" />
+                <div class="ot-modal-val" id="disp-fecha-ejecucion" style="display: ${!isProgramado ? 'block' : 'none'};">${formatDate(rawEjec)}</div>
+              ` : `
+                <div class="ot-modal-val" id="disp-fecha-ejecucion">${formatDate(rawEjec)}</div>
+              `}
+            </div>
+
             <div class="ot-modal-field"><div class="ot-modal-label">Fecha Conclusión (SG)</div><div class="ot-modal-val" id="disp-fecha-conclusion">${formatDate(v('fecha_conclusion', sg['Fecha conclusion']))}</div></div>
           </div>
         </div>
@@ -446,9 +507,10 @@ const SGModalComponent = (() => {
             ${SGUI.EditableField({ id: 'edit-n_oc', label: 'N° OC', value: v('n_oc', om['N° Orden de compra']), type: 'text', isEditMode: _editMode, canEdit: canEditFull })}
           </div>
         </div>
+      `;
+    }
 
-    `;
-
+    bodyContainer.innerHTML = html;
     _refreshFooter();
   }
 
@@ -557,8 +619,6 @@ const SGModalComponent = (() => {
           const panamaTime = _getPanamaNow();
 
           if (nuevoEstado === 'En Proceso') {
-            if (!_editState.fecha_ejecucion) _editState.fecha_ejecucion = panamaTime.timestamp;
-            if (!_editState.semana) _editState.semana = String(_getWeekNumber(panamaTime.dateObj));
             _editState.fecha_conclusion = '';
 
           } else if (nuevoEstado === 'Concluida') {
@@ -577,7 +637,7 @@ const SGModalComponent = (() => {
           const dispEjecucion = document.getElementById('disp-fecha-ejecucion');
           const inputEjecucion = document.getElementById('edit-fecha_ejecucion');
           const containerEjecucion = document.getElementById('container-fecha-ejecucion');
-          
+
           if (dispSemana) dispSemana.innerText = _editState.semana || '—';
           if (dispConclusion) dispConclusion.innerText = formatDate(_editState.fecha_conclusion);
 
@@ -604,6 +664,27 @@ const SGModalComponent = (() => {
         input.addEventListener('input', (e) => {
           const key = e.target.id.replace('edit-', '');
           _editState[key] = e.target.value;
+
+          // 👇 NUEVO: Si el usuario modificó la fecha de ejecución, recalculamos la semana al instante
+          if (key === 'fecha_ejecucion') {
+            const fechaIngresada = e.target.value;
+            const dispSemana = document.getElementById('disp-semana');
+
+            if (fechaIngresada) {
+              // Desarmamos YYYY-MM-DD para evitar saltos de zona horaria (UTC vs Local)
+              const [y, m, d] = fechaIngresada.split('-');
+              const dateObj = new Date(y, m - 1, d); // Meses en JS son de 0 a 11
+              
+              _editState.semana = String(_getWeekNumber(dateObj));
+            } else {
+              _editState.semana = '';
+            }
+
+            // Actualizamos la interfaz para que el usuario vea la semana cambiar en vivo
+            if (dispSemana) {
+              dispSemana.innerText = _editState.semana || '—';
+            }
+          }
         });
       });
 

@@ -481,7 +481,7 @@ const ModalComponent = (() => {
       _refreshInfoPanel();
       _refreshHeaderBadge(); // Por si el estatus cambió desde la pestaña de OTs
     }
-    
+
     _refreshFooter();
   }
 
