@@ -573,9 +573,11 @@ const SGModalComponent = (() => {
           }
 
           const dispSemana = document.getElementById('disp-semana');
-          const dispEjecucion = document.getElementById('disp-fecha-ejecucion');
           const dispConclusion = document.getElementById('disp-fecha-conclusion');
-
+          const dispEjecucion = document.getElementById('disp-fecha-ejecucion');
+          const inputEjecucion = document.getElementById('edit-fecha_ejecucion');
+          const containerEjecucion = document.getElementById('container-fecha-ejecucion');
+          
           if (dispSemana) dispSemana.innerText = _editState.semana || '—';
           if (dispConclusion) dispConclusion.innerText = formatDate(_editState.fecha_conclusion);
 
