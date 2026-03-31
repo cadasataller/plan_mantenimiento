@@ -1,13 +1,4 @@
-// ============================================================
-// CADASA TALLER — OT TAB COMPONENT  (v4.3)
-// Cambios:
-//  - Estado "Programado" → "Retrasado"
-//  - Causa y Retraso (horas) solo visibles cuando Estatus = Retrasado
-//  - Al cambiar estado a "Retrasado" desde card → abre form edición
-//  - Al cambiar a "Concluida" → update directo + mover card al DOM
-//    de concluidas sin re-render completo (animación fade-out/in)
-//  - Solo se envían columnas del schema al guardar/actualizar
-// ============================================================
+
 
 const OTTabComponent = (() => {
 
@@ -859,6 +850,17 @@ async function _renderCard(ot, h) {
       else if (!causa) errorMsg = 'Debe indicar la causa del retraso.';
     }
 
+    if (!errorMsg) {
+      // Verificamos si la OM tiene fecha y un estado válido
+      const tieneFechaInicio = _om.FechaInicio && _om.FechaInicio !== '—' && _om.FechaInicio.trim() !== '';
+      const tieneEstadoValido = _om.Estatus && _om.Estatus.trim() !== '';
+
+      // Si no tiene estado, o si está Programado pero NO tiene fecha de inicio, bloqueamos.
+      if (!tieneEstadoValido || (_om.Estatus === 'Programado' && !tieneFechaInicio)) {
+        errorMsg = 'Debe programar la Orden de Mantenimiento y asignarle una fecha de inicio antes de guardar esta OT.';
+      }
+    }
+
     // ── 2. Mostrar Error en UI ──
     let errorContainer = document.getElementById('ot-form-error');
     if (errorMsg) {
@@ -887,6 +889,28 @@ async function _renderCard(ot, h) {
 
     saveBtn.disabled  = true;
     saveBtn.innerHTML = `<div class="spinner-sm"></div> Guardando…`;
+
+    if (_om.Estatus === 'Programado') {
+      const resOM = await window.OMService.actualizar(_om, { Estatus: 'En Proceso' });
+      
+      if (!resOM.ok) {
+        // Si falla la actualización de la OM en base de datos, revertimos el botón y detenemos.
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ${isEdit ? 'Guardar cambios' : 'Crear OT'}`;
+        if (window.ToastService) ToastService.show('Error al iniciar la OM. Intente nuevamente.', 'danger');
+        else alert('Error al iniciar la OM.');
+        return; 
+      }
+
+      // Actualizamos el objeto en memoria y el badge del Header (UI) para que el usuario lo vea
+      _om.Estatus = 'En Proceso';
+      const headerBadge = document.getElementById('header-status-badge');
+      if (headerBadge) {
+        headerBadge.className = 'ot-status status-en-proceso';
+        headerBadge.innerHTML = '<span class="ot-status-dot"></span>En Proceso';
+      }
+    }
+    // 👆 FIN ACTUALIZACIÓN DE OM 👆
 
     const datos = {
       ID_Mecanico:  mecId,
