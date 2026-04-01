@@ -414,7 +414,8 @@ const ModalComponent = (() => {
         setTimeout(() => {
           SGPageComponent.openForm({
             ID_Orden: omData.ID_Orden, Area: omData.Area, ID_EQUIPO: omData.ID_EQUIPO,
-            ITEM: omData.ITEM, Sistema: omData.Sistema, Descripcion: ''
+            ITEM: omData.ITEM, Sistema: omData.Sistema, Descripcion: '',
+            _context: 'mecanicos' // 👈 INDICAMOS QUE VIENE DEL CONTEXTO DE MECÁNICOS
           });
         }, 100);
       }

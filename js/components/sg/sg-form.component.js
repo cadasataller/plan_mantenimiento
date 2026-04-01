@@ -14,9 +14,11 @@ const SGFormComponent = (() => {
     _onSuccess = callbacks?.onSuccess;
     _render(initialData);
     _bindEvents(initialData);
-    
+
     if (window.MecanicoSelectComponent) {
-      window.MecanicoSelectComponent.mount();
+      // 👇 PASAMOS EL CONTEXTO PARA FILTRAR MECÁNICOS Y SERVICIOS GENERALES
+      const context = 'mecanicos';
+      window.MecanicoSelectComponent.mount(null, context);
     }
   }
 

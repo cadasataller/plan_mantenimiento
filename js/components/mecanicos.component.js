@@ -30,7 +30,7 @@ const MecanicoSelectComponent = (() => {
     document.head.appendChild(style);
   }
 
-  async function fetchMecanicos() {
+  async function fetchMecanicos(context = 'default') {
     if (_cache) return _cache;
     if (_isLoading) {
       return new Promise(resolve => {
@@ -43,13 +43,31 @@ const MecanicoSelectComponent = (() => {
     _isLoading = true;
     try {
       const db = window.SupabaseClient;
-      const { data, error } = await db
+      
+      // 👇 1. Obtenemos el usuario actual y normalizamos su área
+      const user = window.AuthService?.getUser() || {};
+      const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+
+      // 👇 2. Preparamos la consulta base
+      let query = db
         .from('MECANICOS')
         .select('id, NOMBRE')
         .order('NOMBRE', { ascending: true });
         
+      // 👇 3. Aplicamos el filtro según el contexto
+      if (context === 'mecanicos') {
+        // 👇 FILTRAMOS SOLO MECÁNICOS Y SERVICIOS GENERALES
+        query = query.ilike('AREA', 'Servicios Generales');
+      } else if (uArea && uArea !== 'ALL') {
+        // 👇 Filtro normal por área del usuario
+        query = query.ilike('AREA', uArea);
+      }
+
+      const { data, error } = await query;
+        
       if (error) throw error;
       _cache = data || [];
+      
     } catch (err) {
       console.error('[MecanicoSelect] Error cargando mecánicos:', err);
       _cache = [];
@@ -69,7 +87,7 @@ const MecanicoSelectComponent = (() => {
     `;
   }
 
-  async function mount(selectedValue = null) {
+  async function mount(selectedValue = null, context = 'default') {
     const select = document.getElementById('ot-mec-select');
     const loader = document.getElementById('ot-mec-loader');
     
@@ -80,7 +98,7 @@ const MecanicoSelectComponent = (() => {
     select.disabled = true;
     if (loader) loader.style.display = 'block';
 
-    const mecanicos = await fetchMecanicos();
+    const mecanicos = await fetchMecanicos(context);
     let optionsHtml = '<option value="">Seleccione un mecánico...</option>';
     
     mecanicos.forEach(m => {
