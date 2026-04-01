@@ -431,7 +431,7 @@ const OTComponent = (() => {
     const wrap = document.getElementById('ot-list-wrap');
     if (!wrap) return;
     const data = OTStore.getFiltered();
-    _rowCache.clear();
+    _rowCache.clear();  
     data.forEach(r => _rowCache.set(String(r.ID_Orden), r));
 
 
@@ -544,7 +544,7 @@ const OTComponent = (() => {
             <svg class="ot-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             <span class="ot-group-dim-badge badge-${node.dim}">${label}</span>
             <span class="ot-group-key${node.noAsig?' no-asig':''}">${escH(node.key)}</span>
-            <span class="ot-group-count">${node.count} OT${node.count!==1?'s':''}</span>
+            <span class="ot-group-count">${node.count} OM${node.count!==1?'s':''}</span>
           </div>
           <div class="ot-group-body">${inner}</div>
         </div>`;
