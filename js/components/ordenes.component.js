@@ -374,7 +374,7 @@ const OTComponent = (() => {
     if (!bar) return;
 
     const cards = [
-      { key: 'total',      val: k.total,      label: 'Total OTs',   cls: 'total',  fk: null,       fv: null         },
+      { key: 'total',      val: k.total,      label: 'Total OMs',   cls: 'total',  fk: null,       fv: null         },
       { key: 'programado', val: k.programado, label: 'Programadas', cls: 'prog',   fk: 'estatus',  fv: 'Programado' },
       { key: 'enProceso',  val: k.enProceso,  label: 'En Proceso',  cls: 'pend',   fk: 'estatus',  fv: 'En Proceso' },
       { key: 'completado', val: k.completado, label: 'Concluidas', cls: 'done',   fk: 'estatus',  fv: 'Concluida' },
@@ -417,7 +417,7 @@ const OTComponent = (() => {
   }
 
   function buildKPISkeleton() {
-    return ['Total OTs','Programadas','En Proceso','Completadas','Sin Semana']
+    return ['Total OMs','Programadas','En Proceso','Completadas','Sin Semana']
       .map(l => `<div class="ot-kpi"><span class="ot-kpi-dot total"></span>
         <div class="ot-kpi-body"><div class="ot-kpi-val">—</div>
         <div class="ot-kpi-label">${l}</div></div></div>`).join('');
@@ -519,11 +519,11 @@ const OTComponent = (() => {
   function getDimKey(row, dim) {
     switch (dim) {
       case 'equipo':  return row.ID_EQUIPO ? `${row.ID_EQUIPO} — ${row.ITEM}` : 'Sin equipo';
-      case 'semana':  return row.Semana ? `Semana ${String(row.Semana).padStart(2,'0')}` : 'Sin semana asignada';
+      case 'semana':  return row.Semana ? `Semana ${String(row.Semana).padStart(2,'0')}` : 'No programada';
       case 'proceso': return row.TipoProceso || 'Sin tipo de proceso';
       case 'area':    return row.Area || 'Sin área';
-      case 'estatus': return row.Estatus || 'Sin estado';
-      default:        return '—';
+      case 'estatus': return row.Estatus || '-';
+      default:        return '-';
     }
   }
 
@@ -555,7 +555,7 @@ const OTComponent = (() => {
             <svg class="ot-subgroup-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             <span class="ot-group-dim-badge badge-${node.dim}" style="font-size:.57rem;padding:.12rem .4rem">${label}</span>
             <span class="ot-subgroup-key${node.noAsig?' no-asig':''}">${escH(node.key)}</span>
-            <span class="ot-subgroup-cnt">${node.count} OTs</span>
+            <span class="ot-subgroup-cnt">${node.count} OMs</span>
           </div>
           <div class="ot-subgroup-body">${inner}</div>
         </div>`;
@@ -566,7 +566,7 @@ const OTComponent = (() => {
             <svg class="ot-sub2group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             <span class="ot-sub2group-dim">${label}</span>
             <span class="ot-sub2group-key${node.noAsig?' no-asig':''}">${escH(node.key)}</span>
-            <span class="ot-sub2group-cnt">${node.count} OTs</span>
+            <span class="ot-sub2group-cnt">${node.count} OMs</span>
           </div>
           <div class="ot-sub2group-body">${inner}</div>
         </div>`;
@@ -660,9 +660,10 @@ const OTComponent = (() => {
   function buildRow(row, showArea = false) {
     const sc    = statusToClass(row.Estatus);
     const eIdx  = ETAPA_IDX[row.TipoProceso] ?? 'x';
+    const statusLabel = row.Estatus ? escH(row.Estatus) : '-';
     const sem   = row.Semana
       ? `<span class="ot-semana asig">S${String(row.Semana).padStart(2,'0')}</span>`
-      : `<span class="ot-semana no-asig">—</span>`;
+      : `<span class="ot-semana no-asig">No programada</span>`;
     const comp  = row.TieneSolicitud === 'Si'
       ? `<span class="ot-compra si">✓ Sí</span>`
       : `<span class="ot-compra no">No</span>`;
@@ -694,7 +695,7 @@ const OTComponent = (() => {
         <td><span class="ot-etapa-chip etapa-${eIdx}">${ETAPA_SHORT[row.TipoProceso] ?? escH(row.TipoProceso||'—')}</span></td>
         <td class="ot-fecha${row.FechaInicio?'':' no-asig'}">${escH(row.FechaInicio||'Sin asignar')}</td>
         <td>${sem}</td>
-        <td><span class="ot-status ${sc}"><span class="ot-status-dot"></span>${escH(row.Estatus)}</span></td>
+        <td><span class="ot-status ${sc}">${row.Estatus ? `<span class="ot-status-dot"></span>${statusLabel}` : '-'}</span></td>
         <td>${comp}</td>
         ${xtra}
       </tr>`;
@@ -704,8 +705,13 @@ const OTComponent = (() => {
     window.ModalComponent ? ModalComponent.open(row) : console.error('ModalComponent no cargado');
   }
   function statusToClass(s) {
-    return {'Programado':'status-programado','En proceso':'status-en-proceso',
-            'Completado':'status-completado','Pendiente':'status-pendiente'}[s]??'status-programado';
+    if (!s || String(s).trim() === '') return '';
+    const norm = String(s).trim().toLowerCase();
+    if (norm === 'programado')  return 'status-programado';
+    if (norm === 'en proceso')  return 'status-en-proceso';
+    if (norm === 'concluida' || norm === 'completado') return 'status-completado';
+    if (norm === 'pendiente')   return 'status-pendiente';
+    return '';
   }
   function escH(s) {
     return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
