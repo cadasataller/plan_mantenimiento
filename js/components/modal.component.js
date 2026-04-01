@@ -400,7 +400,11 @@ const ModalComponent = (() => {
     if (id === 'btn-cancel-edit')        _cancelEdit();
     if (id === 'btn-save-edit')          _saveEdit();
 
-    if (id === 'btn-quick-concluir') _quickConcluirOM();
+    if (id === 'btn-quick-concluir'){
+      ConfirmConcluirModal.show(() => {
+        _quickConcluirOM();
+      });
+    }
     
     if (id === 'btn-derivar-sg') {
       const omData = { ..._currentOM };
