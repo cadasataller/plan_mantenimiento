@@ -1,8 +1,3 @@
-// ============================================================
-// CADASA TALLER — ÓRDENES DE TRABAJO COMPONENT v5
-// Top bar: búsqueda (izq) + agrupación (der) — mismo card
-// KPIs clickeables · Gauge ECharts · Sin presets
-// ============================================================
 
 const OTComponent = (() => {
 
@@ -39,6 +34,7 @@ const OTComponent = (() => {
   let _tablePages   = new Map();
   const PAGE_SIZE   = 100;
   let _currentPage  = 0;
+  let _selectedOMs = new Set(); // IDs de OMs seleccionadas para concluir en bulk
 
   // ══════════════════════════════════════════════════════════
   // MOUNT
@@ -438,6 +434,8 @@ const OTComponent = (() => {
     _rowCache.clear();
     data.forEach(r => _rowCache.set(String(r.ID_Orden), r));
 
+
+    
     if (data.length === 0) {
       wrap.innerHTML = `<div class="ot-empty">
         <div class="ot-empty-icon">🔍</div>
@@ -456,6 +454,40 @@ const OTComponent = (() => {
         if (!tr) return;
         const row = _rowCache.get(String(tr.dataset.otId));
         if (row) openModal(row);
+      });
+    }
+
+    // Delegate para checkboxes (se añade solo una vez)
+    if (!wrap._checkDelegate) {
+      wrap._checkDelegate = true;
+
+      wrap.addEventListener('change', e => {
+        const chk = e.target.closest('.ot-row-check');
+        if (chk) {
+          const omId = chk.dataset.omId;
+          chk.checked ? _selectedOMs.add(omId) : _selectedOMs.delete(omId);
+          chk.closest('tr')?.classList.toggle('row-selected', chk.checked);
+          _syncBulkBar();
+          return;
+        }
+
+        const chkAll = e.target.closest('.ot-check-all');
+        if (chkAll) {
+          const tableId = chkAll.dataset.tableId;
+          const tblData = _tableCache.get(tableId);
+          if (!tblData) return;
+          tblData.rows
+            .filter(r => r.Estatus !== 'Concluida' && r.Estatus !== 'Concluido')
+            .forEach(r => {
+              const id = String(r.ID_Orden);
+              chkAll.checked ? _selectedOMs.add(id) : _selectedOMs.delete(id);
+            });
+          // Re-render solo la página actual para reflejar el estado
+          const page = _tablePages.get(tableId) ?? 0;
+          const w = document.getElementById(`tbl-wrap-${tableId}`);
+          if (w) w.outerHTML = _renderTablePage(tableId, page);
+          _syncBulkBar();
+        }
       });
     }
   }
@@ -566,10 +598,28 @@ const OTComponent = (() => {
     const total = rows.length, pages = Math.ceil(total / PAGE_SIZE);
     const start = page * PAGE_SIZE, pageRows = rows.slice(start, start + PAGE_SIZE);
 
-    const xH = showArea ? '<th>Área</th><th>Equipo</th>' : '';
-    const thead = `<tr><th>ID Orden</th><th>Sistema</th><th>Descripción</th><th>Tipo Proceso</th>
-      <th>Fecha Inicio</th><th>Semana</th><th>Estado</th><th>Compra</th>${xH}</tr>`;
+    const pendientes = pageRows.filter(r => r.Estatus !== 'Concluida' && r.Estatus !== 'Concluido');
+    const allChecked = pendientes.length > 0 && pendientes.every(r => _selectedOMs.has(String(r.ID_Orden)));
+    const someChecked = pendientes.some(r => _selectedOMs.has(String(r.ID_Orden)));
 
+    const checkAllId = `chk-all-${tableId}`;
+    const checkAllCell = `
+      <th class="col-check">
+        <input type="checkbox" class="ot-check-all" id="${checkAllId}"
+              ${allChecked ? 'checked' : ''} data-table-id="${tableId}">
+        <label for="${checkAllId}" class="ot-check-all-label" 
+              style="${someChecked && !allChecked ? 'background:#bbf7d0;border-color:#166534;' : ''}">
+          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="${someChecked ? '#166534' : '#fff'}" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </label>
+      </th>`;
+
+    const xH = showArea ? '<th>Área</th><th>Equipo</th>' : '';
+    const thead = `<tr>${checkAllCell}<th>ID Orden</th><th>Sistema</th><th>Descripción</th>
+      <th>Tipo Proceso</th><th>Fecha Inicio</th><th>Semana</th><th>Estado</th><th>Compra</th>${xH}</tr>`;
+
+    // … paginación igual que antes …
     const W = 10, h = Math.floor(W/2);
     let ws = Math.max(0, page - h), we = Math.min(pages-1, ws + W - 1);
     if (we - ws < W-1) ws = Math.max(0, we - W + 1);
@@ -608,19 +658,36 @@ const OTComponent = (() => {
   }
 
   function buildRow(row, showArea = false) {
-    const sc   = statusToClass(row.Estatus);
-    const eIdx = ETAPA_IDX[row.TipoProceso] ?? 'x';
-    const sem  = row.Semana
+    const sc    = statusToClass(row.Estatus);
+    const eIdx  = ETAPA_IDX[row.TipoProceso] ?? 'x';
+    const sem   = row.Semana
       ? `<span class="ot-semana asig">S${String(row.Semana).padStart(2,'0')}</span>`
       : `<span class="ot-semana no-asig">—</span>`;
-    const comp = row.TieneSolicitud === 'Si'
+    const comp  = row.TieneSolicitud === 'Si'
       ? `<span class="ot-compra si">✓ Sí</span>`
       : `<span class="ot-compra no">No</span>`;
-    const xtra = showArea
+    const xtra  = showArea
       ? `<td class="ot-sistema">${escH(row.Area)}</td><td><span class="ot-id">${escH(row.ID_EQUIPO)}</span></td>`
       : '';
+
+    const isConcluida = row.Estatus === 'Concluida' || row.Estatus === 'Concluido';
+    const isChecked   = _selectedOMs.has(String(row.ID_Orden));
+
+    const checkCell = isConcluida
+      ? `<td class="col-check"></td>`
+      : `<td class="col-check" onclick="event.stopPropagation()">
+          <input type="checkbox" class="ot-row-check" id="chk-om-${escH(row.ID_Orden)}"
+                data-om-id="${escH(row.ID_Orden)}" ${isChecked ? 'checked' : ''}>
+          <label for="chk-om-${escH(row.ID_Orden)}" class="ot-check-label">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </label>
+        </td>`;
+
     return `
-      <tr class="ot-data-row" data-ot-id="${escH(row.ID_Orden)}" title="Clic para ver detalle">
+      <tr class="ot-data-row${isChecked ? ' row-selected' : ''}" data-ot-id="${escH(row.ID_Orden)}" title="Clic para ver detalle">
+        ${checkCell}
         <td><span class="ot-id">${escH(row.ID_Orden)}</span></td>
         <td class="ot-sistema">${escH(row.Sistema)}</td>
         <td><div class="ot-desc" title="${escH(row.Descripcion)}">${escH(row.Descripcion)}</div></td>
@@ -652,12 +719,116 @@ const OTComponent = (() => {
     document.getElementById('ot-list-wrap')?.scrollIntoView({ behavior:'smooth', block:'start' });
   }
 
-  return {
-    mount, onEnter,
-    _toggle, _addDim, _removeDim, _moveDim,
-    _applyPreset, _clearGroups,
-    _goPage, _goTablePage,
-    _filterByKPI,
-    _updateGauge
+  // ══════════════════════════════════════════════════════════
+// BULK BAR — barra flotante de conclusión masiva
+// ══════════════════════════════════════════════════════════
+function _syncBulkBar() {
+  let bar = document.getElementById('ot-bulk-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'ot-bulk-bar';
+    bar.innerHTML = `
+      <span class="bulk-bar-count"><span id="bulk-bar-num">0</span> órdenes seleccionadas</span>
+      <div class="bulk-bar-sep"></div>
+      <button class="bulk-bar-btn" id="bulk-bar-conclude">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Concluir seleccionadas
+      </button>
+      <button class="bulk-bar-clear" id="bulk-bar-clear">Limpiar</button>`;
+    document.body.appendChild(bar);
+    document.getElementById('bulk-bar-conclude').addEventListener('click', _bulkConcluir);
+    document.getElementById('bulk-bar-clear').addEventListener('click', () => {
+      _selectedOMs.clear();
+      // Re-render para quitar los checks visuales
+      renderList();
+      _syncBulkBar();
+    });
+  }
+
+  const n = _selectedOMs.size;
+  document.getElementById('bulk-bar-num').textContent = n;
+  bar.classList.toggle('visible', n > 0);
+}
+
+async function _bulkConcluir() {
+  if (_selectedOMs.size === 0) return;
+
+  const ids   = [..._selectedOMs];
+  const todas = OTStore.getAll();
+  const oms   = ids.map(id => todas.find(o => String(o.ID_Orden) === id)).filter(Boolean);
+
+  // 1. Validar OTs pendientes en cada OM
+  const conOTsPendientes = oms.filter(om => {
+    const ots = window.OTWorkStore?.getOTsByOM(om.ID_Orden) || [];
+    return ots.some(ot => ot.Estatus !== 'Concluida');
+  });
+
+  if (conOTsPendientes.length > 0) {
+    const nombres = conOTsPendientes.map(o => o.ID_Orden).join(', ');
+    window.ToastService?.show(
+      `No se puede concluir: ${conOTsPendientes.length} OM(s) tienen OTs pendientes (${nombres}).`,
+      'warning'
+    );
+    return;
+  }
+
+  // 2. Confirmación
+  const usar = window.ConfirmConcluirModal ?? null;
+  const ejecutar = async () => {
+    const btn = document.getElementById('bulk-bar-conclude');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando…`;
+
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm   = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd   = String(hoy.getDate()).padStart(2, '0');
+    const hoyFmt = `${mm}/${dd}/${yyyy}`;
+
+    let errores = 0;
+    for (const om of oms) {
+      // 3. Si no tiene fecha de inicio, la ponemos igual a hoy
+      const cambios = { estatus: 'Concluida', fechaConclusion: hoyFmt };
+      if (!om.FechaInicio || om.FechaInicio === '—' || om.FechaInicio.trim() === '') {
+        cambios.fechaInicio = hoyFmt;
+      }
+      const res = await OMService.actualizar(om, cambios);
+      if (!res.ok) errores++;
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = orig;
+
+    if (errores === 0) {
+      window.ToastService?.show(`${oms.length} orden(es) concluida(s) correctamente.`, 'success');
+      _selectedOMs.clear();
+      _syncBulkBar();
+      renderList();
+      _updateGauge();
+      renderKPIs();
+    } else {
+      window.ToastService?.show(`${errores} error(es) al guardar. Revisa e intenta de nuevo.`, 'danger');
+    }
   };
+
+  if (usar) {
+    usar.show(ejecutar);
+  } else {
+    ejecutar();
+  }
+}
+
+  return {
+  mount, onEnter,
+  _toggle, _addDim, _removeDim, _moveDim,
+  _applyPreset, _clearGroups,
+  _goPage, _goTablePage,
+  _filterByKPI,
+  _updateGauge,
+  _syncBulkBar,   // 👈 nuevo
+  _bulkConcluir,  // 👈 nuevo
+};
 })();
