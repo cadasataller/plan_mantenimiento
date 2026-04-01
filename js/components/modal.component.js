@@ -414,7 +414,7 @@ const ModalComponent = (() => {
         setTimeout(() => {
           SGPageComponent.openForm({
             ID_Orden: omData.ID_Orden, Area: omData.Area, ID_EQUIPO: omData.ID_EQUIPO,
-            ITEM: omData.ITEM, Sistema: omData.Sistema, Descripcion: omData.Descripcion
+            ITEM: omData.ITEM, Sistema: omData.Sistema, Descripcion: ''
           });
         }, 100);
       }
