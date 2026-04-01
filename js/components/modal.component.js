@@ -365,7 +365,7 @@ const ModalComponent = (() => {
           </button>`;
       }
 
-      if (_currentOM.Estatus !== 'Concluida') {
+      if (_currentOM.Estatus !== 'Concluida'&&enTabInfo) {
         html += `
           <button class="btn-modal-primary" id="btn-quick-concluir" style="background:#166534; border-color:#166534;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
@@ -432,12 +432,13 @@ const ModalComponent = (() => {
     }
 
     // 2. Preparar los datos
-    const hoyIso = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
-    const cambios = { estatus: 'Concluida', fechaConclusion: hoyIso };
+    const hoy = new Date();
+    const hoyFormatted = `${String(hoy.getMonth() + 1).padStart(2, '0')}/${String(hoy.getDate()).padStart(2, '0')}/${hoy.getFullYear()}`;
+    const cambios = { estatus: 'Concluida', fechaConclusion: hoyFormatted };
 
     // Si no tiene fecha de inicio, le asignamos la de hoy también
     if (!om.FechaInicio || om.FechaInicio === '—' || om.FechaInicio.trim() === '') {
-      cambios.fechaInicio = hoyIso;
+      cambios.fechaInicio = hoyFormatted;
     }
 
     // 3. UI de "Cargando"
@@ -454,8 +455,8 @@ const ModalComponent = (() => {
       
       // 5. Actualizar caché y UI local
       _currentOM.Estatus = 'Concluida';
-      _currentOM.FechaConclusion = hoyIso;
-      if (cambios.fechaInicio) _currentOM.FechaInicio = hoyIso;
+      _currentOM.FechaConclusion = hoyFormatted;
+      if (cambios.fechaInicio) _currentOM.FechaInicio = hoyFormatted;
 
       _refreshInfoPanel();
       _refreshHeaderBadge();

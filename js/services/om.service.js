@@ -5,14 +5,26 @@ const OMService = (() => {
   const TABLE = 'ORDEN_MANTENIMIENTO';
   const PK    = 'ID_Orden mantenimiento';
 
-  // ── Convertir fecha es-PA (dd/mm/yyyy) → ISO (yyyy-mm-dd) ─
+  // ── Convertir fecha US (mm/dd/yyyy) → ISO (yyyy-mm-dd) ─
   function _parsePaDate(val) {
     if (!val || val === '—') return null;
     if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;   // ya es ISO
     const parts = val.split('/');
     if (parts.length === 3) {
-      const [d, m, y] = parts;
+      const [m, d, y] = parts;
       return `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    return null;
+  }
+
+  // ── Convertir fecha ISO (yyyy-mm-dd) → US (mm/dd/yyyy) ─
+  function _formatUSDate(val) {
+    if (!val || val === '—') return null;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val;   // ya es US
+    const parts = val.split('-');
+    if (parts.length === 3) {
+      const [y, m, d] = parts;
+      return `${m.padStart(2,'0')}/${d.padStart(2,'0')}/${y}`;
     }
     return null;
   }
@@ -39,7 +51,8 @@ const OMService = (() => {
 
   // ── Fechas automáticas por transición de estado ──────────
   function _calcFechasAutomaticas(omActual, cambios) {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = new Date();
+    const hoyFormatted = `${String(hoy.getMonth() + 1).padStart(2, '0')}/${String(hoy.getDate()).padStart(2, '0')}/${hoy.getFullYear()}`;
     const fechas = {};
     const nuevoEstatus = cambios.estatus;
 
@@ -54,7 +67,7 @@ const OMService = (() => {
 
     // 3. Fecha conclusión al pasar a "Concluida"
     if (nuevoEstatus === 'Concluida' && omActual.Estatus !== 'Concluida') {
-        fechas['Fecha conclusion'] = hoy;
+        fechas['Fecha conclusion'] = hoyFormatted;
     }
 
     return fechas;
@@ -75,7 +88,12 @@ const OMService = (() => {
     }
 
     if (cambios.fechaInicio !== undefined) {
-      payload['Fecha inicio'] = cambios.fechaInicio?.trim() || null;
+      payload['Fecha inicio'] = _formatUSDate(cambios.fechaInicio?.trim()) || null;
+    }
+
+    // Fecha Conclusión
+    if (cambios.fechaConclusion !== undefined) {
+      payload['Fecha conclusion'] = _formatUSDate(cambios.fechaConclusion?.trim()) || null;
     }
 
     // N° Solicitud → también deriva TieneSolicitud
@@ -92,7 +110,7 @@ const OMService = (() => {
 
     // Fecha Entrega
     if (cambios.fechaEntrega !== undefined) {
-      payload['Fecha Entrega'] = cambios.fechaEntrega?.trim() || null;
+      payload['Fecha Entrega'] = _formatUSDate(cambios.fechaEntrega?.trim()) || null;
     }
 
     // Mezclar fechas automáticas
@@ -138,14 +156,10 @@ const OMService = (() => {
       'Tiene solicitud de compra?':  (v) => { omActual.TieneSolicitud     = v ? 'Si' : 'No'; },
       'Semana':                      (v) => { omActual.Semana             = v; },
       'Fecha inicio': (v) => {
-        omActual.FechaInicio = v
-          ? new Date(v + 'T00:00:00').toLocaleDateString('es-PA')
-          : null;
+        omActual.FechaInicio = v || null;
       },
       'Fecha conclusion': (v) => {
-        omActual.FechaConclusion = v
-          ? new Date(v + 'T00:00:00').toLocaleDateString('es-PA')
-          : null;
+        omActual.FechaConclusion = v || null;
       },
     };
 
