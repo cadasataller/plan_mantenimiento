@@ -690,7 +690,7 @@ async function _renderCard(ot, h) {
     card.style.opacity    = '0';
     card.style.transform  = 'translateY(-6px)';
 
-    setTimeout(() => {
+    setTimeout(async() => {
       card.remove();
 
       // Actualizar contador del summary
@@ -743,7 +743,7 @@ async function _renderCard(ot, h) {
 
       // Insertar card al principio de la lista de concluidas
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = _renderCard(ot, h);
+      tempDiv.innerHTML = await _renderCard(ot, h);
       const newCard = tempDiv.firstElementChild;
       newCard.style.opacity   = '0';
       newCard.style.transform = 'translateY(8px)';
@@ -776,7 +776,7 @@ async function _renderCard(ot, h) {
     card.style.opacity    = '0';
     card.style.transform  = 'translateY(-6px)';
 
-    setTimeout(() => {
+    setTimeout(async() => {
       card.remove();
       _refreshSummary();
 
@@ -802,7 +802,7 @@ async function _renderCard(ot, h) {
       if (placeholder) placeholder.remove();
 
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = _renderCard(ot, h);
+      tempDiv.innerHTML = await _renderCard(ot, h);
       const newCard = tempDiv.firstElementChild;
       newCard.style.opacity   = '0';
       newCard.style.transform = 'translateY(8px)';
