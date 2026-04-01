@@ -60,6 +60,9 @@ const SGService = (() => {
         sgPayload['Fecha conclusion'] = editState.fecha_conclusion || null;
         sgPayload.semana = editState.semana || null;
         sgPayload.fecha_ejecucion = editState.fecha_ejecucion || null; 
+        if (editState.dias !== undefined) {
+          sgPayload.dias = editState.dias;
+        }
       }
 
       // B. Permisos de gestión (Trabajo y Compras)

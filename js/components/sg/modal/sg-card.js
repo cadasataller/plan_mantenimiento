@@ -12,11 +12,44 @@ const SGCardComponent = (() => {
     .sg-card-footer-comp { display: flex; gap: 1rem; align-items: center; margin-top: 1rem; font-size: 0.8rem; color: #6b7280; border-top: 1px solid #f3f4f6; padding-top: 0.75rem; }
   `);
 
+  // 👇 NUEVA FUNCIÓN: Genera la pastilla de días con los mismos colores del modal
+  function _renderDiasBadge(sg) {
+    const bs = "display:inline-block; padding:0.15rem 0.4rem; border-radius:4px; font-weight:600; font-size:0.68rem; margin-bottom:0.5rem;";
+    
+    const estatus = sg.Estatus || '';
+    const diasGuardados = sg.dias;
+    const fechaEntregaStr = sg.fecha_entrega || (sg.ORDEN_MANTENIMIENTO && sg.ORDEN_MANTENIMIENTO['Fecha Entrega']);
+
+    // 1. SI TIENE VALOR EN LA COLUMNA DIAS (Ya fue concluida y calculada)
+    if (diasGuardados !== null && diasGuardados !== undefined && diasGuardados !== '') {
+      const d = parseInt(diasGuardados, 10);
+      if (d > 0) return `<span style="${bs} background:#DCFCE7; color:#166534;">Días: ${d} (Anticipado)</span>`;
+      if (d < 0) return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Días: ${d} (Retraso)</span>`;
+      return `<span style="${bs} background:#F3F4F6; color:#4B5563;">Días: 0 (A tiempo)</span>`;
+    }
+
+    // 2. LOGICA POR SI SE CONCLUYÓ ANTES DE ESTA ACTUALIZACIÓN (Legacy)
+    if (estatus === 'Concluida') {
+      return `<span style="${bs} background:#E5E7EB; color:#374151;">Trabajo Concluido</span>`;
+    }
+
+    // 3. LOGICA DINÁMICA (Mientras está programada o en proceso)
+    if (!fechaEntregaStr) return `<span style="${bs} background:#F3F4F6; color:#6B7280; font-style:italic;">Sin fecha de entrega</span>`;
+    
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const entrega = new Date(fechaEntregaStr);
+    entrega.setMinutes(entrega.getMinutes() + entrega.getTimezoneOffset());
+    entrega.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((entrega.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 0) return `<span style="${bs} background:#DCFCE7; color:#166534;">Faltan ${diffDays} día(s)</span>`;
+    if (diffDays < 0) return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Retraso de ${Math.abs(diffDays)} día(s)</span>`;
+    return `<span style="${bs} background:#F3F4F6; color:#4B5563;">Se entrega hoy</span>`;
+  }
+
   function render(sg) {
     const om = sg.ORDEN_MANTENIMIENTO || {};
-    
-    // 👇 CAMBIO CLAVE: Leemos Estatus y Observaciones desde la raíz (OM_SG)
-    const estatus = sg.Estatus || 'Programado';
+    const estatus = sg.Estatus || 'No Programado';
     const observaciones = sg.Observaciones || '';
     
     // Convertimos el objeto a un string base64 o inyectamos el ID para recuperarlo
@@ -29,7 +62,9 @@ const SGCardComponent = (() => {
           <div class="sg-card-id-comp">${om['ID_#EQUIPO'] || 'N/A'}</div>
         </div>
         
-        ${observaciones ? `<div style="font-size:0.85rem; color:#4B5563;"><strong>Obs:</strong> ${observaciones}</div>` : ''}
+        ${_renderDiasBadge(sg)}
+        
+        ${observaciones ? `<div style="font-size:0.85rem; color:#4B5563; margin-top:0.3rem;"><strong>Obs:</strong> ${observaciones}</div>` : ''}
         
         <div class="sg-card-footer-comp">
           <span style="display:flex; align-items:center; gap:0.3rem;">
@@ -38,8 +73,8 @@ const SGCardComponent = (() => {
           <span style="display:flex; align-items:center; gap:0.3rem;">
             ${SGUI.Icon('clock')} ${sg.estimacion_horas || 0}h
           </span>
-          <span style="margin-left: auto;">
-            ${SGUI.Badge(estatus)}
+          <span style="margin-left: auto; color: #6b7280; font-weight: 500;">
+            ${estatus === 'No Programado' ? 'No Programado' : SGUI.Badge(estatus)}
           </span>
         </div>
       </div>
@@ -65,4 +100,5 @@ const SGCardComponent = (() => {
 
   return { render, bindEvents };
 })();
+
 window.SGCardComponent = SGCardComponent;
