@@ -13,6 +13,7 @@ const SGCardComponent = (() => {
   `);
 
   // 👇 NUEVA FUNCIÓN: Genera la pastilla de días con los mismos colores del modal
+  // 👇 NUEVA FUNCIÓN: Genera la pastilla de días con los nuevos colores de urgencia
   function _renderDiasBadge(sg) {
     const bs = "display:inline-block; padding:0.15rem 0.4rem; border-radius:4px; font-weight:600; font-size:0.68rem; margin-bottom:0.5rem;";
     
@@ -23,9 +24,14 @@ const SGCardComponent = (() => {
     // 1. SI TIENE VALOR EN LA COLUMNA DIAS (Ya fue concluida y calculada)
     if (diasGuardados !== null && diasGuardados !== undefined && diasGuardados !== '') {
       const d = parseInt(diasGuardados, 10);
-      if (d > 0) return `<span style="${bs} background:#DCFCE7; color:#166534;">Días: ${d} (Anticipado)</span>`;
-      if (d < 0) return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Días: ${d} (Retraso)</span>`;
-      return `<span style="${bs} background:#F3F4F6; color:#4B5563;">Días: 0 (A tiempo)</span>`;
+      if (d >= 0) {
+        // Entregado antes (positivo) o el mismo día (0) -> VERDE
+        const texto = d === 0 ? 'A tiempo' : 'Anticipado';
+        return `<span style="${bs} background:#DCFCE7; color:#166534;">Días: ${d} (${texto})</span>`;
+      } else {
+        // Entregado tarde (negativo) -> ROJO
+        return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Días: ${d} (Retraso)</span>`;
+      }
     }
 
     // 2. LOGICA POR SI SE CONCLUYÓ ANTES DE ESTA ACTUALIZACIÓN (Legacy)
@@ -42,9 +48,18 @@ const SGCardComponent = (() => {
     entrega.setHours(0, 0, 0, 0);
     const diffDays = Math.round((entrega.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (diffDays > 0) return `<span style="${bs} background:#DCFCE7; color:#166534;">Faltan ${diffDays} día(s)</span>`;
-    if (diffDays < 0) return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Retraso de ${Math.abs(diffDays)} día(s)</span>`;
-    return `<span style="${bs} background:#F3F4F6; color:#4B5563;">Se entrega hoy</span>`;
+    
+    if (diffDays > 4) {
+      return `<span style="${bs} background:#DCFCE7; color:#166534;">Faltan ${diffDays} día(s)</span>`; // Verde
+    } else if (diffDays >= 2 && diffDays <= 4) {
+      return `<span style="${bs} background:#FEF9C3; color:#854D0E;">Faltan ${diffDays} día(s)</span>`; // Amarillo
+    } else if (diffDays === 1) {
+      return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Falta 1 día</span>`; // Rojo (Urgente)
+    } else if (diffDays === 0) {
+      return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Se entrega hoy</span>`; // Rojo
+    } else {
+      return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Retraso de ${Math.abs(diffDays)} día(s)</span>`; // Rojo
+    }
   }
 
   function render(sg) {
