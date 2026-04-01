@@ -996,6 +996,9 @@ async function _renderCard(ot, h) {
 
       _onOTsChange?.([..._ots]);
       ToastService?.show(isEdit ? 'OT actualizada correctamente.' : 'OT creada correctamente.', 'success');
+      if (_om.IS_SG && window.SGListComponent && typeof window.SGListComponent.refresh === 'function') {
+         window.SGListComponent.refresh();
+      }
 
     } else {
       saveBtn.disabled  = false;
