@@ -358,7 +358,7 @@ const ModalComponent = (() => {
 
       
       
-      if (enTabInfo && !isSGRole) {
+      if (enTabInfo && !isSGRole && _currentOM.Estatus !== 'Concluida') {
         html += `
           <button class="btn-modal-secondary" id="btn-derivar-sg" style="color: #166534; border-color: #166534; display: flex; align-items: center; gap: 0.4rem;">
             Nueva OM SG
