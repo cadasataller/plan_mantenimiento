@@ -597,7 +597,12 @@ const SGModalComponent = (() => {
             ${SGUI.Icon('save')} Guardar Cambios
           </button>
         ` : `
-          
+          ${/* 👇 NUEVO: Botón de Acción Rápida (Solo si NO está concluida y tiene permisos) */ ''}
+          ${(sg.Estatus !== 'Concluida' && (_perms.statusObs || _perms.all || _perms.godMode)) ? `
+            <button class="btn-modal-primary" id="btn-sg-quick-concluir" style="background:#166534; border-color:#166534;">
+              ${SGUI.Icon('save')} Concluir SG
+            </button>
+          ` : ''}
 
           ${/* Botón original de Editar */ ''}
           ${(_perms.statusObs || _perms.all || _perms.godMode) ? `

@@ -70,14 +70,15 @@ const LoginComponent = (() => {
 
           <!-- Campo email -->
           <div class="login-field">
-            <label class="login-label" for="login-email">Correo electrónico</label>
+            <label class="login-label" for="login-email">Nombre de usuario</label>
             <input
               class="login-input"
               id="login-email"
-              type="email"
-              placeholder="usuario@cadasa.com"
-              autocomplete="email"
+              type="text"
+              placeholder="Escribe tu nombre de usuario (sin @cadasa.com)"
+              autocomplete="username"
               onkeydown="LoginComponent._onKeyDown(event)"
+              onblur="LoginComponent._formatEmail()"
             />
           </div>
 
@@ -127,8 +128,8 @@ const LoginComponent = (() => {
 
           <div class="login-access-info">
             <strong>Acceso restringido</strong>
-            Solo personal autorizado de CADASA. Utiliza tu cuenta
-            corporativa asignada por el administrador.
+            Solo personal autorizado de CADASA. Escribe únicamente tu nombre de usuario
+            (se agregará automáticamente <em>@cadasa.com</em>).
           </div>
 
           <!-- Overlay de carga -->
@@ -145,6 +146,17 @@ const LoginComponent = (() => {
   /** Enter en cualquier campo dispara el login */
   function _onKeyDown(e) {
     if (e.key === 'Enter') handleSignIn();
+  }
+
+  /** Formatea el email agregando @cadasa.com si no lo tiene */
+  function _formatEmail() {
+    const emailEl = document.getElementById('login-email');
+    if (!emailEl) return;
+    
+    let value = emailEl.value.trim();
+    if (value && !value.includes('@')) {
+      emailEl.value = value + '@cadasa.com';
+    }
   }
 
   /** Mostrar / ocultar contraseña */
@@ -165,16 +177,23 @@ const LoginComponent = (() => {
     const passEl  = document.getElementById('login-password');
     const errEl   = document.getElementById('login-error');
 
-    const email    = emailEl?.value.trim()  ?? '';
+    let email    = emailEl?.value.trim()  ?? '';
     const password = passEl?.value.trim()   ?? '';
+
+    // Formatear email si no tiene @cadasa.com
+    if (email && !email.includes('@')) {
+      email = email + '@cadasa.com';
+      // Actualizar el campo también
+      if (emailEl) emailEl.value = email;
+    }
 
     // Validación básica en cliente
     if (!email || !password) {
-      _showError('Por favor ingresa tu correo y contraseña.');
+      _showError('Por favor ingresa tu nombre de usuario y contraseña.');
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      _showError('El correo no tiene un formato válido.');
+      _showError('El nombre de usuario no tiene un formato válido.');
       return;
     }
 
@@ -210,7 +229,7 @@ const LoginComponent = (() => {
     setTimeout(() => document.getElementById('login-email')?.focus(), 100);
   }
 
-  return { mount, onEnter, handleSignIn, _onKeyDown, _togglePassword };
+  return { mount, onEnter, handleSignIn, _onKeyDown, _togglePassword, _formatEmail };
 })();
 
 window.LoginComponent = LoginComponent;
