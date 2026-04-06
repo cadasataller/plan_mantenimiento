@@ -1,26 +1,21 @@
 /* ============================================================
    CADASA TALLER — PALETA DE COLORES
-   Modifica este archivo para cambiar el tema de toda la app
    ============================================================ */
 
 :root {
-  /* ── Colores principales ── */
-  --color-main:        #004643;   /* Verde oscuro CADASA */
-  --color-main-light:  #006B65;   /* Verde principal claro */
-  --color-main-dark:   #002E2C;   /* Verde principal oscuro */
-  --color-main-muted:  #004643CC; /* Verde principal con transparencia */
+  --color-main:        #004643;
+  --color-main-light:  #006B65;
+  --color-main-dark:   #002E2C;
+  --color-main-muted:  #004643CC;
 
-  /* ── Color secundario / fondo ── */
-  --color-second:      #F0EDE5;   /* Crema / fondo global */
-  --color-second-dark: #E2DDD3;   /* Crema más oscuro (cards hover, bordes) */
-  --color-second-deep: #C9C3B4;   /* Crema profundo (divisores, inputs) */
+  --color-second:      #F0EDE5;
+  --color-second-dark: #E2DDD3;
+  --color-second-deep: #C9C3B4;
 
-  /* ── Acentos ── */
-  --color-accent:      #D4A853;   /* Dorado industrial */
-  --color-accent-light:#E8C47A;   /* Dorado claro */
-  --color-accent-dark: #B8892F;   /* Dorado oscuro (hover) */
+  --color-accent:      #D4A853;
+  --color-accent-light:#E8C47A;
+  --color-accent-dark: #B8892F;
 
-  /* ── Estados / semántica ── */
   --color-success:     #2D8A4E;
   --color-success-bg:  #E8F5ED;
   --color-warning:     #C97B2F;
@@ -30,7 +25,6 @@
   --color-info:        #1A6B9A;
   --color-info-bg:     #E3F0FA;
 
-  /* ── Neutros ── */
   --color-white:       #FFFFFF;
   --color-gray-50:     #F8F7F4;
   --color-gray-100:    #EFEDE7;
@@ -42,33 +36,182 @@
   --color-gray-700:    #2E2B26;
   --color-gray-900:    #1A1917;
 
-  /* ── Texto ── */
   --text-primary:      #1A1917;
   --text-secondary:    #4A4640;
   --text-muted:        #8F8A7F;
   --text-on-main:      #F0EDE5;
   --text-on-accent:    #1A1917;
 
-  /* ── Sombras ── */
   --shadow-sm:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
   --shadow-md:  0 4px 12px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.07);
   --shadow-lg:  0 10px 30px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.08);
   --shadow-xl:  0 20px 50px rgba(0,0,0,0.16), 0 8px 20px rgba(0,0,0,0.10);
 
-  /* ── Radios ── */
   --radius-sm:  4px;
   --radius-md:  8px;
   --radius-lg:  14px;
   --radius-xl:  22px;
   --radius-full:9999px;
 
-  /* ── Tipografía ── */
   --font-display: 'Bebas Neue', 'Arial Narrow', sans-serif;
   --font-body:    'DM Sans', 'Segoe UI', sans-serif;
   --font-mono:    'JetBrains Mono', 'Courier New', monospace;
 
-  /* ── Transiciones ── */
   --transition-fast:   150ms ease;
   --transition-normal: 300ms ease;
   --transition-slow:   400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================
+   COSECHA MECANIZADA — Rojo industrial
+   --color-danger se sube un tono para no colisionar con main
+   ============================================================ */
+[data-area="cosecha-mecanizada"] {
+  --color-main:        #991B1B;
+  --color-main-light:  #B91C1C;
+  --color-main-dark:   #7F1D1D;
+  --color-main-muted:  #991B1BCC;
+
+  --color-second:      #FEF2F2;
+  --color-second-dark: #FEE2E2;
+  --color-second-deep: #FECACA;
+
+  --color-accent:      #EA580C;
+  --color-accent-light:#FB923C;
+  --color-accent-dark: #9A3412;
+
+  /* danger sube a magenta para diferenciarse del rojo main */
+  --color-danger:      #9D174D;
+  --color-danger-bg:   #FCE7F3;
+
+  --text-on-main:      #FEF2F2;
+  --text-on-accent:    #FFF7ED;
+}
+
+/* ============================================================
+   COSECHA AGRÍCOLA — Amarillo Caterpillar sobre negro
+   El amarillo puro solo en acentos; fondos claros crema-neutro
+   ============================================================ */
+[data-area="cosecha-agricola"] {
+  --color-main:        #1C1917;
+  --color-main-light:  #292524;
+  --color-main-dark:   #0C0A09;
+  --color-main-muted:  #1C1917CC;
+
+  --color-second:      #FAFAF5;
+  --color-second-dark: #F0EDE5;
+  --color-second-deep: #E2DDD3;
+
+  --color-accent:      #EAB308;
+  --color-accent-light:#FEF08A;
+  --color-accent-dark: #854D0E;
+
+  /* warning diferenciado del amarillo CAT */
+  --color-warning:     #B45309;
+  --color-warning-bg:  #FEF3C7;
+
+  --text-on-main:      #FEF9C3;
+  --text-on-accent:    #1C1917;
+}
+
+/* ============================================================
+   EQUIPO PESADO — Misma paleta que Cosecha Agrícola
+   ============================================================ */
+[data-area="equipo-pesado"] {
+  --color-main:        #1C1917;
+  --color-main-light:  #292524;
+  --color-main-dark:   #0C0A09;
+  --color-main-muted:  #1C1917CC;
+
+  --color-second:      #FAFAF5;
+  --color-second-dark: #F0EDE5;
+  --color-second-deep: #E2DDD3;
+
+  --color-accent:      #EAB308;
+  --color-accent-light:#FEF08A;
+  --color-accent-dark: #854D0E;
+
+  --color-warning:     #B45309;
+  --color-warning-bg:  #FEF3C7;
+
+  --text-on-main:      #FEF9C3;
+  --text-on-accent:    #1C1917;
+}
+
+/* ============================================================
+   ENGRASE — Azul navy casi negro
+   Acento azul cobalto; second con tono frío para armonizar
+   ============================================================ */
+[data-area="engrase"] {
+  --color-main:        #0F172A;
+  --color-main-light:  #1E293B;
+  --color-main-dark:   #020617;
+  --color-main-muted:  #0F172ACC;
+
+  --color-second:      #F8FAFC;
+  --color-second-dark: #E2E8F0;
+  --color-second-deep: #CBD5E1;
+
+  --color-accent:      #1E40AF;
+  --color-accent-light:#3B82F6;
+  --color-accent-dark: #1E3A8A;
+
+  /* info diferenciado: violeta slate para no confundir con accent azul */
+  --color-info:        #4338CA;
+  --color-info-bg:     #EEF2FF;
+
+  --color-gray-50:     #F8FAFC;
+  --color-gray-100:    #F1F5F9;
+  --color-gray-200:    #E2E8F0;
+  --color-gray-300:    #CBD5E1;
+  --color-gray-400:    #94A3B8;
+  --color-gray-500:    #64748B;
+  --color-gray-600:    #475569;
+  --color-gray-700:    #334155;
+  --color-gray-900:    #0F172A;
+
+  --text-primary:      #0F172A;
+  --text-secondary:    #334155;
+  --text-muted:        #64748B;
+  --text-on-main:      #E2E8F0;
+  --text-on-accent:    #EFF6FF;
+}
+
+/* ============================================================
+   MECÁNICA DE TRANSPORTE — Azul cielo accesible
+   Acento cian; second celeste muy claro
+   ============================================================ */
+[data-area="mecanica-de-transporte"] {
+  --color-main:        #075985;
+  --color-main-light:  #0369A1;
+  --color-main-dark:   #0C4A6E;
+  --color-main-muted:  #075985CC;
+
+  --color-second:      #F0F9FF;
+  --color-second-dark: #E0F2FE;
+  --color-second-deep: #BAE6FD;
+
+  --color-accent:      #0891B2;
+  --color-accent-light:#22D3EE;
+  --color-accent-dark: #155E75;
+
+  /* info diferenciado: verde azulado teal */
+  --color-info:        #0D9488;
+  --color-info-bg:     #F0FDFA;
+
+  --color-gray-50:     #F0F9FF;
+  --color-gray-100:    #E0F2FE;
+  --color-gray-200:    #BAE6FD;
+  --color-gray-300:    #7DD3FC;
+  --color-gray-400:    #38BDF8;
+  --color-gray-500:    #0EA5E9;
+  --color-gray-600:    #0284C7;
+  --color-gray-700:    #0369A1;
+  --color-gray-900:    #0C4A6E;
+
+  --text-primary:      #0C4A6E;
+  --text-secondary:    #075985;
+  --text-muted:        #0284C7;
+  --text-on-main:      #F0F9FF;
+  --text-on-accent:    #F0FDFF;
 }

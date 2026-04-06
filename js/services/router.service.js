@@ -20,9 +20,23 @@ const Router = (() => {
       return;
     }
 
+    if (AuthService?.isAuthenticated()) {
+      const user = window.AuthService?.getUser() || {};
+      const area = String(user.Area || user.area || user.Área || '').trim()
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
+        .replace(/\s+/g, '-');
+      document.documentElement.setAttribute('data-area', area);
+    }
+
+    // Al hacer logout / ir al login, limpia el tema
+    if (name === 'login') {
+      document.documentElement.removeAttribute('data-area');
+    }
+
     // Guard: ruta protegida sin sesión → ir al login
     if (route.requiresAuth && !AuthService?.isAuthenticated()) {
-      if (name !== 'login') navigate('login');  // ← corregido: era 'dashboard'
+      if (name !== 'login') navigate('login');  
       return;
     }
 

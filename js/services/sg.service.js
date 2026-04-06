@@ -233,7 +233,45 @@ const SGService = (() => {
     return _sgCache;
   }
 
-  // 5. ACTUALIZACIÓN LIGERA DIRECTA (Ideal para cambios de estado rápidos)
+  // 5. CONCLUIR SG RÁPIDO (Optimizado para el botón de conclusión rápida)
+  async function quickConcluirSG(id_sg, cambios) {
+    try {
+      // Preparar payload minimalista: solo los campos esenciales
+      const payload = {
+        Estatus: cambios.estatus || 'Concluida',
+        'Fecha conclusion': cambios.fecha_conclusion,
+        fecha_ejecucion: cambios.fecha_ejecucion,
+        semana: cambios.semana || null
+      };
+
+      // Agregar dias si se calculó
+      if (cambios.dias !== undefined) {
+        payload.dias = cambios.dias;
+      }
+
+      const { data, error } = await db
+        .from('OM_SG')
+        .update(payload)
+        .eq('id_sg', id_sg)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Actualizar caché local
+      const cacheIndex = _sgCache.findIndex(item => item.id_sg === id_sg);
+      if (cacheIndex !== -1) {
+        Object.assign(_sgCache[cacheIndex], payload);
+      }
+
+      return { ok: true, data: _sgCache[cacheIndex] || data };
+    } catch (err) {
+      console.error('[SGService] Error quickConcluirSG:', err);
+      return { ok: false, error: err.message || err };
+    }
+  }
+
+  // 6. ACTUALIZACIÓN LIGERA DIRECTA (Ideal para cambios de estado rápidos)
   async function actualizarEstado(id_sg, payload) {
     try {
       const { data, error } = await db
@@ -258,7 +296,7 @@ const SGService = (() => {
     }
   }
 
-  return { fetchSGs, updateSG, createManualSG, generarIdMantenimiento, getCache, createAutoSG,actualizarEstado };
+  return { fetchSGs, updateSG, createManualSG, generarIdMantenimiento, getCache, createAutoSG, quickConcluirSG, actualizarEstado };
 })();
 
 window.SGService = SGService;
