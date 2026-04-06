@@ -97,31 +97,35 @@ const OTTabComponent = (() => {
                 ?? document.getElementById('ot-tab-inner');
     if (!inner) return;
 
+    // Definir contexto y equipo de trabajo para filtrar mecánicos
+    const context = _om.IS_SG ? 'mecanicos' : 'default';
+    const equipoTrabajo = _om.IS_SG && _om.tipo_trabajo ? _om.tipo_trabajo : null;
+
     // Precargar mecánicos antes de pintar cualquier cosa para tener los nombres listos
     if (window.MecanicoSelectComponent) {
-      await MecanicoSelectComponent.fetchMecanicos();
+      await MecanicoSelectComponent.fetchMecanicos(context, equipoTrabajo);
     }
 
     inner.classList.remove('slide-left', 'slide-right');
     inner.classList.add(_state === 'list' ? 'slide-right' : 'slide-left');
     
     // Ahora las funciones de renderizado abajo tendrán acceso inmediato al caché
-    const html = _state === 'list'   ? await _renderList()
+    const html = _state === 'list'   ? await _renderList(context, equipoTrabajo)
                : _state === 'create' ? _renderForm(null)
                :                       _renderForm(_editingOT);
                
     inner.innerHTML = `<div class="ot-view active">${html}</div>`;
 
     if (_state === 'create' || _state === 'edit') {
-      MecanicoSelectComponent.mount(_editingOT?.ID_Mecanico);
+      MecanicoSelectComponent.mount(_editingOT?.ID_Mecanico, context, equipoTrabajo);
     }
   }
 
   // ── Lista ─────────────────────────────────────────────────
   // ── Lista ─────────────────────────────────────────────────
-  async function _renderList() {
+  async function _renderList(context, equipoTrabajo) {
     // 1. Esperamos a que se generen todas las tarjetas (ahora es asíncrono)
-    const cardsHtml = await _renderOTCards();
+    const cardsHtml = await _renderOTCards(context, equipoTrabajo);
 
     return `
       <div class="ot-tab-header ot-modal-section">
@@ -147,7 +151,7 @@ const OTTabComponent = (() => {
       </div>`;
   }
 
-  async function _renderOTCards() {
+  async function _renderOTCards(context, equipoTrabajo) {
     const h = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     if (!_ots.length)
       return `<div class="ot-bar-chart-empty">No hay órdenes de trabajo registradas para esta OM.</div>`;
@@ -170,7 +174,7 @@ const OTTabComponent = (() => {
       </div>`;
 
     // 2. Usamos Promise.all para esperar que TODAS las tarjetas activas obtengan el nombre del mecánico
-    const cardsActivasPromises = activas.map(ot => _renderCard(ot, h));
+    const cardsActivasPromises = activas.map(ot => _renderCard(ot, h, context, equipoTrabajo));
     const cardsActivas = activas.length
       ? (await Promise.all(cardsActivasPromises)).join('')
       : `<div class="ot-bar-chart-empty" style="padding:1rem 0;">No hay órdenes activas.</div>`;
@@ -179,7 +183,7 @@ const OTTabComponent = (() => {
     
     // 3. Hacemos lo mismo con las tarjetas concluidas si es que hay alguna
     if (concluidas.length) {
-      const cardsConcluidasPromises = concluidas.map(ot => _renderCard(ot, h));
+      const cardsConcluidasPromises = concluidas.map(ot => _renderCard(ot, h, context, equipoTrabajo));
       const cardsConcluidasHtml = (await Promise.all(cardsConcluidasPromises)).join('');
       
       seccionConcluidas = `
@@ -204,7 +208,7 @@ const OTTabComponent = (() => {
   }
 
   // ── Render Card ──────────────────────────────────────────
-async function _renderCard(ot, h) {
+async function _renderCard(ot, h, context, equipoTrabajo) {
 
   const colors = OT_STATUS_COLORS[ot.Estatus] ?? OT_STATUS_COLORS['Retrasado'];
   const stKey  = (ot.Estatus ?? '').replace(/\s/g, '-');
@@ -212,7 +216,7 @@ async function _renderCard(ot, h) {
 
   // 🔹 Obtener nombre del mecánico
   const nombreMecanico = window.MecanicoSelectComponent
-    ? await window.MecanicoSelectComponent.getNameById(ot.ID_Mecanico)
+    ? await window.MecanicoSelectComponent.getNameById(ot.ID_Mecanico, context, equipoTrabajo)
     : ot.ID_Mecanico;
 
   return `
@@ -742,8 +746,10 @@ async function _renderCard(ot, h) {
       }
 
       // Insertar card al principio de la lista de concluidas
+      const context = _om.IS_SG ? 'mecanicos' : 'default';
+      const equipoTrabajo = _om.IS_SG && _om.tipo_trabajo ? _om.tipo_trabajo : null;
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = await _renderCard(ot, h);
+      tempDiv.innerHTML = await _renderCard(ot, h, context, equipoTrabajo);
       const newCard = tempDiv.firstElementChild;
       newCard.style.opacity   = '0';
       newCard.style.transform = 'translateY(8px)';
@@ -802,7 +808,9 @@ async function _renderCard(ot, h) {
       if (placeholder) placeholder.remove();
 
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = await _renderCard(ot, h);
+      const context = _om.IS_SG ? 'mecanicos' : 'default';
+      const equipoTrabajo = _om.IS_SG && _om.tipo_trabajo ? _om.tipo_trabajo : null;
+      tempDiv.innerHTML = await _renderCard(ot, h, context, equipoTrabajo);
       const newCard = tempDiv.firstElementChild;
       newCard.style.opacity   = '0';
       newCard.style.transform = 'translateY(8px)';

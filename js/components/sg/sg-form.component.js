@@ -172,6 +172,15 @@ const SGFormComponent = (() => {
       }
     });
 
+    // 👇 NUEVO: Listener para filtrar mecánicos por tipo de trabajo
+    const tipoTrabajoSelect = document.getElementById('sg-tipo-trabajo');
+    tipoTrabajoSelect.addEventListener('change', (e) => {
+      const tipo = e.target.value;
+      if (window.MecanicoSelectComponent) {
+        window.MecanicoSelectComponent.mount(null, 'mecanicos', tipo);
+      }
+    });
+
     document.getElementById('form-sg-manual').addEventListener('submit', async (e) => {
       e.preventDefault();
       

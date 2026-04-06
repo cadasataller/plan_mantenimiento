@@ -30,7 +30,7 @@ const MecanicoSelectComponent = (() => {
     document.head.appendChild(style);
   }
 
-  async function fetchMecanicos(context = 'default') {
+  async function fetchMecanicos(context = 'default', equipoTrabajo = null) {
     //if (_cache) return _cache;
     if (_isLoading) {
       return new Promise(resolve => {
@@ -56,8 +56,12 @@ const MecanicoSelectComponent = (() => {
         
       // 👇 3. Aplicamos el filtro según el contexto
       if (context === 'mecanicos') {
-        // 👇 FILTRAMOS SOLO MECÁNICOS Y SERVICIOS GENERALES
-        query = query.ilike('AREA', 'Servicios Generales');
+        // 👇 FILTRAMOS POR EQUIPO DE TRABAJO SI SE PROPORCIONA, SINO POR AREA
+        if (equipoTrabajo) {
+          query = query.ilike('"EQUIPO DE TRABAJO"', equipoTrabajo);
+        } else {
+          query = query.ilike('AREA', 'Servicios Generales');
+        }
       } else if (uArea && uArea !== 'ALL') {
         // 👇 Filtro normal por área del usuario
         query = query.ilike('AREA', uArea);
@@ -87,7 +91,7 @@ const MecanicoSelectComponent = (() => {
     `;
   }
 
-  async function mount(selectedValue = null, context = 'default') {
+  async function mount(selectedValue = null, context = 'default', equipoTrabajo = null) {
     const select = document.getElementById('ot-mec-select');
     const loader = document.getElementById('ot-mec-loader');
     
@@ -98,7 +102,7 @@ const MecanicoSelectComponent = (() => {
     select.disabled = true;
     if (loader) loader.style.display = 'block';
 
-    const mecanicos = await fetchMecanicos(context);
+    const mecanicos = await fetchMecanicos(context, equipoTrabajo);
     let optionsHtml = '<option value="">Seleccione un mecánico...</option>';
     
     mecanicos.forEach(m => {
@@ -119,9 +123,9 @@ const MecanicoSelectComponent = (() => {
 
   // ── NUEVO: Función para traducir ID a Nombre ──
   // La hacemos async por si el caché aún no está cargado cuando se pinta la lista
-  async function getNameById(id,context = 'default') {
+  async function getNameById(id,context = 'default', equipoTrabajo = null) {
     if (!id) return '—';
-    const mecanicos = await fetchMecanicos(context);
+    const mecanicos = await fetchMecanicos(context, equipoTrabajo);
     const mecanico = mecanicos.find(m => String(m.id) === String(id));
     return mecanico ? mecanico.NOMBRE : `ID: ${id}`;
   }
