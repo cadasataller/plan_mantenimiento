@@ -31,7 +31,7 @@ const MecanicoSelectComponent = (() => {
   }
 
   async function fetchMecanicos(context = 'default') {
-    if (_cache) return _cache;
+    //if (_cache) return _cache;
     if (_isLoading) {
       return new Promise(resolve => {
         const interval = setInterval(() => {
