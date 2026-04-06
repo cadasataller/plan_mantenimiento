@@ -399,13 +399,13 @@ async function _renderCard(ot, h) {
           
           <div class="ot-modal-field">
               <div class="ot-moda-label">
-                Mecánico
+                Mecánico <span style="color:#ef4444">*</span>
               </div>
               ${MecanicoSelectComponent.renderHtml()}
           </div>
 
           <div class="ot-modal-field">
-            <div class="ot-modal-label">Fecha</div>
+            <div class="ot-modal-label">Fecha <span style="color:#ef4444">*</span></div>
             <input type="date" id="ot-fecha" value="${fechaVal}" />
             <div class="ot-semana-hint" id="ot-semana-preview">
               ${fechaVal ? `Semana ${_isoWeek(fechaVal) ?? '—'}` : ''}
@@ -413,12 +413,12 @@ async function _renderCard(ot, h) {
           </div>
 
           <div class="ot-modal-field">
-            <div class="ot-modal-label">Horas</div>
+            <div class="ot-modal-label">Horas <span style="color:#ef4444">*</span></div>
             <input type="number" id="ot-duracion" placeholder="0.0" min="0" step="0.5" value="${ot?.Duracion ?? ''}" />
           </div>
 
           <div class="ot-modal-field" style="grid-column:1/-1;">
-            <div class="ot-modal-label">Estado</div>
+            <div class="ot-modal-label">Estado <span style="color:#ef4444">*</span></div>
             <div class="ot-status-buttons" id="ot-status-buttons">
               ${OT_ESTADOS.map(e => {
                 const active = estadoActual === e.value ? 'active' : '';
@@ -690,7 +690,7 @@ async function _renderCard(ot, h) {
     card.style.opacity    = '0';
     card.style.transform  = 'translateY(-6px)';
 
-    setTimeout(() => {
+    setTimeout(async() => {
       card.remove();
 
       // Actualizar contador del summary
@@ -743,7 +743,7 @@ async function _renderCard(ot, h) {
 
       // Insertar card al principio de la lista de concluidas
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = _renderCard(ot, h);
+      tempDiv.innerHTML = await _renderCard(ot, h);
       const newCard = tempDiv.firstElementChild;
       newCard.style.opacity   = '0';
       newCard.style.transform = 'translateY(8px)';
@@ -776,7 +776,7 @@ async function _renderCard(ot, h) {
     card.style.opacity    = '0';
     card.style.transform  = 'translateY(-6px)';
 
-    setTimeout(() => {
+    setTimeout(async() => {
       card.remove();
       _refreshSummary();
 
@@ -802,7 +802,7 @@ async function _renderCard(ot, h) {
       if (placeholder) placeholder.remove();
 
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = _renderCard(ot, h);
+      tempDiv.innerHTML = await _renderCard(ot, h);
       const newCard = tempDiv.firstElementChild;
       newCard.style.opacity   = '0';
       newCard.style.transform = 'translateY(8px)';
@@ -996,6 +996,9 @@ async function _renderCard(ot, h) {
 
       _onOTsChange?.([..._ots]);
       ToastService?.show(isEdit ? 'OT actualizada correctamente.' : 'OT creada correctamente.', 'success');
+      if (_om.IS_SG && window.SGListComponent && typeof window.SGListComponent.refresh === 'function') {
+         window.SGListComponent.refresh();
+      }
 
     } else {
       saveBtn.disabled  = false;

@@ -358,7 +358,7 @@ const ModalComponent = (() => {
 
       
       
-      if (enTabInfo && !isSGRole) {
+      if (enTabInfo && !isSGRole && _currentOM.Estatus !== 'Concluida') {
         html += `
           <button class="btn-modal-secondary" id="btn-derivar-sg" style="color: #166534; border-color: #166534; display: flex; align-items: center; gap: 0.4rem;">
             Nueva OM SG
@@ -414,7 +414,8 @@ const ModalComponent = (() => {
         setTimeout(() => {
           SGPageComponent.openForm({
             ID_Orden: omData.ID_Orden, Area: omData.Area, ID_EQUIPO: omData.ID_EQUIPO,
-            ITEM: omData.ITEM, Sistema: omData.Sistema, Descripcion: omData.Descripcion
+            ITEM: omData.ITEM, Sistema: omData.Sistema, Descripcion: '',
+            _context: 'mecanicos' // 👈 INDICAMOS QUE VIENE DEL CONTEXTO DE MECÁNICOS
           });
         }, 100);
       }

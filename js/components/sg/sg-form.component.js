@@ -14,9 +14,11 @@ const SGFormComponent = (() => {
     _onSuccess = callbacks?.onSuccess;
     _render(initialData);
     _bindEvents(initialData);
-    
+
     if (window.MecanicoSelectComponent) {
-      window.MecanicoSelectComponent.mount();
+      // 👇 PASAMOS EL CONTEXTO PARA FILTRAR MECÁNICOS Y SERVICIOS GENERALES
+      const context = 'mecanicos';
+      window.MecanicoSelectComponent.mount(null, context);
     }
   }
 
@@ -78,7 +80,7 @@ const SGFormComponent = (() => {
           <h4 style="margin-bottom: 1rem; color: var(--color-main); font-size: 0.9rem; border-bottom: 1px solid var(--color-gray-200); padding-bottom: 0.3rem;">2. Detalles del Trabajo</h4>
           <div class="ot-form-grid" style="margin-bottom: 1.5rem;">
             <div class="ot-modal-field" style="grid-column: 1 / -1;">
-              <label class="ot-modal-label">Descripción General <span style="color:#ef4444">*</span></label>
+              <label class="ot-modal-label">Trabajo a realizar <span style="color:#ef4444">*</span></label>
               <input type="text" id="sg-desc" class="sg-field-input" value="${data.Descripcion || ''}" required />
             </div>
             
@@ -105,7 +107,7 @@ const SGFormComponent = (() => {
             </div>
             
             <div class="ot-modal-field" style="grid-column: 1 / -1;">
-              <label class="ot-modal-label">Mecánico a Solicitar</label>
+              <label class="ot-modal-label">Mecánico a Solicitar <span style="color:#ef4444">*</span></label>
               ${window.MecanicoSelectComponent ? window.MecanicoSelectComponent.renderHtml() : '<input type="text" id="sg-personal" class="sg-field-input" />'}
             </div>
           </div>

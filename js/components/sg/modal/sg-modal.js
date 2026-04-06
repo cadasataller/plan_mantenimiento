@@ -233,17 +233,53 @@ const SGModalComponent = (() => {
     } catch { return dateStr; }
   }
 
-  function _calcularEstadoDias(fechaEntregaStr) {
-    if (!fechaEntregaStr) return '<span style="color:var(--text-muted); font-size:0.68rem; margin-top:0.3rem; font-style:italic;">Sin fecha asignada</span>';
+  function _calcularDiasRestantes(fechaEntregaStr) {
+    if (!fechaEntregaStr) return null;
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
     const entrega = new Date(fechaEntregaStr);
     entrega.setMinutes(entrega.getMinutes() + entrega.getTimezoneOffset());
     entrega.setHours(0, 0, 0, 0);
-    const diffDays = Math.round((entrega.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.round((entrega.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  function _calcularEstadoDias(fechaEntregaStr, estatus, diasGuardados) {
     const bs = "display:inline-block; padding:0.15rem 0.4rem; border-radius:4px; font-weight:600; font-size:0.68rem; margin-top:0.3rem;";
-    if (diffDays > 0) return `<span style="${bs} background:#DCFCE7; color:#166534;">Faltan ${diffDays} día(s)</span>`;
-    if (diffDays < 0) return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Retraso de ${Math.abs(diffDays)} día(s)</span>`;
-    return `<span style="${bs} background:#F3F4F6; color:#4B5563;">Se entrega hoy</span>`;
+
+    // 1. SI TIENE VALOR EN LA COLUMNA DIAS (Ya fue concluida y calculada)
+    if (diasGuardados !== null && diasGuardados !== undefined && diasGuardados !== '') {
+      const d = parseInt(diasGuardados, 10);
+      if (d >= 0) {
+        // Entregado antes (positivo) o el mismo día (0) -> VERDE
+        const texto = d === 0 ? 'A tiempo' : 'Anticipado';
+        return `<span style="${bs} background:#DCFCE7; color:#166534;">Días: ${d} (${texto})</span>`;
+      } else {
+        // Entregado tarde (negativo) -> ROJO
+        return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Días: ${d} (Retraso)</span>`;
+      }
+    }
+
+    // 2. LOGICA POR SI SE CONCLUYÓ ANTES DE ESTA ACTUALIZACIÓN (Legacy)
+    if (estatus === 'Concluida') {
+      return `<span style="${bs} background:#E5E7EB; color:#374151;">Trabajo Concluido</span>`;
+    }
+
+    // 3. LOGICA DINÁMICA (Mientras está programada o en proceso)
+    if (!fechaEntregaStr) return '<span style="color:var(--text-muted); font-size:0.68rem; margin-top:0.3rem; font-style:italic;">Sin fecha asignada</span>';
+    
+    const diffDays = _calcularDiasRestantes(fechaEntregaStr);
+    
+    // 👇 NUEVA LÓGICA DE COLORES DINÁMICOS (Amarillo de 2 a 4)
+    if (diffDays > 4) {
+      return `<span style="${bs} background:#DCFCE7; color:#166534;">Faltan ${diffDays} día(s)</span>`; // Verde
+    } else if (diffDays >= 2 && diffDays <= 4) {
+      return `<span style="${bs} background:#FEF9C3; color:#854D0E;">Faltan ${diffDays} día(s)</span>`; // Amarillo
+    } else if (diffDays === 1) {
+      return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Falta 1 día</span>`; // Rojo (Urgente)
+    } else if (diffDays === 0) {
+      return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Se entrega hoy</span>`; // Rojo
+    } else {
+      return `<span style="${bs} background:#FEE2E2; color:#991B1B;">Retraso de ${Math.abs(diffDays)} día(s)</span>`; // Rojo
+    }
   }
 
   function _renderShell(sg) {
@@ -275,7 +311,9 @@ const SGModalComponent = (() => {
               <button class="btn-modal-close" id="btn-sg-modal-close">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
-              <span id="sg-modal-header-badge">${SGUI.Badge(sg.Estatus)}</span>
+              <span id="sg-modal-header-badge">
+                ${sg.Estatus ? SGUI.Badge(sg.Estatus) : '<span style="color: #6b7280; font-weight: 500; font-size: 0.9rem;">No Programado</span>'}
+              </span>
             </div>
           </div>
 
@@ -336,7 +374,12 @@ const SGModalComponent = (() => {
     const headerBadge = document.getElementById('sg-modal-header-badge');
     
     // Leemos el estatus actual
-    if (headerBadge) headerBadge.innerHTML = SGUI.Badge(v('estatus', sg.Estatus || 'Programado'));
+    if (headerBadge) {
+      const currentEstatus = v('estatus', sg.Estatus);
+      headerBadge.innerHTML = currentEstatus 
+        ? SGUI.Badge(currentEstatus) 
+        : '<span style="color: #6b7280; font-weight: 500; font-size: 0.9rem;">No Programado</span>';
+    }
 
     const estatusOptions = [
       { value: 'Programado', label: 'Programado' },
@@ -427,13 +470,13 @@ const SGModalComponent = (() => {
           <div class="ot-modal-section-title">Identificación y Ubicación</div>
           <div class="ot-modal-grid">
             ${(_editMode && _perms.godMode) ? `
-              ${SGUI.EditableField({ id: 'edit-descripcion', label: 'Descripción', value: v('descripcion', om.Descripcion), type: 'textarea', isEditMode: true, canEdit: true, fullWidth: true })}
+              ${SGUI.EditableField({ id: 'edit-descripcion', label: 'Trabajo a realizar', value: v('descripcion', om.Descripcion), type: 'textarea', isEditMode: true, canEdit: true, fullWidth: true })}
               ${SGUI.EditableField({ id: 'edit-area_om', label: 'Área', value: v('area_om', om['Área']), type: 'buttongroup', options: SGUI.AREAS_OPTIONS, isEditMode: true, canEdit: true, fullWidth: true })}
               ${SGUI.EditableField({ id: 'edit-equipo', label: 'Equipo', value: v('equipo', om['ID_#EQUIPO']), type: 'text', isEditMode: true, canEdit: true })}
               ${SGUI.EditableField({ id: 'edit-item', label: 'Item', value: v('item', om.ITEM), type: 'text', isEditMode: true, canEdit: true })}
               ${SGUI.EditableField({ id: 'edit-sistema', label: 'Sistema', value: v('sistema', om.Sistema), type: 'text', isEditMode: true, canEdit: true })}
             ` : `
-              <div class="ot-modal-field" style="grid-column: 1/-1;"><div class="ot-modal-label">Descripción</div><div class="ot-modal-val">${om.Descripcion || '—'}</div></div>
+              <div class="ot-modal-field" style="grid-column: 1/-1;"><div class="ot-modal-label">Trabajo a realizar</div><div class="ot-modal-val">${om.Descripcion || '—'}</div></div>
               <div class="ot-modal-field"><div class="ot-modal-label">Área</div><div class="ot-modal-val">${om['Área'] || '—'}</div></div>
               <div class="ot-modal-field"><div class="ot-modal-label">Equipo</div><div class="ot-modal-val">${om['ID_#EQUIPO'] || '—'}</div></div>
               <div class="ot-modal-field"><div class="ot-modal-label">Item</div><div class="ot-modal-val">${om.ITEM || '—'}</div></div>
@@ -446,7 +489,17 @@ const SGModalComponent = (() => {
         <div class="ot-modal-section">
           <div class="ot-modal-section-title">Estado y Observaciones</div>
           <div class="ot-modal-grid">
-            ${SGUI.StatusPicker({ id: 'edit-estatus', label: 'Estatus', value: v('estatus', sg.Estatus), options: estatusOptions, isEditMode: _editMode, canEdit: _perms.statusObs })}
+            ${ (_editMode && _perms.statusObs) 
+              ? SGUI.StatusPicker({ id: 'edit-estatus', label: 'Estatus', value: v('estatus', sg.Estatus), options: estatusOptions, isEditMode: true, canEdit: true })
+              : `<div class="ot-modal-field">
+                   <div class="ot-modal-label">Estatus</div>
+                   <div class="ot-modal-val" style="margin-top: 0.2rem;">
+                     ${v('estatus', sg.Estatus) 
+                        ? SGUI.Badge(v('estatus', sg.Estatus)) 
+                        : '<span style="color: #6b7280; font-weight: 500; font-size: 0.9rem;">No Programado</span>'}
+                   </div>
+                 </div>`
+            }
             ${SGUI.EditableField({ id: 'edit-observaciones', label: 'Observaciones', value: v('observaciones', sg.Observaciones || ''), type: 'textarea', placeholder: 'Notas de Servicios Generales...', isEditMode: _editMode, canEdit: _perms.statusObs, fullWidth: true })}
           </div>
         </div>
@@ -479,7 +532,7 @@ const SGModalComponent = (() => {
                 <div class="ot-modal-label">Fecha Entrega Esperada</div>
                 <div class="ot-modal-val" style="display: flex; flex-direction: column; align-items: flex-start;">
                   <span>${formatDate(fechaEntregaReal)}</span>
-                  ${!_editMode ? _calcularEstadoDias(fechaEntregaReal) : ''}
+                  ${!_editMode ? _calcularEstadoDias(fechaEntregaReal, sg.Estatus, sg.dias) : ''}
                 </div>
               </div>
               `
@@ -496,6 +549,7 @@ const SGModalComponent = (() => {
             </div>
 
             <div class="ot-modal-field"><div class="ot-modal-label">Fecha Conclusión (SG)</div><div class="ot-modal-val" id="disp-fecha-conclusion">${formatDate(v('fecha_conclusion', sg['Fecha conclusion']))}</div></div>
+            
           </div>
         </div>
 
@@ -642,16 +696,23 @@ const SGModalComponent = (() => {
 
           if (nuevoEstado === 'En Proceso') {
             _editState.fecha_conclusion = '';
+            _editState.dias = null; // Limpiamos por si se revierte
 
           } else if (nuevoEstado === 'Concluida') {
             if (!_editState.fecha_conclusion) _editState.fecha_conclusion = panamaTime.timestamp;
             
+            
+            const fEntrega = _editState.fecha_entrega || _currentSG.fecha_entrega || _currentSG.ORDEN_MANTENIMIENTO['Fecha Entrega'];
+            const diff = _calcularDiasRestantes(fEntrega);
+            if (diff !== null) _editState.dias = diff;
+            
           } else if (nuevoEstado === 'Detenido') { 
             _editState.fecha_conclusion = ''; 
+            _editState.dias = null;
             
           } else if (nuevoEstado === 'Programado') {
-            
             _editState.fecha_conclusion = '';
+            _editState.dias = null;
           }
 
           const dispSemana = document.getElementById('disp-semana');
@@ -746,6 +807,13 @@ const SGModalComponent = (() => {
   const panamaTime = _getPanamaNow();
   const cambiosSG = { estatus: 'Concluida', fecha_conclusion: panamaTime.timestamp };
 
+  // 👇 NUEVO: Calculamos los días para el botón rápido
+  const fechaE = sg.fecha_entrega || sg.ORDEN_MANTENIMIENTO['Fecha Entrega'];
+  const diff = _calcularDiasRestantes(fechaE);
+  if (diff !== null) {
+    cambiosSG.dias = diff;
+  }
+
   // Si no tiene fecha de ejecución (inicio), le asignamos la de hoy
   if (!sg.fecha_ejecucion || sg.fecha_ejecucion.trim() === '') {
     cambiosSG.fecha_ejecucion = panamaTime.soloFecha; // o panamaTime.timestamp dependiendo de tu BD
@@ -770,6 +838,8 @@ const SGModalComponent = (() => {
     
     // 5. Actualizar caché y UI local
     _currentSG = resultado.data; // Asumiendo que updateSG devuelve el registro actualizado
+
+    if (cambiosSG.dias !== undefined) _currentSG.dias = cambiosSG.dias;
     
     // Por si no devuelve la data completa, forzamos la actualización visual:
     _currentSG.Estatus = 'Concluida';
