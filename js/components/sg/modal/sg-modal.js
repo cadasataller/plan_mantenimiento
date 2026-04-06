@@ -910,6 +910,7 @@ const SGModalComponent = (() => {
       Area: om['Área'],
       Descripcion: om.Descripcion,
       ID_EQUIPO: om['ID_#EQUIPO'],
+      tipo_trabajo:sg.tipo_trabajo,
       
       
       Estatus: sg.Estatus,
