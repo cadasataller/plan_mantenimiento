@@ -209,10 +209,10 @@ const ModalComponent = (() => {
           <div class="ot-modal-field">
             <div class="ot-modal-label">
               Fecha de inicio 
-              ${(_editMode && !om.Estatus) ? '<span class="edit-section-tag">editable</span>' : ''}
+              ${(_editMode && v('estatus', om.Estatus) === 'Programado') ? '<span class="edit-section-tag">editable</span>' : ''}
               ${(_editMode && _editState.estatus === 'Programado') ? '<span style="color:var(--color-danger); font-weight:bold;"> *</span>' : ''}
             </div>
-            ${(_editMode && !om.Estatus) 
+            ${(_editMode && v('estatus', om.Estatus) === 'Programado') 
               ? `<input type="date" id="edit-fecha-inicio" class="edit-input" value="${_isoDateValue(v('fechaInicio', om.FechaInicio))}" required />` 
               : `<div class="ot-modal-val${!om.FechaInicio ? ' empty' : ''}">${om.FechaInicio || '—'}</div>`
             }

@@ -75,7 +75,7 @@ const LoginComponent = (() => {
               class="login-input"
               id="login-email"
               type="text"
-              placeholder="Escribe tu nombre de usuario (sin @cadasa.com)"
+              placeholder="Escribe tu nombre de usuario"
               autocomplete="username"
               onkeydown="LoginComponent._onKeyDown(event)"
               onblur="LoginComponent._formatEmail()"
