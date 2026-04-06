@@ -119,9 +119,9 @@ const MecanicoSelectComponent = (() => {
 
   // ── NUEVO: Función para traducir ID a Nombre ──
   // La hacemos async por si el caché aún no está cargado cuando se pinta la lista
-  async function getNameById(id) {
+  async function getNameById(id,context = 'default') {
     if (!id) return '—';
-    const mecanicos = await fetchMecanicos();
+    const mecanicos = await fetchMecanicos(context);
     const mecanico = mecanicos.find(m => String(m.id) === String(id));
     return mecanico ? mecanico.NOMBRE : `ID: ${id}`;
   }

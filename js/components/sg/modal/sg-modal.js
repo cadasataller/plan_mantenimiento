@@ -645,7 +645,7 @@ const SGModalComponent = (() => {
     } else if (!_editMode || !canEditFull) {
       // En modo lectura pedimos el nombre asíncronamente
       if (window.MecanicoSelectComponent) {
-        window.MecanicoSelectComponent.getNameById(currentMecId).then(name => {
+        window.MecanicoSelectComponent.getNameById(currentMecId,"mecanicos").then(name => {
           const disp = document.getElementById('disp-mecanico-solicitado');
           if (disp) disp.innerText = name || '—';
         });
@@ -790,76 +790,91 @@ const SGModalComponent = (() => {
   }
 
   async function _quickConcluirSG() {
-  const sg = _currentSG;
+    const sg = _currentSG;
 
-  // 1. Validar OTs pendientes
-  const todasLasOTs = window.OTWorkStore?.getOTsByOM(sg.id_sg) || [];
-  const pendientes = todasLasOTs.filter(ot => ot.Estatus !== 'Concluida');
-  
-  if (pendientes.length > 0) {
-    const msg = `No se puede concluir: Faltan ${pendientes.length} tareas por terminar.`;
-    if (window.ToastService) window.ToastService.show(msg, 'warning');
-    else alert(msg);
-    return;
-  }
-
-  // 2. Preparar los datos
-  const panamaTime = _getPanamaNow();
-  const cambiosSG = { estatus: 'Concluida', fecha_conclusion: panamaTime.timestamp };
-
-  // 👇 NUEVO: Calculamos los días para el botón rápido
-  const fechaE = sg.fecha_entrega || sg.ORDEN_MANTENIMIENTO['Fecha Entrega'];
-  const diff = _calcularDiasRestantes(fechaE);
-  if (diff !== null) {
-    cambiosSG.dias = diff;
-  }
-
-  // Si no tiene fecha de ejecución (inicio), le asignamos la de hoy
-  if (!sg.fecha_ejecucion || sg.fecha_ejecucion.trim() === '') {
-    cambiosSG.fecha_ejecucion = panamaTime.soloFecha; // o panamaTime.timestamp dependiendo de tu BD
-  }
-
-  // 3. UI de "Cargando"
-  const btn = document.getElementById('btn-sg-quick-concluir');
-  const originalHtml = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>...`;
-
-  // 4. Guardar en BD
-  const resultado = await SGService.updateSG(
-    sg.id_sg, 
-    sg.ORDEN_MANTENIMIENTO['ID_Orden mantenimiento'], 
-    cambiosSG, 
-    _perms
-  );
-
-  if (resultado.ok) {
-    window.ToastService?.show('Orden SG concluida.', 'success');
+    // 1. Validar OTs pendientes
+    const todasLasOTs = window.OTWorkStore?.getOTsByOM(sg.id_sg) || [];
+    const pendientes = todasLasOTs.filter(ot => ot.Estatus !== 'Concluida');
     
-    // 5. Actualizar caché y UI local
-    _currentSG = resultado.data; // Asumiendo que updateSG devuelve el registro actualizado
-
-    if (cambiosSG.dias !== undefined) _currentSG.dias = cambiosSG.dias;
-    
-    // Por si no devuelve la data completa, forzamos la actualización visual:
-    _currentSG.Estatus = 'Concluida';
-    _currentSG['Fecha conclusion'] = cambiosSG.fecha_conclusion;
-    if (cambiosSG.fecha_ejecucion) _currentSG.fecha_ejecucion = cambiosSG.fecha_ejecucion;
-
-    _renderContent(); // Repinta el panel de info
-    
-    const headerBadge = document.getElementById('sg-modal-header-badge');
-    if (headerBadge) headerBadge.innerHTML = SGUI.Badge('Concluida');
-
-    if (window.SGListComponent && typeof window.SGListComponent.refresh === 'function') {
-      window.SGListComponent.refresh();
+    if (pendientes.length > 0) {
+      const msg = `No se puede concluir: Faltan ${pendientes.length} tareas por terminar.`;
+      if (window.ToastService) window.ToastService.show(msg, 'warning');
+      else alert(msg);
+      return;
     }
-  } else {
-    window.ToastService?.show('Error al concluir SG.', 'danger');
-    btn.disabled = false;
-    btn.innerHTML = originalHtml;
+
+    const panamaTime = _getPanamaNow();
+    const cambiosSG = {
+      estatus: 'Concluida',
+      fecha_conclusion: panamaTime.timestamp
+    };
+
+    // 👇 NUEVO: Calculamos los días para el botón rápido
+    const fechaE = sg.fecha_entrega || sg.ORDEN_MANTENIMIENTO['Fecha Entrega'];
+    const diff = _calcularDiasRestantes(fechaE);
+    if (diff !== null) {
+      cambiosSG.dias = diff;
+    }
+
+    // 👇 NUEVO: Guardar la semana de conclusión
+    cambiosSG.semana = _getWeekNumber(panamaTime.dateObj);
+
+    // Si no tiene fecha de ejecución (inicio), le asignamos la de hoy
+    if (!sg.fecha_ejecucion || sg.fecha_ejecucion.trim() === '') {
+      cambiosSG.fecha_ejecucion = panamaTime.soloFecha; // o panamaTime.timestamp dependiendo de tu BD
+    }else{
+      cambiosSG.fecha_ejecucion = sg.fecha_ejecucion;
+    }
+    const saveChanges = async () => {
+      const btn = document.getElementById('btn-sg-quick-concluir');
+      const originalHtml = btn?.innerHTML || '...';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>...`;
+      }
+
+      const resultado = await SGService.quickConcluirSG(
+        sg.id_sg,
+        cambiosSG
+      );
+
+      if (resultado.ok) {
+        window.ToastService?.show('Orden SG concluida.', 'success');
+        _currentSG = resultado.data;
+
+        if (cambiosSG.dias !== undefined) _currentSG.dias = cambiosSG.dias;
+        _currentSG.Estatus = 'Concluida';
+        _currentSG['Fecha conclusion'] = cambiosSG.fecha_conclusion;
+        if (cambiosSG.fecha_ejecucion) _currentSG.fecha_ejecucion = cambiosSG.fecha_ejecucion;
+        if (cambiosSG.semana !== undefined) _currentSG.semana = cambiosSG.semana;
+
+        _renderContent();
+
+        const headerBadge = document.getElementById('sg-modal-header-badge');
+        if (headerBadge) headerBadge.innerHTML = SGUI.Badge('Concluida');
+
+        if (window.SGListComponent && typeof window.SGListComponent.refresh === 'function') {
+          window.SGListComponent.refresh();
+        }
+      } else {
+        window.ToastService?.show('Error al concluir SG.', 'danger');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      }
+    };
+
+    const confirmAction = async () => {
+      if (window.ConfirmConcluirModal) {
+        window.ConfirmConcluirModal.show(saveChanges);
+      } else if (confirm('¿Estás seguro de que deseas concluir esta SG?')) {
+        await saveChanges();
+      }
+    };
+
+    await confirmAction();
   }
-}
 
   // ══════════════════════════════════════════════════════════
   // PESTAÑAS Y CARGA DE OTs
@@ -883,6 +898,7 @@ const SGModalComponent = (() => {
     _refreshFooter();
   }
   async function loadOTs(sg, authenticated) {
+    
     const user = window.AuthService?.getUser() || {};
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
     if (uArea !== 'ALL' && uArea !== 'SERVICIOS GENERALES') return; // No carga nada
