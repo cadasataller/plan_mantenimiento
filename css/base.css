@@ -121,3 +121,26 @@ body {
   from { opacity: 1; transform: translateX(0); }
   to   { opacity: 0; transform: translateX(40px); }
 }
+
+
+.icon-wrapper {
+
+  width: 64px;
+  height: 55px;
+  border-radius: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0px; /* 👈 crea espacio interno */
+  box-sizing: border-box;
+}
+
+.icon-wrapper img {
+  width: 100%;     /* 👈 ahora ocupa todo el espacio útil */
+  height: 100%;
+  object-fit: contain;
+
+
+}

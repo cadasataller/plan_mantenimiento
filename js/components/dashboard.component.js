@@ -167,9 +167,7 @@ const DashboardComponent = (() => {
     const roleLabel = isAdmin ? 'Administrador' : user.area === 'ALL' || !user.area ? 'Taller' : `Taller · ${user.area}`;
     const initials  = (user.name || '').trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
 
-    const avatar = user.picture
-      ? `<img class="topbar-avatar" src="${user.picture}" alt="${user.name}" referrerpolicy="no-referrer">`
-      : `<div class="topbar-avatar-placeholder">${initials}</div>`;
+    const avatar = renderIcon(user.area) || `<div class="topbar-avatar">${initials}</div>`;
 
     container.innerHTML = `
       <div class="topbar-user-info">
@@ -186,6 +184,47 @@ const DashboardComponent = (() => {
         </svg> Salir
       </button>`;
   }
+
+  function renderIcon(area) {
+  if (area === 'Cosecha Agricola') {
+    return `
+      <div class="icon-wrapper">
+        <img src="../../image/graploader.png" alt="graploader icon" />
+      </div>
+    `;
+  }else if (area === 'Engrase') {
+    return `
+      <div class="icon-wrapper">
+        <img src="../../image/tanque.png" alt="tanque icon" />
+      </div>
+    `;
+  }else if (area === 'Equipo Pesado') {
+    return `
+      <div class="icon-wrapper">
+        <img src="../../image/montacarga.png" alt="montacarg icon" />
+      </div>
+    `;
+  }else if (area === 'Mecanica de Transporte') {
+    return `
+      <div class="icon-wrapper">
+        <img src="../../image/mula.png" alt="mula icon" />
+      </div>
+    `;
+  }else if (area === 'Cosecha Mecanizada') {
+    return `
+      <div class="icon-wrapper">
+        <img src="../../image/combinada.png" alt="combinada icon" />
+      </div>
+    `;
+  }else if (area === 'Servicios Generales') {
+    return `
+      <div class="icon-wrapper">
+        <img src="../../image/SG_1.png" alt="SG icon" />
+      </div>
+    `;
+  }
+  return '';
+}
 
   return { mount, onEnter, _switchTab };
 })();
