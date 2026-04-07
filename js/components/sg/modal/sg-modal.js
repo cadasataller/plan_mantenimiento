@@ -598,7 +598,7 @@ const SGModalComponent = (() => {
           </button>
         ` : `
           ${/* 👇 NUEVO: Botón de Acción Rápida (Solo si NO está concluida y tiene permisos) */ ''}
-          ${(sg.Estatus !== 'Concluida' && (_perms.statusObs || _perms.all || _perms.godMode)) ? `
+          ${(sg.Estatus !== 'Concluida' && (_perms.godMode || _perms.statusObs)) ? `
             <button class="btn-modal-primary" id="btn-sg-quick-concluir" style="background:#166534; border-color:#166534;">
               ${SGUI.Icon('save')} Concluir SG
             </button>
