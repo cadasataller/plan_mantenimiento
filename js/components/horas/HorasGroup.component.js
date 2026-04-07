@@ -71,7 +71,7 @@ const HorasGroup = (() => {
     const rTotal  = _fmt(group.totalRetraso);
 
     wrap.innerHTML = `
-      <div class="hg-header" data-expanded="true">
+      <div class="hg-header" data-expanded="false">
         <div class="hg-header-left">
           <button class="hg-toggle" aria-label="colapsar">
             <svg class="hg-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
@@ -128,7 +128,7 @@ const HorasGroup = (() => {
         const sgEl = document.createElement('div');
         sgEl.className = 'hg-subgroup';
         sgEl.innerHTML = `
-          <div class="hg-subgroup-header" data-expanded="true">
+          <div class="hg-subgroup-header" data-expanded="false">
             <button class="hg-sub-toggle">
               <svg class="hg-sub-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12">
                 <polyline points="6 9 12 15 18 9"/>
@@ -162,7 +162,14 @@ const HorasGroup = (() => {
         const subHeader = sgEl.querySelector('.hg-subgroup-header');
         const subBody   = sgEl.querySelector('.hg-subgroup-body');
         const subChevron = sgEl.querySelector('.hg-sub-chevron');
-        sgEl.querySelector('.hg-sub-toggle').addEventListener('click', e => {
+
+        subHeader.dataset.expanded = 'false';
+        subBody.style.maxHeight = '0';
+        subBody.style.opacity = '0';
+        subBody.style.overflow = 'hidden';
+        subChevron.style.transform = 'rotate(-90deg)';
+
+        sgEl.querySelector('.hg-subgroup-header').addEventListener('click', e => {
           e.stopPropagation();
           const open = subHeader.dataset.expanded === 'true';
           subHeader.dataset.expanded = open ? 'false' : 'true';
@@ -180,9 +187,15 @@ const HorasGroup = (() => {
     const header  = wrap.querySelector('.hg-header');
     const body    = wrap.querySelector('.hg-body');
     const chevron = wrap.querySelector('.hg-chevron');
-    const toggleBtn = wrap.querySelector('.hg-toggle');
+    //const toggleBtn = wrap.querySelector('.hg-toggle');
 
-    toggleBtn.addEventListener('click', (e) => {
+    header.dataset.expanded = 'false';
+    body.style.maxHeight = '0';
+    body.style.opacity = '0';
+    body.style.overflow = 'hidden';
+    chevron.style.transform = 'rotate(-90deg)';
+
+    header.addEventListener('click', (e) => {
       e.stopPropagation();
       const expanded = header.dataset.expanded === 'true';
       header.dataset.expanded = expanded ? 'false' : 'true';
