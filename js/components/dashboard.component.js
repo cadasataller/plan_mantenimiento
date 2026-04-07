@@ -100,7 +100,7 @@ const DashboardComponent = (() => {
 
         <div class="tab-panel ${_activeTab==='horas'?'active':''}" id="tab-panel-horas">
           <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--text-muted);flex-direction:column;gap:1rem;padding:3rem;">
-            <p>Horas Asignadas - Próximamente</p>
+           
           </div>
         </div>
       </div>
@@ -113,6 +113,10 @@ const DashboardComponent = (() => {
 
     if (visibleTabs.some(t => t.id === 'sg')) {
       try { SGPageComponent.mount('sg-module-container'); } catch (e) { console.error('Error SG:', e); }
+    }
+
+    if (visibleTabs.some(t => t.id === 'horas')) {
+      try { HorasPageComponent.mount('tab-panel-horas'); } catch (e) { console.error('Error HORAS:', e); }
     }
 
     _hasRendered = true;
@@ -131,6 +135,10 @@ const DashboardComponent = (() => {
     }
     if (_activeTab === 'sg' && window.SGPageComponent) SGPageComponent.onEnter();
 
+    if (_activeTab === 'horas') {
+      HorasPageComponent.onEnter();
+    }
+
     setTimeout(updateTabBadges, 1200);
   }
 
@@ -147,6 +155,8 @@ const DashboardComponent = (() => {
     if (tabId === 'sg' && window.SGPageComponent) {
       SGPageComponent.onEnter();
     }
+
+    if (tabId === 'horas') HorasPageComponent.onEnter();
   }
 
   function updateTabBadges() {
