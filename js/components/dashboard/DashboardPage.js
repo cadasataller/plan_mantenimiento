@@ -90,7 +90,7 @@ const DashboardPageComponent = (() => {
             </div>
             <div class="dbp-card">
               <div class="dbp-card-title">Estatus por Sistema</div>
-              <div id="${IDS.stackedSistema}" class="dbp-chart-lg"></div>
+              <div id="${IDS.stackedSistema}" class="dbp-chart-xl"></div>
             </div>
           </div>
 
