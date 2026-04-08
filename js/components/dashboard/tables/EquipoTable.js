@@ -8,7 +8,7 @@ function renderEquipoTable(equipoId, rows) {
   const el = document.createElement('div');
   el.className = 'eq-table-wrap';
 
-  if (!rows || rows.length === 0) {
+  if (!rows || rows.length === 0 || rows.filter(r => r.tieneSolicitud === 'Si').length===0) {
     el.innerHTML = `
       <div class="eq-table-header">
         <span class="eq-table-title">Detalle: <strong>${_esc(equipoId)}</strong></span>
@@ -17,7 +17,8 @@ function renderEquipoTable(equipoId, rows) {
       <p class="eq-empty">No hay órdenes para este equipo.</p>
     `;
   } else {
-    const tableRows = rows.map(r => `
+    const tableRows = rows.filter(r => r.tieneSolicitud === 'Si')
+      .map(r => `
       <tr>
         <td class="eq-id">${_esc(r.id)}</td>
         <td>${_esc(r.descripcion)}</td>

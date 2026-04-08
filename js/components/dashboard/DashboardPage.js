@@ -203,7 +203,7 @@ const DashboardPageComponent = (() => {
     card.innerHTML = '';
     card.appendChild(renderEquipoTable(equipoId, rows));
     section.classList.remove('hidden');
-    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    //section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   // ── UI helpers ───────────────────────────────────────────

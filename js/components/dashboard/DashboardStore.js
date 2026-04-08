@@ -46,6 +46,7 @@ const DashboardStore = (() => {
         .eq('IS_SG', false)
         .not('ID_Orden mantenimiento', 'like', 'SG%')
         .not('ID_Orden mantenimiento', 'like', 'OM-TEST%')
+        .not('ID_Orden mantenimiento', 'like', 'GENERAL%')
         .order('ID_Orden mantenimiento', { ascending: true })
         .range(from, from + pageSize - 1);
 
