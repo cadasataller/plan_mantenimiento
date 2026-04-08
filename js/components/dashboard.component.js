@@ -83,9 +83,7 @@ const DashboardComponent = (() => {
 
       <div style="flex:1;overflow-y:auto;" id="dash-tab-content">
         <div class="tab-panel ${_activeTab==='dashboard'?'active':''}" id="tab-panel-dashboard">
-          <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--text-muted);flex-direction:column;gap:1rem;padding:3rem;">
-            <p>Dashboard de Avances - Próximamente</p>
-          </div>
+          <div id="dashboard-page-container"></div>
         </div>
 
         ${visibleTabs.some(t => t.id === 'ordenes') ? `
@@ -117,6 +115,10 @@ const DashboardComponent = (() => {
 
     if (visibleTabs.some(t => t.id === 'horas')) {
       try { HorasPageComponent.mount('tab-panel-horas'); } catch (e) { console.error('Error HORAS:', e); }
+    }
+
+    if (visibleTabs.some(t => t.id === 'horas')) {
+      try { DashboardPageComponent.mount('dashboard-page-container') } catch (e) { console.error('Error DASHBOARD:', e); }
     }
 
     _hasRendered = true;
@@ -157,6 +159,8 @@ const DashboardComponent = (() => {
     }
 
     if (tabId === 'horas') HorasPageComponent.onEnter();
+
+    if (tabId === 'dashboard') DashboardPageComponent.onEnter();
   }
 
   function updateTabBadges() {
