@@ -50,7 +50,7 @@ function renderStatusBarChart(containerId, kpis) {
     xAxis: {
       type: 'category',
       data: categories,
-      axisLabel: { rotate: 30, fontSize: 11, color: '#6B6660', interval: 0 },
+      axisLabel: { rotate: 0, fontSize: 11, color: '#6B6660', interval: 0 },
       axisLine: { lineStyle: { color: '#E2DDD3' } },
     },
     yAxis: {
