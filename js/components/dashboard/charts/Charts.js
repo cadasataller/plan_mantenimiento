@@ -184,7 +184,7 @@ function renderWeeklyChart(containerId, weeklyData) {
 // 3. Barras apiladas horizontales por dimensión
 //    dimension: 'Área' | 'Sistema' | 'ITEM' | 'ID_#EQUIPO'
 // ─────────────────────────────────────────────────────────────────────────────
-function renderStackedBarChart(containerId, dimensionData, onBarClick) {
+function renderStackedBarChart(containerId, dimensionData, onBarClick, dimensionKey) {
   const el = document.getElementById(containerId);
   if (!el || !window.echarts) return;
   const chart = echarts.init(el, null, { renderer: 'svg' });
@@ -306,6 +306,7 @@ function renderStackedBarChart(containerId, dimensionData, onBarClick) {
         width: 120,
         overflow: 'truncate',
         ellipsis: '…',
+        triggerEvent: true
       },
       axisLine: { lineStyle: { color: '#E2DDD3' } },
     },
@@ -316,6 +317,17 @@ function renderStackedBarChart(containerId, dimensionData, onBarClick) {
   if (onBarClick) {
     chart.on('click', (params) => onBarClick(params.name, params));
   }
+
+  chart.on('click', (params) => {
+  if (!dimensionKey) return;
+
+  const category = params.name;              // ejemplo: Diferencial
+  const status = params.seriesName || null;   // ejemplo: Concluida
+
+  DashboardStore.setCrossFilter(dimensionKey, category, status);
+
+  if (onBarClick) onBarClick(category, params);
+});
 
   window.addEventListener('resize', () => chart.resize());
   return chart;

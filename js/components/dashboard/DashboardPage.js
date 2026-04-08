@@ -152,7 +152,7 @@ const DashboardPageComponent = (() => {
     renderStatusBarChart(IDS.statusBar, kpis);
 
     // Avance semanal
-    const weekly = DashboardStore.getWeeklyProgress(oms);
+    const weekly = DashboardStore.getWeeklyProgress();
     renderWeeklyChart(IDS.weekly, weekly);
 
     // Apilados
@@ -161,10 +161,10 @@ const DashboardPageComponent = (() => {
     const byItem    = DashboardStore.getByDimension('ITEM', oms);
     const byEquipo  = DashboardStore.getByDimension('ID_#EQUIPO', oms);
 
-    renderStackedBarChart(IDS.stackedArea,    byArea);
-    renderStackedBarChart(IDS.stackedSistema, bySistema);
-    renderStackedBarChart(IDS.stackedItem,    byItem);
-    renderStackedBarChart(IDS.stackedEquipo,  byEquipo, _onEquipoBarClick);
+    renderStackedBarChart(IDS.stackedArea,    byArea,    null, 'Área');
+    renderStackedBarChart(IDS.stackedSistema, bySistema, null, 'Sistema');
+    renderStackedBarChart(IDS.stackedItem,    byItem,    null, 'ITEM');
+    renderStackedBarChart(IDS.stackedEquipo,  byEquipo,  _onEquipoBarClick, 'ID_#EQUIPO');
 
     // Si hay filtro por equipo activo, mostrar tabla
     if (filters.equipo && filters.equipo.length === 1) {
