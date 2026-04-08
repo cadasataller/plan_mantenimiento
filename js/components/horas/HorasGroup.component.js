@@ -100,7 +100,7 @@ const HorasGroup = (() => {
           <table class="hg-table">
             <thead>
               <tr>
-                <th>Mecánico</th>
+                <th>Personal</th>
                 ${isAdmin ? '<th>Área</th>' : ''}
                 <th>Origen</th>
                 <th>Fecha</th>
