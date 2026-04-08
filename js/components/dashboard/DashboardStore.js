@@ -22,6 +22,28 @@ const DashboardStore = (() => {
     });
   }
 
+  async function fetchAllRows(queryBuilder) {
+    const pageSize = 1000;
+    let from = 0;
+    let allRows = [];
+
+    while (true) {
+      const { data, error } = await queryBuilder()
+        .range(from, from + pageSize - 1);
+
+      if (error) throw error;
+
+      const rows = data || [];
+      allRows = allRows.concat(rows);
+
+      if (rows.length < pageSize) break;
+
+      from += pageSize;
+    }
+
+    return allRows;
+  }
+
   // ── Carga de datos (CON SELECT) ──────────────────────────
   async function load(forceReload = false) {
   if (_data && !forceReload) {
@@ -35,12 +57,11 @@ const DashboardStore = (() => {
   _emit('loading');
 
   try {
-    const pageSize = 1000;
-    let from = 0;
-    let allOMs = [];
+    
 
-    while (true) {
-      const { data, error } = await supabase
+    // OMs paginadas
+    const allOMs = await fetchAllRows(() =>
+      supabase
         .from('ORDEN_MANTENIMIENTO')
         .select('*')
         .eq('IS_SG', false)
@@ -48,30 +69,28 @@ const DashboardStore = (() => {
         .not('ID_Orden mantenimiento', 'like', 'OM-TEST%')
         .not('ID_Orden mantenimiento', 'like', 'GENERAL%')
         .order('ID_Orden mantenimiento', { ascending: true })
-        .range(from, from + pageSize - 1);
+    );
 
-      if (error) throw error;
+    // OTs paginadas
+    const allOTs = await fetchAllRows(() =>
+      supabase
+        .from('ORDEN_TRABAJO')
+        .select('*')
+        .order('ID_OT', { ascending: true })
+    );
 
-      allOMs = allOMs.concat(data || []);
-
-      if (!data || data.length < pageSize) break;
-
-      from += pageSize;
-    }
-
-    // ⛔ IMPORTANTE: esto ocurre DESPUÉS de terminar OM
-    const [otRes, mecRes] = await Promise.all([
-      supabase.from('ORDEN_TRABAJO').select('*'),
-      supabase.from('MECANICOS').select('*'),
-    ]);
-
-    if (otRes.error) throw otRes.error;
-    if (mecRes.error) throw mecRes.error;
+    // Mecánicos paginados
+    const allMecanicos = await fetchAllRows(() =>
+      supabase
+        .from('MECANICOS')
+        .select('*')
+        .order('id', { ascending: true })
+    );
 
     _data = {
       oms: allOMs,
-      ots: otRes.data || [],
-      mecanicos: mecRes.data || []
+      ots: allOTs,
+      mecanicos: allMecanicos
     };
 
     _emit('ready', getFiltered());
