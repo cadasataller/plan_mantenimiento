@@ -108,6 +108,7 @@ const HorasGroup = (() => {
                 <th class="text-right">Horas</th>
                 <th class="text-right">Retraso</th>
                 <th>Estatus</th>
+                <th></th>  <!-- columna acciones -->
               </tr>
             </thead>
             <tbody>
@@ -146,7 +147,7 @@ const HorasGroup = (() => {
             <div class="hg-table-wrap">
               <table class="hg-table">
                 <thead><tr>
-                  <th>Mecánico</th>
+                  <th>Personal</th>
                   <th>Origen</th>
                   <th class="text-right">Horas</th>
                   <th class="text-right">Retraso</th>
@@ -211,7 +212,7 @@ const HorasGroup = (() => {
   function _renderRow(r, isAdmin) {
     const meta = _estatusMeta(r.estatus);
     return `
-      <tr class="hg-row">
+      <tr class="hg-row" data-ot-id="${_escHtml(r.id || r.origenRef)}">
         <td class="hg-mec">
           <span class="hg-mec-name">${_escHtml(r.mecNombre || '—')}</span>
         </td>
@@ -223,12 +224,30 @@ const HorasGroup = (() => {
         <td class="hg-fecha">${_formatFecha(r.fecha)}</td>
         <td class="hg-semana">${_escHtml(r.semana || '—')}</td>
         <td class="text-right hg-horas">${_fmt(r.horas)}<span class="hg-unit">h</span></td>
-        <td class="text-right ${r.retraso > 0 ? 'hg-retraso-val' : 'hg-muted'}">${r.retraso > 0 ? _fmt(r.retraso) + '<span class="hg-unit">h</span>' : '—'}</td>
+        <td class="text-right ${r.retraso > 0 ? 'hg-retraso-val' : 'hg-muted'}">
+          ${r.retraso > 0 ? _fmt(r.retraso) + '<span class="hg-unit">h</span>' : '—'}
+        </td>
         <td>
-          <span class="hg-estatus ${meta.cls}">
-            <span class="hg-dot" style="background:${meta.dot}"></span>
-            ${_escHtml(r.estatus)}
-          </span>
+          <!-- Badge clicable → popup de estado -->
+          <button class="hg-btn-status-change"
+            data-ot-id="${_escHtml(r.id || r.origenRef)}"
+            data-current-status="${_escHtml(r.estatus)}"
+            style="background:none;border:none;cursor:pointer;padding:0;display:inline-flex;align-items:center;">
+            <span class="hg-estatus ${meta.cls}">
+              <span class="hg-dot" style="background:${meta.dot}"></span>
+              ${_escHtml(r.estatus)}
+            </span>
+          </button>
+        </td>
+        <td>
+          <!-- Botón de detalle/editar -->
+          <button class="hg-row-detail-btn" data-ot-id="${_escHtml(r.id || r.origenRef)}" title="Editar OT">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Editar
+          </button>
         </td>
       </tr>
     `;
