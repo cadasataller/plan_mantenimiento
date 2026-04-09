@@ -89,7 +89,7 @@ const HorasDetail = (() => {
   // ── Abrir panel de detalle ────────────────────────────────
   function open(row) {
     _currentRow = { ...row };
-    document.getElementById('hd-title').textContent = `Editar OT · ${row.id || row.origenRef}`;
+    document.getElementById('hd-title').textContent = `Editar Orden de Trabajo`;
     _renderBody(row);
     _overlay.style.display = 'flex';
   }
@@ -109,8 +109,7 @@ const HorasDetail = (() => {
     document.getElementById('hd-body').innerHTML = `
       <!-- Banner de contexto -->
       <div class="hg-detail-banner">
-        ${row.id        ? `<div class="hg-detail-banner-item"><span class="hg-detail-banner-label">ID</span><span class="hg-detail-banner-val">${h(row.id)}</span></div>` : ''}
-        ${row.origenRef ? `<div class="hg-detail-banner-item"><span class="hg-detail-banner-label">Origen</span><span class="hg-detail-banner-val">${h(row.origen)} · ${h(row.origenRef)}</span></div>` : ''}
+        ${row.descripcion ? `<div class="hg-detail-banner-item"><span class="hg-detail-banner-label">TRABAJO A REALIZAR</span><span class="hg-detail-banner-val">${h(row.descripcion)}</span></div>` : ''}
         ${row.area      ? `<div class="hg-detail-banner-item"><span class="hg-detail-banner-label">Área</span><span class="hg-detail-banner-val">${h(row.area || row.mecArea || '—')}</span></div>` : ''}
       </div>
 
