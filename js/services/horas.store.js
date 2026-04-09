@@ -149,8 +149,7 @@ const HorasStore = (() => {
 
         // 🔥 DESCRIPCIÓN UNIFICADA
         descripcion:
-          om?.Descripcion ||                 // prioridad OM
-          sg?.tipo_trabajo ||               // fallback SG
+          om?.Descripcion ||              // fallback SG
           sg?.Observaciones ||              // fallback SG
           '',
 
