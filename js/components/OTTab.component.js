@@ -21,7 +21,8 @@ const OTTabComponent = (() => {
   const OT_STATUS_COLORS = {
     'Concluida':  { hex: '#2D8A4E', badge: 'status-completado' },
     'En Proceso': { hex: '#1A6B9A', badge: 'status-en-proceso' },
-    'Retrasada':  { hex: '#B8B3A7', badge: 'status-programado' }, // ✅ Cambiar a 'Retrasada'
+    'Retrasada':  { hex: '#B8B3A7', badge: 'status-programado' },
+'Retrasado':  { hex: '#B8B3A7', badge: 'status-programado' }, // ✅ Cambiar a 'Retrasada'
     'Ausencia':   { hex: '#E67E22', badge: 'status-pendiente'  },
   };
 
