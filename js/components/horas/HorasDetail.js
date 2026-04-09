@@ -1,11 +1,10 @@
 const HorasDetail = (() => {
 
   const ESTADOS_LIST = [
-    { value: 'Concluido',  dot: '#2D8A4E' },
+    { value: 'Concluida',  dot: '#2D8A4E' },
     { value: 'En Proceso', dot: '#1A6B9A' },
-    { value: 'Pendiente',  dot: '#C97B2F' },
-    { value: 'Retrasado',  dot: '#C0392B' },
-    { value: 'Cancelado',  dot: '#8F8A7F' },
+    { value: 'Ausencia',  dot: '#C97B2F' },
+    { value: 'Retrasada',  dot: '#C0392B' },
   ];
 
   const ESTATUS_META = {
