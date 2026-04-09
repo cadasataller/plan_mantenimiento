@@ -25,13 +25,28 @@ const HorasGroup = (() => {
 
   function _formatFecha(iso) {
     if (!iso) return '—';
+
+    // Si ya viene como YYYY-MM-DD → devolver igual
+    if (typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      return iso;
+    }
+
+    // Si viene con T (ISO completo) → cortar antes de la T
+    if (typeof iso === 'string' && iso.includes('T')) {
+      return iso.split('T')[0];
+    }
+
+    // Fallback por si viene como Date u otro formato raro
     const d = new Date(iso);
-    return d.toLocaleDateString('es-PA', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (isNaN(d.getTime())) return iso;
+
+    return d.toISOString().split('T')[0];
   }
 
   /** Convierte "2025-S05" a "Semana 05 · 2025" */
   function _formatSemana(key) {
-    const m = key.match(/^(\d{4})-S(\d+)$/);
+    strkey = String(key||'');
+    const m = strkey.match(/^(\d{4})-S(\d+)$/);
     if (m) return `Semana ${m[2]} · ${m[1]}`;
     return key;
   }

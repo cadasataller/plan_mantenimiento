@@ -100,108 +100,98 @@ const HorasDetail = (() => {
   }
 
   // ── Render del cuerpo del panel ───────────────────────────
-  function _renderBody(row) {
-    const h = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    const isRetrasado = row.estatus === 'Retrasado';
-    const semana = row.semana || '';
-    const semanaLabel = semana;
+  // ── Fix 3: campo mecánico con MecanicoSelectComponent ─────────────────
+function _renderBody(row) {
+  const h = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const isRetrasado = row.estatus === 'Retrasado';
+  const semana = row.semana || '';
 
-    document.getElementById('hd-body').innerHTML = `
-      <!-- Banner de contexto -->
-      <div class="hg-detail-banner">
-        ${row.descripcion ? `<div class="hg-detail-banner-item"><span class="hg-detail-banner-label">TRABAJO A REALIZAR</span><span class="hg-detail-banner-val">${h(row.descripcion)}</span></div>` : ''}
-        ${row.area      ? `<div class="hg-detail-banner-item"><span class="hg-detail-banner-label">Área</span><span class="hg-detail-banner-val">${h(row.area || row.mecArea || '—')}</span></div>` : ''}
+  document.getElementById('hd-body').innerHTML = `
+    <div class="hg-detail-banner">
+      ${row.descripcion ? `<div class="hg-detail-banner-item"><span class="hg-detail-banner-label">TRABAJO A REALIZAR</span><span class="hg-detail-banner-val">${h(row.descripcion)}</span></div>` : ''}
+      ${row.area ? `<div class="hg-detail-banner-item"><span class="hg-detail-banner-label">Área</span><span class="hg-detail-banner-val">${h(row.area || row.mecArea || '—')}</span></div>` : ''}
+    </div>
+
+    <div class="hg-detail-grid">
+
+      <!-- ✅ FIX 3: select en lugar de input texto -->
+      <div class="hg-detail-field ot-modal-field" id="hdf-mec-wrapper">
+        <label>Mecánico</label>
+        ${MecanicoSelectComponent.renderHtml()}
       </div>
 
-      <!-- Grid de campos -->
-      <div class="hg-detail-grid">
-
-        <div class="hg-detail-field">
-          <label>Mecánico</label>
-          <input id="hdf-mec" type="text" value="${h(row.mecNombre || '')}" placeholder="Nombre del mecánico"/>
-        </div>
-
-        <div class="hg-detail-field">
-          <label>Fecha <span style="color:#ef4444">*</span></label>
-          <input id="hdf-fecha" type="date" value="${row.fecha || ''}"/>
-          <div class="hg-semana-hint" id="hdf-semana-hint">${semanaLabel}</div>
-        </div>
-
-        <div class="hg-detail-field">
-          <label>Horas <span style="color:#ef4444">*</span></label>
-          <input id="hdf-horas" type="number" min="0" step="0.5" value="${row.horas ?? ''}"/>
-        </div>
-
-        <div class="hg-detail-field full">
-          <label>Estado <span style="color:#ef4444">*</span></label>
-          <div class="hg-status-buttons" id="hdf-status-btns">
-            ${ESTADOS_LIST.map(e => `
-              <button type="button" class="hg-status-btn ${row.estatus === e.value ? 'active' : ''}"
-                data-value="${e.value}"
-                style="--st-color:${e.dot};">
-                <span class="dot"></span>${e.value}
-              </button>`).join('')}
-          </div>
-          <input type="hidden" id="hdf-status" value="${h(row.estatus)}"/>
-        </div>
-
-        <!-- Sección retraso (visible solo si Retrasado) -->
-        <div class="hg-retraso-section full" id="hdf-retraso-section"
-             style="${isRetrasado ? '' : 'display:none'}">
-          <div class="hg-detail-field">
-            <label>Retraso (hrs)</label>
-            <input id="hdf-retraso" type="number" min="0" step="0.5"
-                   value="${row.retraso || 0}"/>
-          </div>
-          <div class="hg-detail-field">
-            <label>Causa del retraso</label>
-            <input id="hdf-causa" type="text"
-                   value="${h(row.causa || '')}"
-                   placeholder="Causa del retraso…"/>
-          </div>
-        </div>
-
-        <div class="hg-detail-field full">
-          <label>Comentario</label>
-          <textarea id="hdf-comentario" rows="2"
-                    placeholder="Observaciones adicionales…">${h(row.comentario || '')}</textarea>
-        </div>
-
+      <div class="hg-detail-field">
+        <label>Fecha <span style="color:#ef4444">*</span></label>
+        <input id="hdf-fecha" type="date" value="${_formatForDateInput(row.fecha)}"/>
+        <div class="hg-semana-hint" id="hdf-semana-hint">${semana}</div>
       </div>
 
-      <!-- Acciones -->
-      <div class="hg-detail-actions">
-        <button class="btn-modal-secondary" id="hdf-cancel">Cancelar</button>
-        <button class="btn-modal-primary" id="hdf-save">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-               width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
-          Guardar cambios
-        </button>
-      </div>`;
+      <div class="hg-detail-field">
+        <label>Horas <span style="color:#ef4444">*</span></label>
+        <input id="hdf-horas" type="number" min="0" step="0.5" value="${row.horas ?? ''}"/>
+      </div>
 
-    // Eventos internos del form
-    document.getElementById('hdf-fecha').addEventListener('input', _updateSemanaHint);
-    document.getElementById('hdf-cancel').addEventListener('click', close);
-    document.getElementById('hdf-save').addEventListener('click', _save);
+      <div class="hg-detail-field full">
+        <label>Estado <span style="color:#ef4444">*</span></label>
+        <div class="hg-status-buttons" id="hdf-status-btns">
+          ${ESTADOS_LIST.map(e => `
+            <button type="button" class="hg-status-btn ${row.estatus === e.value ? 'active' : ''}"
+              data-value="${e.value}" style="--st-color:${e.dot};">
+              <span class="dot"></span>${e.value}
+            </button>`).join('')}
+        </div>
+        <input type="hidden" id="hdf-status" value="${h(row.estatus)}"/>
+      </div>
 
-    document.getElementById('hdf-status-btns').addEventListener('click', e => {
-      const btn = e.target.closest('.hg-status-btn');
-      if (!btn) return;
-      document.querySelectorAll('#hdf-status-btns .hg-status-btn')
-              .forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const val = btn.dataset.value;
-      document.getElementById('hdf-status').value = val;
-      document.getElementById('hdf-retraso-section').style.display =
-        val === 'Retrasado' ? '' : 'none';
-      if (val !== 'Retrasado') {
-        const r = document.getElementById('hdf-retraso');
-        const c = document.getElementById('hdf-causa');
-        if (r) r.value = '0';
-        if (c) c.value = '';
-      }
-    });
-  }
+      <div class="hg-retraso-section full" id="hdf-retraso-section"
+           style="${isRetrasado ? '' : 'display:none'}">
+        <div class="hg-detail-field">
+          <label>Retraso (hrs)</label>
+          <input id="hdf-retraso" type="number" min="0" step="0.5" value="${row.retraso || 0}"/>
+        </div>
+        <div class="hg-detail-field">
+          <label>Causa del retraso</label>
+          <input id="hdf-causa" type="text" value="${h(row.causa || '')}" placeholder="Causa del retraso…"/>
+        </div>
+      </div>
+
+      <div class="hg-detail-field full">
+        <label>Comentario</label>
+        <textarea id="hdf-comentario" rows="2" placeholder="Observaciones adicionales…">${h(row.comentario || '')}</textarea>
+      </div>
+
+    </div>
+
+    <div class="hg-detail-actions">
+      <button class="btn-modal-secondary" id="hdf-cancel">Cancelar</button>
+      <button class="btn-modal-primary" id="hdf-save">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+        Guardar cambios
+      </button>
+    </div>`;
+
+  // ✅ FIX 3: montar el select de mecánicos con el ID actual
+  MecanicoSelectComponent.mount(row.mecId);
+
+  document.getElementById('hdf-fecha').addEventListener('input', _updateSemanaHint);
+  document.getElementById('hdf-cancel').addEventListener('click', close);
+  document.getElementById('hdf-save').addEventListener('click', _save);
+
+  document.getElementById('hdf-status-btns').addEventListener('click', e => {
+    const btn = e.target.closest('.hg-status-btn');
+    if (!btn) return;
+    document.querySelectorAll('#hdf-status-btns .hg-status-btn')
+            .forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const val = btn.dataset.value;
+    document.getElementById('hdf-status').value = val;
+    document.getElementById('hdf-retraso-section').style.display =
+      val === 'Retrasado' ? '' : 'none';
+    // ✅ FIX 2: NO limpiar causa/retraso al cambiar estado,
+    // solo ocultar la sección visualmente
+  });
+}
 
   function _updateSemanaHint() {
     const fecha = document.getElementById('hdf-fecha')?.value;
@@ -213,43 +203,49 @@ const HorasDetail = (() => {
       : '';
   }
 
-  function _save() {
-    if (!_currentRow) return;
-    const fecha     = document.getElementById('hdf-fecha')?.value || '';
-    const horas     = parseFloat(document.getElementById('hdf-horas')?.value || 0);
-    const status    = document.getElementById('hdf-status')?.value || '';
-    const mec       = document.getElementById('hdf-mec')?.value?.trim() || '';
-    const comentario = document.getElementById('hdf-comentario')?.value?.trim() || '';
-    const isRetrasado = status === 'Retrasado';
-    const retraso   = isRetrasado ? (parseFloat(document.getElementById('hdf-retraso')?.value || 0)) : 0;
-    const causa     = isRetrasado ? (document.getElementById('hdf-causa')?.value?.trim() || '') : '';
+  // ── Fix 1 + 2: _save corregido ────────────────────────────────────────
+function _save() {
+  if (!_currentRow) return;
+  const fecha      = document.getElementById('hdf-fecha')?.value || '';
+  const horas      = parseFloat(document.getElementById('hdf-horas')?.value || 0);
+  const status     = document.getElementById('hdf-status')?.value || '';
+  const comentario = document.getElementById('hdf-comentario')?.value?.trim() || '';
 
-    // Validaciones básicas
-    if (!fecha) { _showError('La fecha es obligatoria.'); return; }
-    if (isNaN(horas) || horas < 0) { _showError('Las horas son obligatorias.'); return; }
-    if (isRetrasado && !retraso) { _showError('Indica las horas de retraso.'); return; }
-    if (isRetrasado && !causa) { _showError('Indica la causa del retraso.'); return; }
+  // ✅ leer ID del select de mecánico
+  const mecId = MecanicoSelectComponent.getValue();
 
-    const w = _isoWeek(fecha);
-    console.log(w);
-    
-    const semana = w;
+  const isRetrasado = status === 'Retrasado';
+  const retraso = isRetrasado
+    ? parseFloat(document.getElementById('hdf-retraso')?.value || 0)
+    : (_currentRow.retraso || 0);
+  const causa = isRetrasado
+    ? (document.getElementById('hdf-causa')?.value?.trim() || '')
+    : (_currentRow.causa || '');
 
-    const updated = {
-      ..._currentRow,
-      mecNombre: mec || _currentRow.mecNombre,
-      fecha,
-      semana,
-      horas,
-      retraso,
-      causa,
-      estatus: status,
-      comentario,
-    };
+  if (!fecha)                   { _showError('La fecha es obligatoria.');     return; }
+  if (isNaN(horas) || horas < 0){ _showError('Las horas son obligatorias.');  return; }
+  if (isRetrasado && !retraso)  { _showError('Indica las horas de retraso.'); return; }
+  if (isRetrasado && !causa)    { _showError('Indica la causa del retraso.'); return; }
 
-    close();
-    _onSave?.(updated);
-  }
+  // ✅ fecha siempre limpia YYYY-MM-DD desde el input[type=date]
+  const semana = _isoWeek(fecha);
+
+  const updated = {
+    ..._currentRow,
+    // ✅ actualizar mecId (el nombre lo resuelve HorasTable al actualizar cache)
+    mecId: mecId ?? _currentRow.mecId,
+    fecha,          // ya es YYYY-MM-DD, sin hora
+    semana,
+    horas,
+    retraso,
+    causa,
+    estatus: status,
+    comentario,
+  };
+
+  close();
+  _onSave?.(updated);
+}
 
   function _showError(msg) {
     let err = document.getElementById('hdf-error');
@@ -265,6 +261,41 @@ const HorasDetail = (() => {
     err.textContent = msg;
     err.style.display = 'flex';
   }
+
+  // Normaliza distintos formatos de fecha para `input[type=date]` (devuelve YYYY-MM-DD)
+  // ── Fix 1: extraer solo YYYY-MM-DD de cualquier ISO con hora ──────────
+function _formatForDateInput(val) {
+  if (!val) return '';
+  if (val instanceof Date && !isNaN(val)) {
+    const yyyy = val.getFullYear();
+    const mm = String(val.getMonth() + 1).padStart(2, '0');
+    const dd = String(val.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  const s = String(val).trim();
+
+  // ✅ FIX: truncar siempre en posición 10 para "2026-04-09T00:00:00"
+  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+
+  const parts = s.split(/[\/\.\-]/);
+  if (parts.length === 3) {
+    if (parts[0].length === 4)
+      return `${parts[0].padStart(4,'0')}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+    const dd = parts[0].padStart(2,'0');
+    const mm = parts[1].padStart(2,'0');
+    const yyyy = parts[2].padStart(4,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  const dt = new Date(s);
+  if (!isNaN(dt)) {
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  return '';
+}
 
   // ── Popup de estados (desde row) ─────────────────────────
   function openStatusPopup(refEl, otId, currentStatus, onApply) {
@@ -350,8 +381,18 @@ const HorasDetail = (() => {
   // ── Helpers ───────────────────────────────────────────────
   function _isoWeek(dateStr) {
     if (!dateStr) return null;
-    const d = new Date(dateStr + 'T12:00:00');
-    if (isNaN(d)) return null;
+    let d;
+    // If the string already contains a time portion (T) parse it directly,
+    // otherwise append a midday time to avoid timezone shifts
+    if (String(dateStr).includes('T')) {
+      d = new Date(dateStr);
+    } else {
+      d = new Date(String(dateStr) + 'T12:00:00');
+    }
+    if (isNaN(d)) {
+      d = new Date(dateStr);
+      if (isNaN(d)) return null;
+    }
     const jan4 = new Date(d.getFullYear(), 0, 4);
     const s    = new Date(jan4);
     s.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
