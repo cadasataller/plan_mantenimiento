@@ -147,17 +147,18 @@ const DashboardStore = (() => {
 
   // ── Opciones únicas ──────────────────────────────────────
   function getOptions() {
-    if (!_data) return { etapa: [], area: [], item: [], equipo: [] };
+  if (!_data) return { etapa: [], area: [], item: [], equipo: [] };
 
-    let base = _getBaseOMs();
+  // 🔥 usar datos ya filtrados
+  const { oms } = getFiltered();
 
-    return {
-      etapa:  [...new Set(base.map(o => o['Etapa']).filter(Boolean))].sort(),
-      area:   [...new Set(base.map(o => o['Área']).filter(Boolean))].sort(),
-      item:   [...new Set(base.map(o => o['ITEM']).filter(Boolean))].sort(),
-      equipo: [...new Set(base.map(o => o['ID_#EQUIPO']).filter(Boolean))].sort(),
-    };
-  }
+  return {
+    etapa:  [...new Set(oms.map(o => o['Etapa']).filter(Boolean))].sort(),
+    area:   [...new Set(oms.map(o => o['Área']).filter(Boolean))].sort(),
+    item:   [...new Set(oms.map(o => o['ITEM']).filter(Boolean))].sort(),
+    equipo: [...new Set(oms.map(o => o['ID_#EQUIPO']).filter(Boolean))].sort(),
+  };
+}
 
   // ── Filtrado completo ────────────────────────────────────
   function getFiltered() {
