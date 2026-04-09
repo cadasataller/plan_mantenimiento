@@ -7,6 +7,7 @@ const DashboardStore = (() => {
   let _listeners = [];
   let _filters = { etapa: [], area: [], item: [], equipo: [] };
   let _userArea = null;
+  let _crossFilter = null; 
 
   const supabase = window.SupabaseClient; // ← asegúrate de tenerlo inicializado
 
@@ -22,67 +23,86 @@ const DashboardStore = (() => {
     });
   }
 
-  // ── Carga de datos (CON SELECT) ──────────────────────────
-  async function load(forceReload = false) {
-  if (_data && !forceReload) {
-    _emit('ready', getFiltered());
-    return;
-  }
-
-  if (_loading) return;
-
-  _loading = true;
-  _emit('loading');
-
-  try {
+  async function fetchAllRows(queryBuilder) {
     const pageSize = 1000;
     let from = 0;
-    let allOMs = [];
+    let allRows = [];
 
     while (true) {
-      const { data, error } = await supabase
-        .from('ORDEN_MANTENIMIENTO')
-        .select('*')
-        .eq('IS_SG', false)
-        .not('ID_Orden mantenimiento', 'like', 'SG%')
-        .not('ID_Orden mantenimiento', 'like', 'OM-TEST%')
-        .not('ID_Orden mantenimiento', 'like', 'GENERAL%')
-        .order('ID_Orden mantenimiento', { ascending: true })
+      const { data, error } = await queryBuilder()
         .range(from, from + pageSize - 1);
 
       if (error) throw error;
 
-      allOMs = allOMs.concat(data || []);
+      const rows = data || [];
+      allRows = allRows.concat(rows);
 
-      if (!data || data.length < pageSize) break;
+      if (rows.length < pageSize) break;
 
       from += pageSize;
     }
 
-    // ⛔ IMPORTANTE: esto ocurre DESPUÉS de terminar OM
-    const [otRes, mecRes] = await Promise.all([
-      supabase.from('ORDEN_TRABAJO').select('*'),
-      supabase.from('MECANICOS').select('*'),
-    ]);
-
-    if (otRes.error) throw otRes.error;
-    if (mecRes.error) throw mecRes.error;
-
-    _data = {
-      oms: allOMs,
-      ots: otRes.data || [],
-      mecanicos: mecRes.data || []
-    };
-
-    _emit('ready', getFiltered());
-
-  } catch (err) {
-    console.error('DashboardStore load error:', err);
-    _emit('error', err);
-  } finally {
-    _loading = false;
+    return allRows;
   }
-}
+
+  // ── Carga de datos (CON SELECT) ──────────────────────────
+  async function load(forceReload = false) {
+    if (_data && !forceReload) {
+      _emit('ready', getFiltered());
+      return;
+    }
+
+    if (_loading) return;
+
+    _loading = true;
+    _emit('loading');
+
+    try {
+      
+
+      // OMs paginadas
+      const allOMs = await fetchAllRows(() =>
+        supabase
+          .from('ORDEN_MANTENIMIENTO')
+          .select('*')
+          .eq('IS_SG', false)
+          .not('ID_Orden mantenimiento', 'like', 'SG%')
+          .not('ID_Orden mantenimiento', 'like', 'OM-TEST%')
+          .not('ID_Orden mantenimiento', 'like', 'GENERAL%')
+          .order('ID_Orden mantenimiento', { ascending: true })
+      );
+
+      // OTs paginadas
+      const allOTs = await fetchAllRows(() =>
+        supabase
+          .from('ORDEN_TRABAJO')
+          .select('*')
+          .order('ID_OT', { ascending: true })
+      );
+
+      // Mecánicos paginados
+      const allMecanicos = await fetchAllRows(() =>
+        supabase
+          .from('MECANICOS')
+          .select('*')
+          .order('id', { ascending: true })
+      );
+
+      _data = {
+        oms: allOMs,
+        ots: allOTs,
+        mecanicos: allMecanicos
+      };
+
+      _emit('ready', getFiltered());
+
+    } catch (err) {
+      console.error('DashboardStore load error:', err);
+      _emit('error', err);
+    } finally {
+      _loading = false;
+    }
+  }
 
   // ── Área del usuario ─────────────────────────────────────
   function setUserArea(area) {
@@ -107,25 +127,38 @@ const DashboardStore = (() => {
   // ── Base OM (filtrado por área usuario) ──────────────────
   function _getBaseOMs() {
     if (!_data) return [];
+
+    let base = _data.oms;
+
     if (_userArea) {
-      return _data.oms.filter(o => o['Área'] === _userArea);
+      base = base.filter(o => o['Área'] === _userArea);
     }
-    return _data.oms;
+
+    if (_crossFilter?.dimension && _crossFilter.value != null) {
+      base = base.filter(o => String(o[_crossFilter.dimension] ?? '') === String(_crossFilter.value));
+
+      if (_crossFilter.status) {
+        base = base.filter(o => String(o['Estatus'] ?? '') === String(_crossFilter.status));
+      }
+    }
+
+    return base;
   }
 
   // ── Opciones únicas ──────────────────────────────────────
   function getOptions() {
-    if (!_data) return { etapa: [], area: [], item: [], equipo: [] };
+  if (!_data) return { etapa: [], area: [], item: [], equipo: [] };
 
-    let base = _getBaseOMs();
+  // 🔥 usar datos ya filtrados
+  const { oms } = getFiltered();
 
-    return {
-      etapa:  [...new Set(base.map(o => o['Etapa']).filter(Boolean))].sort(),
-      area:   [...new Set(base.map(o => o['Área']).filter(Boolean))].sort(),
-      item:   [...new Set(base.map(o => o['ITEM']).filter(Boolean))].sort(),
-      equipo: [...new Set(base.map(o => o['ID_#EQUIPO']).filter(Boolean))].sort(),
-    };
-  }
+  return {
+    etapa:  [...new Set(oms.map(o => o['Etapa']).filter(Boolean))].sort(),
+    area:   [...new Set(oms.map(o => o['Área']).filter(Boolean))].sort(),
+    item:   [...new Set(oms.map(o => o['ITEM']).filter(Boolean))].sort(),
+    equipo: [...new Set(oms.map(o => o['ID_#EQUIPO']).filter(Boolean))].sort(),
+  };
+}
 
   // ── Filtrado completo ────────────────────────────────────
   function getFiltered() {
@@ -173,44 +206,49 @@ const DashboardStore = (() => {
   }
 
   // ── Avance semanal ──────────────────────────────────────
-  function getWeeklyProgress(oms) {
-    const list = oms || getFiltered().oms;
-    const totalGlobal = list.length;
+  function getWeeklyProgress() {
+  const globalList   = _data?.oms || [];              // 🔒 sin filtros
+  const filteredList = getFiltered().oms || [];       // 🔄 con filtros
 
-    const now = new Date();
+  const totalFiltered = filteredList.length;
 
-    const getWeekNumber = (date) => {
-      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-      const dayNum = d.getUTCDay() || 7;
-      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-      return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-    };
+  const now = new Date();
 
-    let semanas = [];
-    for (let i = 0; i < 5; i++) {
-      const temp = new Date(now);
-      temp.setDate(now.getDate() - (i * 7));
-      semanas.push(getWeekNumber(temp));
-    }
+  const getWeekNumber = (date) => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  };
 
-    semanas = semanas.map(s => String(s));
-
-    semanas.reverse();
-
-    return semanas.map(sem => {
-      const semanales = list.filter(o => o['Semana'] === sem);
-      const total = semanales.length;
-      const concluidas = semanales.filter(o => o['Estatus'] === 'Concluida').length;
-
-      return {
-        semana: sem,
-        total,
-        concluidas,
-        avance: total > 0 ? Number(((concluidas / totalGlobal) * 100).toFixed(2)) : 0
-      };
-    });
+  let semanas = [];
+  for (let i = 0; i < 5; i++) {
+    const temp = new Date(now);
+    temp.setDate(now.getDate() - (i * 7));
+    semanas.push(getWeekNumber(temp));
   }
+
+  semanas = semanas.map(s => String(s)).reverse();
+
+  return semanas.map(sem => {
+    const semGlobal = filteredList.filter(o => o['Semana'] === sem);
+
+    const total = semGlobal.length;
+    const concluidas = semGlobal.filter(o => o['Estatus'] === 'Concluida').length;
+
+    return {
+      semana: sem,
+      total,
+      concluidas,
+
+      // 🔥 AQUÍ está el cambio clave
+      avance: total > 0
+        ? Number(((concluidas / globalList.length) * 100).toFixed(2))
+        : 0
+    };
+  });
+}
 
   // ── Agrupación por dimensión ─────────────────────────────
   function getByDimension(dimension, oms) {
@@ -248,6 +286,33 @@ const DashboardStore = (() => {
   function getRaw() { return _data; }
   function isLoaded() { return !!_data; }
 
+  function setCrossFilter(dimension, value, status = null) {
+    const isSame =
+      _crossFilter &&
+      _crossFilter.dimension === dimension &&
+      _crossFilter.value === value &&
+      (_crossFilter.status || null) === (status || null);
+
+    if (isSame) {
+      // 👉 mismo click = limpiar filtro
+      _crossFilter = null;
+    } else {
+      // 👉 nuevo filtro
+      _crossFilter = { dimension, value, status };
+    }
+
+    _emit('filtered', getFiltered());
+  }
+
+  function clearCrossFilter() {
+    _crossFilter = null;
+    _emit('filtered', getFiltered());
+  }
+
+  function getCrossFilter() {
+    return _crossFilter ? { ..._crossFilter } : null;
+  }
+
   return {
     load,
     subscribe,
@@ -262,7 +327,10 @@ const DashboardStore = (() => {
     getByDimension,
     getEquipoDetail,
     getRaw,
-    isLoaded
+    isLoaded,
+    setCrossFilter,
+    clearCrossFilter,
+    getCrossFilter
   };
 })();
 

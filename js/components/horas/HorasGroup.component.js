@@ -25,13 +25,28 @@ const HorasGroup = (() => {
 
   function _formatFecha(iso) {
     if (!iso) return '—';
+
+    // Si ya viene como YYYY-MM-DD → devolver igual
+    if (typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      return iso;
+    }
+
+    // Si viene con T (ISO completo) → cortar antes de la T
+    if (typeof iso === 'string' && iso.includes('T')) {
+      return iso.split('T')[0];
+    }
+
+    // Fallback por si viene como Date u otro formato raro
     const d = new Date(iso);
-    return d.toLocaleDateString('es-PA', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (isNaN(d.getTime())) return iso;
+
+    return d.toISOString().split('T')[0];
   }
 
   /** Convierte "2025-S05" a "Semana 05 · 2025" */
   function _formatSemana(key) {
-    const m = key.match(/^(\d{4})-S(\d+)$/);
+    strkey = String(key||'');
+    const m = strkey.match(/^(\d{4})-S(\d+)$/);
     if (m) return `Semana ${m[2]} · ${m[1]}`;
     return key;
   }
@@ -100,14 +115,15 @@ const HorasGroup = (() => {
           <table class="hg-table">
             <thead>
               <tr>
-                <th>Mecánico</th>
+                <th>Personal</th>
                 ${isAdmin ? '<th>Área</th>' : ''}
-                <th>Origen</th>
+                <th>Trabajo a realizar</th>
                 <th>Fecha</th>
                 <th>Semana</th>
                 <th class="text-right">Horas</th>
                 <th class="text-right">Retraso</th>
                 <th>Estatus</th>
+                <th></th>  <!-- columna acciones -->
               </tr>
             </thead>
             <tbody>
@@ -146,8 +162,8 @@ const HorasGroup = (() => {
             <div class="hg-table-wrap">
               <table class="hg-table">
                 <thead><tr>
-                  <th>Mecánico</th>
-                  <th>Origen</th>
+                  <th>Personal</th>
+                  <th>Trabajo a realizar</th>
                   <th class="text-right">Horas</th>
                   <th class="text-right">Retraso</th>
                   <th>Estatus</th>
@@ -211,24 +227,41 @@ const HorasGroup = (() => {
   function _renderRow(r, isAdmin) {
     const meta = _estatusMeta(r.estatus);
     return `
-      <tr class="hg-row">
+      <tr class="hg-row" data-ot-id="${_escHtml(r.id || r.origenRef)}">
         <td class="hg-mec">
           <span class="hg-mec-name">${_escHtml(r.mecNombre || '—')}</span>
         </td>
         ${isAdmin ? `<td><span class="hg-area-tag">${_escHtml(r.area || r.mecArea || '—')}</span></td>` : ''}
         <td>
-          <span class="hg-origen hg-origen-${r.origen.toLowerCase()}">${r.origen}</span>
-          <span class="hg-ref">${_escHtml(String(r.origenRef || '').slice(0,8))}</span>
+          <span class="hg-descripcion">${r.descripcion}</span>
         </td>
         <td class="hg-fecha">${_formatFecha(r.fecha)}</td>
         <td class="hg-semana">${_escHtml(r.semana || '—')}</td>
         <td class="text-right hg-horas">${_fmt(r.horas)}<span class="hg-unit">h</span></td>
-        <td class="text-right ${r.retraso > 0 ? 'hg-retraso-val' : 'hg-muted'}">${r.retraso > 0 ? _fmt(r.retraso) + '<span class="hg-unit">h</span>' : '—'}</td>
+        <td class="text-right ${r.retraso > 0 ? 'hg-retraso-val' : 'hg-muted'}">
+          ${r.retraso > 0 ? _fmt(r.retraso) + '<span class="hg-unit">h</span>' : '—'}
+        </td>
         <td>
-          <span class="hg-estatus ${meta.cls}">
-            <span class="hg-dot" style="background:${meta.dot}"></span>
-            ${_escHtml(r.estatus)}
-          </span>
+          <!-- Badge clicable → popup de estado -->
+          <button class="hg-btn-status-change"
+            data-ot-id="${_escHtml(r.id || r.origenRef)}"
+            data-current-status="${_escHtml(r.estatus)}"
+            style="background:none;border:none;cursor:pointer;padding:0;display:inline-flex;align-items:center;">
+            <span class="hg-estatus ${meta.cls}">
+              <span class="hg-dot" style="background:${meta.dot}"></span>
+              ${_escHtml(r.estatus)}
+            </span>
+          </button>
+        </td>
+        <td>
+          <!-- Botón de detalle/editar -->
+          <button class="hg-row-detail-btn" data-ot-id="${_escHtml(r.id || r.origenRef)}" title="Editar OT">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Editar
+          </button>
         </td>
       </tr>
     `;

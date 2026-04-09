@@ -80,7 +80,13 @@ const HorasStore = (() => {
           OM_SG!OT_id_sg_fkey (
             id_sg,
             tipo_trabajo,
-            "Observaciones"
+            "Observaciones",
+
+            ORDEN_MANTENIMIENTO!om_servicios_generales_id_orden_base_fkey (
+              "ID_Orden mantenimiento",
+              "Descripcion",
+              "Área"
+            )
           )
         `)
         .gte('Fecha', fechaDesde)
@@ -103,46 +109,60 @@ const HorasStore = (() => {
 
       // Normalizar rows
       const rows = (data || []).map(row => {
-        const mec  = row.MECANICOS || {};
-        const om   = row.ORDEN_MANTENIMIENTO || null;
-        const sg   = row.OM_SG || null;
+      const mec = row.MECANICOS || {};
+      const omDirect = row.ORDEN_MANTENIMIENTO || null;
+      const sg = row.OM_SG || null;
 
-        return {
-            id:        row.ID_OT,
-            id_om:     row.id_om,
-            id_sg:     row.id_sg,
-            fecha:     row.Fecha,
-            semana:    row.Semana || _semanaDeDate(row.Fecha),
-            horas:     _parseHoras(row['Duración (horas)']),
-            retraso:   _parseHoras(row['Retraso (horas)']),
-            estatus:   row.Estatus || '—',
-            causa:     row.Causa || '',
-            comentario:row.Comentario || '',
-            observaciones: row.Observaciones || '',
+      // 🔥 OM final (puede venir directa o desde SG)
+      const om = omDirect || sg?.ORDEN_MANTENIMIENTO || null;
 
-            // 🔧 MECÁNICO (AJUSTADO)
-            mecId:     mec.id,
-            mecNombre: (mec.NOMBRE || '').trim(),
-            mecArea:   mec.AREA || '',
+      const isOM = !!omDirect;
+      const isSG = !!sg;
 
-            // 🔧 ORIGEN
-            origen:    om ? 'OM' : 'SG',
+      return {
+        id: row.ID_OT,
+        id_om: row.id_om,
+        id_sg: row.id_sg,
 
-            origenRef: om 
-            ? om['ID_Orden mantenimiento'] 
-            : sg?.id_sg,
+        fecha: row.Fecha,
+        semana: row.Semana || _semanaDeDate(row.Fecha),
 
-            // 🔧 DESCRIPCIÓN (FIX SG)
-            descripcion: om 
-            ? (om['Descripcion'] || '') 
-            : (sg?.tipo_trabajo || sg?.Observaciones || ''),
+        horas: _parseHoras(row['Duración (horas)']),
+        retraso: _parseHoras(row['Retraso (horas)']),
 
-            // 🔧 ÁREA (FIX COMPLETO)
-            area: om 
-            ? (om['Área'] || mec.AREA || '') 
-            : (mec.AREA || '')
-        };
-      });
+        estatus: row.Estatus || '—',
+        causa: row.Causa || '',
+        comentario: row.Comentario || '',
+        observaciones: row.Observaciones || '',
+
+        // 🔧 MECÁNICO
+        mecId: mec.id,
+        mecNombre: (mec.NOMBRE || '').trim(),
+        mecArea: mec.AREA || '',
+
+        // 🔥 ORIGEN REAL
+        origen: isOM ? 'OM' : 'SG',
+
+        origenRef: isOM
+          ? omDirect?.['ID_Orden mantenimiento']
+          : sg?.id_sg,
+
+        // 🔥 DESCRIPCIÓN UNIFICADA
+        descripcion:
+          om?.Descripcion ||              // fallback SG
+          sg?.Observaciones ||              // fallback SG
+          '',
+
+        // 🔥 ÁREA UNIFICADA (MEJORADO)
+        area:
+          om?.['Área'] ||                   // prioridad OM
+          mec.AREA ||                      // fallback mecánico
+          '',
+
+        // 🔥 EXTRA (muy útil)
+        tipoTrabajo: sg?.tipo_trabajo || null
+      };
+    });
 
       // Filtro JS por área si no ALL
       let filtered = rows;

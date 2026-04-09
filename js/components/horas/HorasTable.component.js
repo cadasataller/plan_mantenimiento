@@ -1,41 +1,250 @@
-/**
- * HorasTable.component.js
- * Renderiza la lista de grupos de OTs (usa HorasGroup internamente).
- * Gestiona estados: loading, vacío, con datos.
- *
- * Uso:
- *   HorasTable.mount('container-id');
- *   HorasTable.render(groups, { isAdmin, groupBy, loading });
- */
 const HorasTable = (() => {
 
-  let _containerId = null;
+  let _containerId  = null;
+  let _lastGroups   = [];
+  let _lastOpts     = {};
+  let _rowsCache    = {};   // { [id]: rowObject } — cache plano de todas las filas
 
+  // ── Mount ─────────────────────────────────────────────────
   function mount(containerId) {
     _containerId = containerId;
+
+    HorasDetail.init({
+
+      onSave: (updatedRow) => {
+
+          const payload =  {
+            ...updatedRow,
+
+            // 🔹 mapping
+            Fecha:     updatedRow.fecha,
+            Semana:    updatedRow.semana,
+            Duracion:  updatedRow.horas,
+            Retraso:   updatedRow.retraso,
+            Causa:     updatedRow.causa,
+            Estatus:   updatedRow.estatus,
+            Comentario: updatedRow.comentario,
+            ID_Mecanico: updatedRow.mecId,
+          };
+          const id = updatedRow.id; // ✅ aquí viene el id
+          //const original = _rowsCache[id];
+
+          
+          
+
+          // 🔹 3. Persistencia
+          console.log(payload);
+          
+          OTService.actualizarOT(id, payload)
+            .then(res => {
+              if (res.ok) {
+                const data = _mapFromDB(res.data);
+                if (updatedRow.mecId && updatedRow.mecId !== _rowsCache[id]?.mecId) {
+                  MecanicoSelectComponent.getNameById(updatedRow.mecId).then(nombre=>{
+                    data.mecNombre = nombre;
+                    data.mecId     = updatedRow.mecId;
+                    _updateCache(data);
+                    HorasDetail.updateRowBadge(data);
+                    _rebuildGroups()
+                  });;
+                  
+                }else{
+                  _updateCache(data);
+                    HorasDetail.updateRowBadge(data);
+                    _rebuildGroups()
+                }
+                
+                
+              } else {
+                // 🔹 Revertir
+                if (original) {
+                  _updateCache(original);
+                  HorasDetail.updateRowBadge(original);
+                }
+                window.ToastService?.show('Error al guardar.', 'danger');
+              }
+            });
+        },
+
+      onStatusChange: (id, newStatus) => {
+        // Optimista en DOM
+        const row = _rowsCache[id];
+        if (!row) return;
+        //const optimista = { ...row, estatus: newStatus };
+        //HorasDetail.updateRowBadge(optimista);
+
+        // Persistir en servidor
+        OTService.actualizarOT(id, { Estatus: newStatus })
+          .then(res => {
+            if (res.ok) {
+              const data = _mapFromDB(res.data);
+              _updateCache(data);
+              HorasDetail.updateRowBadge(data);
+              _rebuildGroups()
+            } else {
+              // Revertir si falla
+              HorasDetail.updateRowBadge(row);
+              window.ToastService?.show('Error al cambiar estado.', 'danger');
+            }
+          });
+      },
+    });
+
+    // Delegación de eventos
+    const el = document.getElementById(_containerId);
+    if (!el) return;
+
+    el.addEventListener('click', e => {
+      // Botón editar → panel de detalle
+      const detailBtn = e.target.closest('.hg-row-detail-btn');
+      if (detailBtn) {
+        e.stopPropagation();
+        const id  = detailBtn.dataset.otId;
+        const row = _rowsCache[id];
+        if (row) HorasDetail.open(row);
+        return;
+      }
+
+      // Badge de estado → popup
+      const statusBtn = e.target.closest('.hg-btn-status-change');
+      if (statusBtn) {
+        e.stopPropagation();
+        const id  = statusBtn.dataset.otId;
+        const row = _rowsCache[id];
+        if (!row) return;
+
+        HorasDetail.openStatusPopup(
+          statusBtn,
+          id,
+          statusBtn.dataset.currentStatus,
+          (id, newStatus) => {
+            // Optimista
+            HorasDetail.updateRowBadge({ ...row, estatus: newStatus });
+
+            OTService.actualizarOT(id, { Estatus: newStatus })
+              .then(res => {
+                if (res.ok) {
+                  _updateCache(res.data);
+                  HorasDetail.updateRowBadge(res.data);
+                } else {
+                  HorasDetail.updateRowBadge(row);
+                  window.ToastService?.show('Error al cambiar estado.', 'danger');
+                }
+              });
+          }
+        );
+      }
+    });
   }
 
-  /**
-   * @param {Array}   groups  — resultado de HorasStore.group(...)
-   * @param {Object}  opts    — { isAdmin, groupBy, loading, totalHoras, totalRetraso }
-   */
+  function _mapFromDB(row) {
+    return {
+      ...row,
+
+      // 🔹 convertir a formato interno
+      fecha:     row.Fecha      ? String(row.Fecha).slice(0, 10) : '',
+      semana:    row.Semana,
+      horas:     row.Duracion,
+      retraso:   row.Retraso,
+      causa:     row.Causa,
+      estatus:   row.Estatus,
+      comentario: row.Comentario,
+    };
+  }
+
+  // ── Helpers internos ──────────────────────────────────────
+
+  /** Guarda o actualiza una fila en el cache plano */
+  function _updateCache(row) {
+    const id = row.id || row.ID_RowNumber;
+    if (!id) return;
+    _rowsCache[id] = { ...(_rowsCache[id] || {}), ...row };
+  }
+
+  /** Reconstruye los grupos desde el cache y re-renderiza */
+  // ── Fix 4: _rebuildGroups mueve filas entre grupos si cambia la semana ─
+function _rebuildGroups() {
+  const groupBy = _lastOpts.groupBy || 'semana';
+
+  // Reconstruir el mapa de grupos desde cero usando el cache actualizado
+  const groupMap = new Map();
+
+  _lastGroups.forEach(group => {
+    group.rows.forEach(r => {
+      const id = r.id || r.ID_OT;
+      const fresh = _rowsCache[id] || r;
+
+      // ✅ FIX: clave del grupo según el dato ACTUALIZADO, no el original
+      let key;
+      switch (groupBy) {
+        case 'semana':  key = fresh.semana || group.key; break;
+        case 'estatus': key = fresh.estatus; break;
+        case 'area':    key = fresh.area || fresh.mecArea || 'Sin área'; break;
+        case 'dia':     key = fresh.fecha ? fresh.fecha.slice(0, 10) : '—'; break;
+        default:        key = group.key;
+      }
+
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          key,
+          rows: [],
+          totalHoras: 0,
+          totalRetraso: 0,
+          subGroups: null,
+        });
+      }
+      const g = groupMap.get(key);
+      g.rows.push(fresh);
+      g.totalHoras   += (fresh.horas   || 0);
+      g.totalRetraso += (fresh.retraso || 0);
+    });
+  });
+
+  const refreshedGroups = [...groupMap.values()].sort((a, b) => {
+    if (groupBy === 'semana' || groupBy === 'dia') return b.key.localeCompare(a.key);
+    return a.key.localeCompare(b.key);
+  });
+
+  const totalHoras   = refreshedGroups.reduce((s, g) => s + g.totalHoras, 0);
+  const totalRetraso = refreshedGroups.reduce((s, g) => s + g.totalRetraso, 0);
+  const totalRows    = refreshedGroups.reduce((s, g) => s + g.rows.length, 0);
+
+  // ✅ Actualizar _lastGroups para futuros rebuilds
+  _lastGroups = refreshedGroups;
+
+  render(refreshedGroups, {
+    ..._lastOpts,
+    totalHoras,
+    totalRetraso,
+    totalRows,
+  });
+}
+  // ── Render ────────────────────────────────────────────────
   function render(groups, opts = {}) {
     const el = document.getElementById(_containerId);
     if (!el) return;
 
-    const { isAdmin = false, groupBy = 'semana', loading = false, totalHoras = 0, totalRetraso = 0, totalRows = 0 } = opts;
+    // Guardar para re-renders
+    _lastGroups = groups ?? _lastGroups;
+    _lastOpts   = { ..._lastOpts, ...opts };
 
-    if (loading) {
-      el.innerHTML = _skeleton();
-      return;
-    }
+    // Poblar cache con todas las filas recibidas
+    (groups || []).forEach(g => {
+      (g.rows || []).forEach(r => _updateCache(r));
+    });
 
-    if (!groups || groups.length === 0) {
-      el.innerHTML = _empty();
-      return;
-    }
+    const {
+      isAdmin      = false,
+      groupBy      = 'semana',
+      loading      = false,
+      totalHoras   = 0,
+      totalRetraso = 0,
+      totalRows    = 0,
+    } = opts;
 
-    // Resumen global
+    if (loading) { el.innerHTML = _skeleton(); return; }
+    if (!groups || groups.length === 0) { el.innerHTML = _empty(); return; }
+
     const summaryEl = document.createElement('div');
     summaryEl.className = 'ht-summary';
     summaryEl.innerHTML = `
@@ -60,16 +269,12 @@ const HorasTable = (() => {
           <span class="ht-summary-val">${groups.length}</span>
           <span class="ht-summary-lbl">grupos</span>
         </div>
-      </div>
-    `;
+      </div>`;
 
-    // Grupos
     const listEl = document.createElement('div');
     listEl.className = 'ht-list';
-
     groups.forEach(group => {
-      const groupEl = HorasGroup.render(group, { isAdmin, groupBy });
-      listEl.appendChild(groupEl);
+      listEl.appendChild(HorasGroup.render(group, { isAdmin, groupBy }));
     });
 
     el.innerHTML = '';
@@ -77,30 +282,28 @@ const HorasTable = (() => {
     el.appendChild(listEl);
   }
 
-  // ─── Estados especiales ──────────────────────────────────
+  // ── Estados especiales ────────────────────────────────────
   function _skeleton() {
-    const lines = Array(4).fill(0).map(() => `
+    return `<div class="ht-skeleton">${Array(4).fill(0).map(() => `
       <div class="ht-skel-group">
         <div class="ht-skel-header ht-skel-pulse"></div>
         <div class="ht-skel-rows">
           ${Array(3).fill('<div class="ht-skel-row ht-skel-pulse"></div>').join('')}
         </div>
-      </div>
-    `).join('');
-    return `<div class="ht-skeleton">${lines}</div>`;
+      </div>`).join('')}</div>`;
   }
 
   function _empty() {
     return `
       <div class="ht-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" opacity=".3">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+             width="48" height="48" opacity=".3">
           <circle cx="12" cy="12" r="10"/>
           <polyline points="12 6 12 12 16 14"/>
         </svg>
         <p>No se encontraron órdenes de trabajo</p>
         <small>Ajusta los filtros o el buscador</small>
-      </div>
-    `;
+      </div>`;
   }
 
   function showLoading() {
