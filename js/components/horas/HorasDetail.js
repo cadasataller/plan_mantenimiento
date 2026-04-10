@@ -300,7 +300,9 @@ function _formatForDateInput(val) {
   function openStatusPopup(refEl, otId, currentStatus, onApply) {
     _closePopup();
 
-    _popup.innerHTML = ESTADOS_LIST.map(e => {
+    _popup.innerHTML = ESTADOS_LIST
+        .filter(e => e.value !== 'Retrasada')
+        .map(e => {
       const active = e.value === currentStatus;
       return `
         <button class="hg-status-popup-item ${active ? 'hg-status-popup-item--active' : ''}"
