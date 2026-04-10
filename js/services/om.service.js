@@ -64,8 +64,7 @@ const OMService = (() => {
   // ── Fechas automáticas por transición de estado ──────────
   function _calcFechasAutomaticas(omActual, cambios) {
     const hoy = new Date();
-    const hoyFormatted = `${String(hoy.getMonth() + 1).padStart(2, '0')}/${String(hoy.getDate()).padStart(2, '0')}/${hoy.getFullYear()}`;
-    const fechas = {};
+    const hoyFormatted = hoy.toISOString().slice(0, 10);const fechas = {};
     const nuevoEstatus = cambios.estatus;
 
     // 1. ELIMINAMOS la asignación automática de Fecha de Inicio en "En Proceso".
