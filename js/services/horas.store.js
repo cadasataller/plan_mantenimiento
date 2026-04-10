@@ -75,7 +75,8 @@ const HorasStore = (() => {
           ORDEN_MANTENIMIENTO!ot_id_om_fkey (
             "ID_Orden mantenimiento",
             "Descripcion",
-            "Área"
+            "Área",
+            "ID_#EQUIPO"
           ),
           OM_SG!OT_id_sg_fkey (
             id_sg,
@@ -85,7 +86,8 @@ const HorasStore = (() => {
             ORDEN_MANTENIMIENTO!om_servicios_generales_id_orden_base_fkey (
               "ID_Orden mantenimiento",
               "Descripcion",
-              "Área"
+              "Área",
+              "ID_#EQUIPO"
             )
           )
         `)
@@ -109,60 +111,61 @@ const HorasStore = (() => {
 
       // Normalizar rows
       const rows = (data || []).map(row => {
-      const mec = row.MECANICOS || {};
-      const omDirect = row.ORDEN_MANTENIMIENTO || null;
-      const sg = row.OM_SG || null;
+        const mec = row.MECANICOS || {};
+        const omDirect = row.ORDEN_MANTENIMIENTO || null;
+        const sg = row.OM_SG || null;
 
-      // 🔥 OM final (puede venir directa o desde SG)
-      const om = omDirect || sg?.ORDEN_MANTENIMIENTO || null;
+        // 🔥 OM final (puede venir directa o desde SG)
+        const om = omDirect || sg?.ORDEN_MANTENIMIENTO || null;
 
-      const isOM = !!omDirect;
-      const isSG = !!sg;
+        const isOM = !!omDirect;
+        const isSG = !!sg;
 
-      return {
-        id: row.ID_OT,
-        id_om: row.id_om,
-        id_sg: row.id_sg,
+        return {
+          id: row.ID_OT,
+          id_om: row.id_om,
+          id_sg: row.id_sg,
+          equipo: om?.['ID_#EQUIPO'] || sg?.ORDEN_MANTENIMIENTO?.['ID_#EQUIPO'] || '—',
 
-        fecha: row.Fecha,
-        semana: row.Semana || _semanaDeDate(row.Fecha),
+          fecha: row.Fecha,
+          semana: row.Semana || _semanaDeDate(row.Fecha),
 
-        horas: _parseHoras(row['Duración (horas)']),
-        retraso: _parseHoras(row['Retraso (horas)']),
+          horas: _parseHoras(row['Duración (horas)']),
+          retraso: _parseHoras(row['Retraso (horas)']),
 
-        estatus: row.Estatus || '—',
-        causa: row.Causa || '',
-        comentario: row.Comentario || '',
-        observaciones: row.Observaciones || '',
+          estatus: row.Estatus || '—',
+          causa: row.Causa || '',
+          comentario: row.Comentario || '',
+          observaciones: row.Observaciones || '',
 
-        // 🔧 MECÁNICO
-        mecId: mec.id,
-        mecNombre: (mec.NOMBRE || '').trim(),
-        mecArea: mec.AREA || '',
+          // 🔧 MECÁNICO
+          mecId: mec.id,
+          mecNombre: (mec.NOMBRE || '').trim(),
+          mecArea: mec.AREA || '',
 
-        // 🔥 ORIGEN REAL
-        origen: isOM ? 'OM' : 'SG',
+          // 🔥 ORIGEN REAL
+          origen: isOM ? 'OM' : 'SG',
 
-        origenRef: isOM
-          ? omDirect?.['ID_Orden mantenimiento']
-          : sg?.id_sg,
+          origenRef: isOM
+            ? omDirect?.['ID_Orden mantenimiento']
+            : sg?.id_sg,
 
-        // 🔥 DESCRIPCIÓN UNIFICADA
-        descripcion:
-          om?.Descripcion ||              // fallback SG
-          sg?.Observaciones ||              // fallback SG
-          '',
+          // 🔥 DESCRIPCIÓN UNIFICADA
+          descripcion:
+            om?.Descripcion ||              // fallback SG
+            sg?.Observaciones ||              // fallback SG
+            '',
 
-        // 🔥 ÁREA UNIFICADA (MEJORADO)
-        area:
-          om?.['Área'] ||                   // prioridad OM
-          mec.AREA ||                      // fallback mecánico
-          '',
+          // 🔥 ÁREA UNIFICADA (MEJORADO)
+          area:
+            om?.['Área'] ||                   // prioridad OM
+            mec.AREA ||                      // fallback mecánico
+            '',
 
-        // 🔥 EXTRA (muy útil)
-        tipoTrabajo: sg?.tipo_trabajo || null
-      };
-    });
+          // 🔥 EXTRA (muy útil)
+          tipoTrabajo: sg?.tipo_trabajo || null
+        };
+      });
 
       // Filtro JS por área si no ALL
       let filtered = rows;

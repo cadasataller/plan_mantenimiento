@@ -117,6 +117,7 @@ const HorasGroup = (() => {
               <tr>
                 <th>Personal</th>
                 ${isAdmin ? '<th>Área</th>' : ''}
+                <th>Equipo</th>
                 <th>Trabajo a realizar</th>
                 <th>Fecha</th>
                 <th>Semana</th>
@@ -163,6 +164,7 @@ const HorasGroup = (() => {
               <table class="hg-table">
                 <thead><tr>
                   <th>Personal</th>
+                  <th>Equipo</th>
                   <th>Trabajo a realizar</th>
                   
                   <th >Fecha</th>
@@ -235,6 +237,9 @@ const HorasGroup = (() => {
           <span class="hg-mec-name">${_escHtml(r.mecNombre || '—')}</span>
         </td>
         ${isAdmin ? `<td><span class="hg-area-tag">${_escHtml(r.area || r.mecArea || '—')}</span></td>` : ''}
+        <td>
+          <span class="hg-equipo">${r.equipo}</span>
+        </td>
         <td>
           <span class="hg-descripcion">${r.descripcion}</span>
         </td>
