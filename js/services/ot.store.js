@@ -38,6 +38,26 @@ const OTStore = (() => {
     _listeners.forEach(fn => fn(event));
   }
 
+  function _formatDate(val) {
+    if (!val || val === '—') return null;
+
+    // Si viene como ISO: 2026-04-06T00:00:00 -> 2026-04-06
+    if (typeof val === 'string' && val.includes('T')) {
+      return val.split('T')[0];
+    }
+
+    // Si ya viene como fecha simple
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+
+    // Si viene con guiones y quieres conservar solo la fecha
+    const parts = val.split('-');
+    if (parts.length >= 3) {
+      return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].slice(0, 2).padStart(2, '0')}`;
+    }
+
+    return null;
+  }
+
   // ── Mapear fila de Supabase al formato interno ───────────
   function _mapRow(row) {
     return {
@@ -51,10 +71,10 @@ const OTStore = (() => {
       Estatus:         row['Estatus'],
       Semana:          row['Semana'],
       FechaInicio:     row['Fecha inicio']
-                         ? new Date(row['Fecha inicio']).toLocaleDateString('es-PA')
+                         ? _formatDate(row['Fecha inicio'])
                          : null,
       FechaConclusion: row['Fecha conclusion']
-                         ? new Date(row['Fecha conclusion']).toLocaleDateString('es-PA')
+                         ? _formatDate(row['Fecha conclusion'])
                          : null,
       TieneSolicitud:  row['Tiene solicitud de compra?'] ? 'Si' : 'No',
       NSolicitud:      row['N° solicitud'],
