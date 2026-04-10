@@ -8,11 +8,11 @@ const HorasDetail = (() => {
   ];
 
   const ESTATUS_META = {
-    'Concluido':  { cls: 'est-success', dot: '#2D8A4E' },
+    'Concluida':  { cls: 'est-success', dot: '#2D8A4E' },
     'En Proceso': { cls: 'est-info',    dot: '#1A6B9A' },
-    'Pendiente':  { cls: 'est-warning', dot: '#C97B2F' },
-    'Retrasado':  { cls: 'est-danger',  dot: '#C0392B' },
-    'Cancelado':  { cls: 'est-muted',   dot: '#8F8A7F' },
+    'Ausencia':  { cls: 'est-warning', dot: '#C97B2F' },
+    'Retrasada':  { cls: 'est-danger',  dot: '#C0392B' },
+   
   };
 
   let _overlay = null;
@@ -102,7 +102,7 @@ const HorasDetail = (() => {
   // ── Fix 3: campo mecánico con MecanicoSelectComponent ─────────────────
 function _renderBody(row) {
   const h = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const isRetrasado = row.estatus === 'Retrasado';
+  const isRetrasado = row.estatus === 'Retrasada';
   const semana = row.semana || '';
 
   document.getElementById('hd-body').innerHTML = `
@@ -186,7 +186,7 @@ function _renderBody(row) {
     const val = btn.dataset.value;
     document.getElementById('hdf-status').value = val;
     document.getElementById('hdf-retraso-section').style.display =
-      val === 'Retrasado' ? '' : 'none';
+      val === 'Retrasada' ? '' : 'none';
     // ✅ FIX 2: NO limpiar causa/retraso al cambiar estado,
     // solo ocultar la sección visualmente
   });

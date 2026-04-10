@@ -27,7 +27,7 @@ const HorasTable = (() => {
             ID_Mecanico: updatedRow.mecId,
           };
           const id = updatedRow.id; // ✅ aquí viene el id
-          //const original = _rowsCache[id];
+          const original = _rowsCache[id];
 
           
           
@@ -35,35 +35,45 @@ const HorasTable = (() => {
           // 🔹 3. Persistencia
           console.log(payload);
           
-          OTService.actualizarOT(id, payload)
-            .then(res => {
-              if (res.ok) {
-                const data = _mapFromDB(res.data);
-                if (updatedRow.mecId && updatedRow.mecId !== _rowsCache[id]?.mecId) {
-                  MecanicoSelectComponent.getNameById(updatedRow.mecId).then(nombre=>{
-                    data.mecNombre = nombre;
-                    data.mecId     = updatedRow.mecId;
-                    _updateCache(data);
-                    HorasDetail.updateRowBadge(data);
-                    _rebuildGroups()
-                  });;
-                  
-                }else{
-                  _updateCache(data);
-                    HorasDetail.updateRowBadge(data);
-                    _rebuildGroups()
+          OTService.actualizarOT(id, payload).then(res => {
+            if (res.ok) {
+              const data = _mapFromDB(res.data);
+
+              const resolveAndApply = (finalData) => {
+                _updateCache(finalData);
+
+                // ¿Cambió la clave de agrupación?
+                const groupBy = _lastOpts.groupBy || 'semana';
+                const oldKey = _groupKeyOf(original, groupBy);
+                const newKey = _groupKeyOf(finalData, groupBy);
+
+                console.log(original);
+                console.log(finalData);
+                
+                
+
+                if (oldKey !== newKey) {
+                  // La fila cambia de grupo → re-render completo
+                  _rebuildGroups();
+                } else {
+                  // Mismo grupo → solo patch en DOM
+                  _patchRow(id, finalData);
                 }
-                
-                
+              };
+
+              if (updatedRow.mecId && updatedRow.mecId !== original?.mecId) {
+                MecanicoSelectComponent.getNameById(updatedRow.mecId).then(nombre => {
+                  resolveAndApply({ ...data, mecNombre: nombre, mecId: updatedRow.mecId });
+                });
               } else {
-                // 🔹 Revertir
-                if (original) {
-                  _updateCache(original);
-                  HorasDetail.updateRowBadge(original);
-                }
-                window.ToastService?.show('Error al guardar.', 'danger');
+                resolveAndApply({...data, mecNombre: updatedRow.mecNombre, mecId: updatedRow.mecId});
               }
-            });
+
+            } else {
+              if (original) _patchRow(id, original);
+              window.ToastService?.show('Error al guardar.', 'danger');
+            }
+          });
         },
 
       onStatusChange: (id, newStatus) => {
@@ -137,6 +147,16 @@ const HorasTable = (() => {
     });
   }
 
+  function _groupKeyOf(row, groupBy) {
+    switch (groupBy) {
+      case 'semana':  return row?.semana  || '—';
+      case 'estatus': return row?.estatus || '—';
+      case 'area':    return row?.area    || row?.mecArea || 'Sin área';
+      case 'dia':     return row?.fecha   ? String(row.fecha).slice(0,10) : '—';
+      default:        return '—';
+    }
+  }
+
   function _mapFromDB(row) {
     console.log(row);
     row.Semana = String(row.Semana);
@@ -152,6 +172,40 @@ const HorasTable = (() => {
       estatus:   row.Estatus,
       comentario: row.Comentario,
     };
+  }
+
+  // Actualiza solo las celdas de un <tr> existente sin tocar el resto del DOM
+  function _patchRow(id, data) {
+    const tr = document.querySelector(`.hg-row[data-ot-id="${id}"]`);
+    if (!tr) return false;
+
+    const h = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const fmt = n => Number(n).toFixed(1);
+
+    const mecEl = tr.querySelector('.hg-mec-name');
+    if (mecEl) mecEl.textContent = data.mecNombre || '—';
+
+    const fechaEl = tr.querySelector('.hg-fecha');
+    if (fechaEl) fechaEl.textContent = data.fecha ? String(data.fecha).slice(0,10) : '—';
+
+    const semanaEl = tr.querySelector('.hg-semana');
+    if (semanaEl) semanaEl.textContent = data.semana || '—';
+
+    const horasEl = tr.querySelector('.hg-horas');
+    if (horasEl) horasEl.innerHTML = `${fmt(data.horas)}<span class="hg-unit">h</span>`;
+
+    // retraso
+    const retrasoEl = tr.querySelector('td.hg-retraso-val, td.hg-muted');
+    if (retrasoEl) {
+      retrasoEl.className = data.retraso > 0 ? 'text-right hg-retraso-val' : 'text-right hg-muted';
+      retrasoEl.innerHTML = data.retraso > 0
+        ? `${fmt(data.retraso)}<span class="hg-unit">h</span>`
+        : '—';
+    }
+
+    // badge de estatus
+    HorasDetail.updateRowBadge({...data,id:id});
+    return true;
   }
 
   // ── Helpers internos ──────────────────────────────────────
@@ -309,6 +363,8 @@ function _rebuildGroups() {
         <small>Ajusta los filtros o el buscador</small>
       </div>`;
   }
+
+
 
   function showLoading() {
     const el = document.getElementById(_containerId);
