@@ -88,12 +88,21 @@ const HorasTable = (() => {
           .then(res => {
             if (res.ok) {
               const data = _mapFromDB(res.data);
+
+              data = {...data, mecNombre: updatedRow.mecNombre, mecId: updatedRow.mecId};
               _updateCache(data);
-              HorasDetail.updateRowBadge(data);
-              _rebuildGroups()
+
+              const groupBy = _lastOpts.groupBy || 'semana';
+              const oldKey = _groupKeyOf(row, groupBy);
+              const newKey = _groupKeyOf(data, groupBy);
+
+              if (oldKey !== newKey) {
+                _rebuildGroups(); // estatus cambió y se agrupa por estatus
+              } else {
+                _patchRow(id, data);
+              }
             } else {
-              // Revertir si falla
-              HorasDetail.updateRowBadge(row);
+              _patchRow(id, row);
               window.ToastService?.show('Error al cambiar estado.', 'danger');
             }
           });
