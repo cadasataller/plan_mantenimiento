@@ -228,7 +228,9 @@ const HorasStore = (() => {
         grupos.forEach(g => {
         const subMap = new Map();
         g.rows.forEach(r => {
-            const areaKey = r.area || r.mecArea || 'Sin área';
+            const areaKey = r.id_sg != null
+            ? 'Servicios Generales'
+            : (r.area || r.mecArea || 'Sin área');
             if (!subMap.has(areaKey)) subMap.set(areaKey, { key: areaKey, rows: [], totalHoras: 0, totalRetraso: 0 });
             const sg = subMap.get(areaKey);
             sg.rows.push(r);
