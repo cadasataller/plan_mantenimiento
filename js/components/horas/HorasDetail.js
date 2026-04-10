@@ -213,7 +213,7 @@ function _save() {
   // ✅ leer ID del select de mecánico
   const mecId = MecanicoSelectComponent.getValue();
 
-  const isRetrasado = status === 'Retrasado';
+  const isRetrasado = status === 'Retrasada';
   const retraso = isRetrasado
     ? parseFloat(document.getElementById('hdf-retraso')?.value || 0)
     : (_currentRow.retraso || 0);
