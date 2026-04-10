@@ -138,6 +138,8 @@ const HorasTable = (() => {
   }
 
   function _mapFromDB(row) {
+    console.log(row);
+    row.Semana = String(row.Semana);
     return {
       ...row,
 
@@ -201,6 +203,8 @@ function _rebuildGroups() {
   });
 
   const refreshedGroups = [...groupMap.values()].sort((a, b) => {
+    b.key = String(b.key);
+    a.key = String(a.key);
     if (groupBy === 'semana' || groupBy === 'dia') return b.key.localeCompare(a.key);
     return a.key.localeCompare(b.key);
   });
