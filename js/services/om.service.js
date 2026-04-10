@@ -17,15 +17,23 @@ const OMService = (() => {
     return null;
   }
 
-  // ── Convertir fecha ISO (yyyy-mm-dd) → US (mm/dd/yyyy) ─
   function _formatUSDate(val) {
     if (!val || val === '—') return null;
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val;   // ya es US
-    const parts = val.split('-');
-    if (parts.length === 3) {
-      const [y, m, d] = parts;
-      return `${m.padStart(2,'0')}/${d.padStart(2,'0')}/${y}`;
+
+    // Si viene como ISO: 2026-04-06T00:00:00 -> 2026-04-06
+    if (typeof val === 'string' && val.includes('T')) {
+      return val.split('T')[0];
     }
+
+    // Si ya viene como fecha simple
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+
+    // Si viene con guiones y quieres conservar solo la fecha
+    const parts = val.split('-');
+    if (parts.length >= 3) {
+      return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].slice(0, 2).padStart(2, '0')}`;
+    }
+
     return null;
   }
 
@@ -33,12 +41,16 @@ const OMService = (() => {
   // Devuelve el número de semana del año (1-53) según ISO 8601.
   function _isoWeek(dateStr) {
     if (!dateStr) return null;
-    const d  = new Date(dateStr);
-    if (isNaN(d)) return null;
-    // Copiar para no mutar
-    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+
+    const s = String(dateStr).slice(0, 10); // toma solo YYYY-MM-DD
+    const [y, m, d] = s.split('-').map(Number);
+    if (!y || !m || !d) return null;
+
+    const date = new Date(Date.UTC(y, m - 1, d));
+
     // Jueves de la semana ISO determina el año
     date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+
     const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
     return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
   }
@@ -52,8 +64,7 @@ const OMService = (() => {
   // ── Fechas automáticas por transición de estado ──────────
   function _calcFechasAutomaticas(omActual, cambios) {
     const hoy = new Date();
-    const hoyFormatted = `${String(hoy.getMonth() + 1).padStart(2, '0')}/${String(hoy.getDate()).padStart(2, '0')}/${hoy.getFullYear()}`;
-    const fechas = {};
+    const hoyFormatted = hoy.toISOString().slice(0, 10);const fechas = {};
     const nuevoEstatus = cambios.estatus;
 
     // 1. ELIMINAMOS la asignación automática de Fecha de Inicio en "En Proceso".

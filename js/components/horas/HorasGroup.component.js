@@ -117,11 +117,12 @@ const HorasGroup = (() => {
               <tr>
                 <th>Personal</th>
                 ${isAdmin ? '<th>Área</th>' : ''}
+                <th>Equipo</th>
                 <th>Trabajo a realizar</th>
                 <th>Fecha</th>
                 <th>Semana</th>
-                <th class="text-right">Horas</th>
-                <th class="text-right">Retraso</th>
+                <th >Horas</th>
+                <th >Retraso</th>
                 <th>Estatus</th>
                 <th></th>  <!-- columna acciones -->
               </tr>
@@ -163,9 +164,13 @@ const HorasGroup = (() => {
               <table class="hg-table">
                 <thead><tr>
                   <th>Personal</th>
+                  <th>Equipo</th>
                   <th>Trabajo a realizar</th>
-                  <th class="text-right">Horas</th>
-                  <th class="text-right">Retraso</th>
+                  
+                  <th >Fecha</th>
+                  <th >Semana</th>
+                  <th >Horas</th>
+                  <th >Retraso</th>
                   <th>Estatus</th>
                 </tr></thead>
                 <tbody>${sg.rows.map(r => _renderRow(r, false)).join('')}</tbody>
@@ -233,12 +238,15 @@ const HorasGroup = (() => {
         </td>
         ${isAdmin ? `<td><span class="hg-area-tag">${_escHtml(r.area || r.mecArea || '—')}</span></td>` : ''}
         <td>
+          <span class="hg-equipo">${r.equipo}</span>
+        </td>
+        <td>
           <span class="hg-descripcion">${r.descripcion}</span>
         </td>
         <td class="hg-fecha">${_formatFecha(r.fecha)}</td>
         <td class="hg-semana">${_escHtml(r.semana || '—')}</td>
-        <td class="text-right hg-horas">${_fmt(r.horas)}<span class="hg-unit">h</span></td>
-        <td class="text-right ${r.retraso > 0 ? 'hg-retraso-val' : 'hg-muted'}">
+        <td class=" hg-horas">${_fmt(r.horas)}<span class="hg-unit">h</span></td>
+        <td class=" ${r.retraso > 0 ? 'hg-retraso-val' : 'hg-muted'}">
           ${r.retraso > 0 ? _fmt(r.retraso) + '<span class="hg-unit">h</span>' : '—'}
         </td>
         <td>

@@ -213,7 +213,7 @@ const ModalComponent = (() => {
               ${(_editMode && _editState.estatus === 'Programado') ? '<span style="color:var(--color-danger); font-weight:bold;"> *</span>' : ''}
             </div>
             ${(_editMode && v('estatus', om.Estatus) === 'Programado') 
-              ? `<input type="date" id="edit-fecha-inicio" class="edit-input" value="${_isoDateValue(v('fechaInicio', om.FechaInicio))}" required />` 
+              ? `<input type="date" id="edit-fecha-inicio" class="edit-input" value="${v('fechaInicio', om.FechaInicio)}" required />` 
               : `<div class="ot-modal-val${!om.FechaInicio ? ' empty' : ''}">${om.FechaInicio || '—'}</div>`
             }
           </div>
