@@ -616,8 +616,8 @@ const OTComponent = (() => {
       </th>`;
 
     const xH = showArea ? '<th>Área</th><th>Equipo</th>' : '';
-    const thead = `<tr>${checkAllCell}<th>ID Orden</th><th>Sistema</th><th>Descripción</th>
-      <th>Tipo Proceso</th><th>Fecha Inicio</th><th>Semana</th><th>Estado</th><th>Compra</th>${xH}</tr>`;
+    const thead = `<tr>${checkAllCell}<th>ID Orden</th><th>Equipo</th><th>Sistema</th><th>Descripción</th>
+      <th>Estado Ots</th><th>Fecha Inicio</th><th>Semana</th><th>Estado</th><th>Compra</th>${xH}</tr>`;
 
     // … paginación igual que antes …
     const W = 10, h = Math.floor(W/2);
@@ -690,9 +690,15 @@ const OTComponent = (() => {
       <tr class="ot-data-row${isChecked ? ' row-selected' : ''}" data-ot-id="${escH(row.ID_Orden)}" title="Clic para ver detalle">
         ${checkCell}
         <td><span class="ot-id">${escH(row.ID_Orden)}</span></td>
+        <td class="ot-sistema">${escH(row.ID_EQUIPO)}</td>
         <td class="ot-sistema">${escH(row.Sistema)}</td>
         <td><div class="ot-desc" title="${escH(row.Descripcion)}">${escH(row.Descripcion)}</div></td>
-        <td><span class="ot-etapa-chip etapa-${eIdx}">${ETAPA_SHORT[row.TipoProceso] ?? escH(row.TipoProceso||'—')}</span></td>
+        <td>
+          <span class="ot-resumen">
+            <span class="ot-badge concluidas">${row.otsConcluidas}✔</span>
+            <span class="ot-badge pendientes">${row.otsPendientes}⏳</span>
+          </span>
+        </td>
         <td class="ot-fecha${row.FechaInicio?'':' no-asig'}">${escH(row.FechaInicio||'Sin asignar')}</td>
         <td>${sem}</td>
         <td><span class="ot-status ${sc}">${row.Estatus ? `<span class="ot-status-dot"></span>${statusLabel}` : '-'}</span></td>

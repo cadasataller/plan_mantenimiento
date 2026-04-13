@@ -83,8 +83,15 @@ const OTStore = (() => {
       Observaciones:   row['Observaciones'],
       Cantidad:        row['Cantidad'],
       Etapa:           row['Etapa'],
-      // 👇 NUEVO: Exportamos la bandera IS_SG para que el Modal sepa cómo comportarse
-      IS_SG:           row['IS_SG'] === true 
+      
+      IS_SG:           row['IS_SG'] === true,
+      totalOTs:        Number(row.total_ots || 0),
+      otsConcluidas:   Number(row.ots_concluidas || 0),
+      otsPendientes:   Number(row.ots_pendientes || 0),
+
+      
+      resumenOTs: `${row.total_ots || 0} (${row.ots_concluidas || 0}✔, ${row.ots_pendientes || 0}⏳)`
+    
     };
   }
 
@@ -96,7 +103,7 @@ const OTStore = (() => {
 
     while (true) {
       let query = db
-        .from('ORDEN_MANTENIMIENTO')
+        .from('om_con_resumen_ots')
         .select('*')
         .range(from, from + size - 1);
 

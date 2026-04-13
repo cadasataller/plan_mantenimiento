@@ -795,8 +795,10 @@ const SGModalComponent = (() => {
     // 1. Validar OTs pendientes
     const todasLasOTs = window.OTWorkStore?.getOTsByOM(sg.id_sg) || [];
     const pendientes = todasLasOTs.filter(ot => ot.Estatus !== 'Concluida');
+
+    const otRetrasadaAusencia = pendientes.filter(ot =>  ot.Estatus !== 'En Proceso' );
     
-    if (pendientes.length > 0) {
+    if (otRetrasadaAusencia.length <= 0) {
       const msg = `No se puede concluir: Faltan ${pendientes.length} tareas por terminar.`;
       if (window.ToastService) window.ToastService.show(msg, 'warning');
       else alert(msg);
@@ -867,7 +869,7 @@ const SGModalComponent = (() => {
 
     const confirmAction = async () => {
       if (window.ConfirmConcluirModal) {
-        window.ConfirmConcluirModal.show(saveChanges);
+        window.ConfirmConcluirModal.show(saveChanges,true);
       } else if (confirm('¿Estás seguro de que deseas concluir esta SG?')) {
         await saveChanges();
       }

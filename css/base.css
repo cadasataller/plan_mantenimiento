@@ -105,13 +105,13 @@ body {
   font-size: 0.875rem;
   color: var(--text-primary);
   max-width: 320px;
-  animation: toast-in var(--transition-normal)  forwards;
+  animation: toast-in var(--transition-slow)  forwards;
 }
 .toast.toast-success { border-color: var(--color-success); }
 .toast.toast-danger  { border-color: var(--color-danger); }
 .toast.toast-warning { border-color: var(--color-warning); }
 .toast.toast-out {
-  animation: toast-out var(--transition-normal)  forwards;
+  animation: toast-out var(--transition-slow)  forwards;
 }
 @keyframes toast-in {
   from { opacity: 0; transform: translateX(40px); }

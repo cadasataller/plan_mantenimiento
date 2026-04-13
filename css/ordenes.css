@@ -565,6 +565,62 @@
 .ot-fecha   { font-size:0.74rem;color:var(--text-secondary);white-space:nowrap;font-family:var(--font-mono); }
 .ot-fecha.no-asig { color:var(--color-gray-300);font-style:italic;font-family:var(--font-body); }
 
+.ot-total {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.ot-concluidas {
+  font-size: 0.74rem;
+  color: #16a34a;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.ot-pendientes {
+  font-size: 0.74rem;
+  color: #f59e0b;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.ot-resumen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ot-resumen .ot-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1;
+  font-family: var(--font-mono);
+}
+
+.ot-resumen .ot-badge.total {
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--text-secondary);
+}
+
+.ot-resumen .ot-badge.concluidas {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16a34a;
+}
+
+.ot-resumen .ot-badge.pendientes {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
 .ot-semana { font-family:var(--font-mono);font-size:0.72rem;font-weight:600;padding:0.18rem 0.55rem;border-radius:var(--radius-sm);white-space:nowrap; }
 .ot-semana.asig   { background:rgba(0,70,67,0.08);color:var(--color-main); }
 .ot-semana.no-asig{ background:var(--color-gray-100);color:var(--color-gray-400);font-family:var(--font-body);font-style:italic; }
