@@ -589,7 +589,10 @@ async function _renderCard(ot, h, context, equipoTrabajo) {
       const fechaPadre = _om.IS_SG ? _om.fecha_ejecucion : (_om['Fecha inicio'] || _om.FechaInicio);
       const tieneFechaPadre = fechaPadre && fechaPadre !== '—' && String(fechaPadre).trim() !== '';
 
-      if (!tieneFechaPadre || !_om.Estatus || _om.Estatus === 'Programado' && !tieneFechaPadre) {
+      if (
+        (!_om.IS_SG && (!tieneFechaPadre || _om.Estatus === 'Programado')) ||
+        (!_om.Estatus)
+      ) {
         const msg = 'Debe programar la Orden y asignarle una fecha de inicio (o ejecución) antes de agregar tareas.';
         if (window.ToastService) window.ToastService.show(msg, 'warning');
         else alert(msg);
@@ -597,7 +600,9 @@ async function _renderCard(ot, h, context, equipoTrabajo) {
       }
       // 👆 FIN DE NUEVA VALIDACIÓN
 
-      _state = 'create'; _editingOT = null; _render();
+      _state = 'create'; 
+      _editingOT = null; 
+      _render();
       return;
     }
 
@@ -879,7 +884,10 @@ async function _renderCard(ot, h, context, equipoTrabajo) {
       const tieneFechaPadre  = fechaPadre && fechaPadre !== '—' && String(fechaPadre).trim() !== '';
       const tieneEstadoPadre = estadoPadre && String(estadoPadre).trim() !== '';
 
-      if (!tieneEstadoPadre || (estadoPadre === 'Programado' && !tieneFechaPadre)) {
+      if (
+        !_om.IS_SG &&
+        (!tieneEstadoPadre || (estadoPadre === 'Programado' && !tieneFechaPadre))
+      ) {
         errorMsg = 'Debe programar la Orden y asignarle una fecha de inicio (o ejecución) antes de guardar trabajos.';
       }
     }
@@ -918,13 +926,23 @@ async function _renderCard(ot, h, context, equipoTrabajo) {
       let resEstado;
 
       if (_om.IS_SG) {
-        const hoy = new Date().toISOString().split('T')[0];
-        const fechaActual = _om.fecha_ejecucion;
+       
         
         const payloadSG = {
           Estatus: 'En Proceso',
-          fecha_ejecucion: (fechaActual && fechaActual !== '—') ? fechaActual : hoy
+          
         };
+
+        if(!_om.fecha_ejecucion){
+           const hoy = new Date().toISOString().split('T')[0];
+          const [y, m, d] = hoy.split('-');
+          const dateObj = new Date(y, m - 1, d); // Meses en JS son de 0 a 11
+                
+          _om.Semana = String(_getWeekNumber(dateObj));
+
+          payloadSG.semana = _om.Semana;
+          payloadSG.fecha_ejecucion= hoy;
+        }
 
         resEstado = await window.SGService.actualizarEstado(_om.id_sg, payloadSG);
 
@@ -936,6 +954,15 @@ async function _renderCard(ot, h, context, equipoTrabajo) {
           const headerBadge = document.getElementById('sg-modal-header-badge');
           if (headerBadge && window.SGUI) {
             headerBadge.innerHTML = SGUI.Badge('En Proceso');
+          }
+
+          // Si el modal SG está abierto, informarle de los cambios para que actualice semana/fecha/estado
+          if (window.SGModalComponent && typeof window.SGModalComponent.externalUpdate === 'function') {
+            try {
+              window.SGModalComponent.externalUpdate(resEstado.data);
+            } catch (err) {
+              console.warn('SGModal externalUpdate failed', err);
+            }
           }
         }
       } else {
@@ -1017,6 +1044,14 @@ async function _renderCard(ot, h, context, equipoTrabajo) {
         </svg> ${isEdit ? 'Guardar cambios' : 'Crear OT'}`;
       ToastService?.show('Error al guardar. Intenta de nuevo.', 'danger');
     }
+  }
+
+  function _getWeekNumber(d) {
+    const date = new Date(d.getTime());
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+    const week1 = new Date(date.getFullYear(), 0, 4);
+    return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
   }
   // ── Destroy ───────────────────────────────────────────────
   function destroy() {
