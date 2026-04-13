@@ -190,6 +190,8 @@ function renderStackedBarChart(containerId, dimensionData, onBarClick, dimension
   const chart = echarts.init(el, null, { renderer: 'svg' });
 
   const categories = Object.keys(dimensionData);
+
+  
   const allStatuses = [...new Set(
     Object.values(dimensionData).flatMap(s => Object.keys(s))
   )];
@@ -230,7 +232,11 @@ function renderStackedBarChart(containerId, dimensionData, onBarClick, dimension
     itemStyle: { color: _statusPalette(status) },
     label: {
       show: true,
-      formatter: (p) => (p.data?.count > 0 ? `${p.value}%` : ''),
+      formatter: (p) => {
+        if (p.data?.count === 0) return '';
+        if (p.value < 8) return ''; // 👈 oculta si el segmento es menor a 8%
+        return `${p.value}%`;
+      },
       position: 'insideRight',
       fontSize: 10,
       color: '#fff',
@@ -293,7 +299,9 @@ function renderStackedBarChart(containerId, dimensionData, onBarClick, dimension
     xAxis: {
       type: 'value',
       max: 100,
-      axisLabel: { color: '#8F8A7F', fontSize: 10, formatter: '{value}%' },
+      axisLabel: { color: '#8F8A7F', fontSize: 10, formatter: '{value}%',
+         },
+      triggerEvent: true,
       splitLine: { lineStyle: { color: '#EFEDE7' } },
     },
 
@@ -306,28 +314,70 @@ function renderStackedBarChart(containerId, dimensionData, onBarClick, dimension
         width: 120,
         overflow: 'truncate',
         ellipsis: '…',
-        triggerEvent: true
+        
+        rich: {
+          value: {
+            width: 120,
+            overflow: 'truncate',
+            ellipsis: '…',
+            align: 'right',
+          }
+        },
+        triggerEvent: true,
       },
+      triggerEvent: true,
       axisLine: { lineStyle: { color: '#E2DDD3' } },
     },
 
     series,
   });
 
-  if (onBarClick) {
+  /*if (onBarClick) {
     chart.on('click', (params) => onBarClick(params.name, params));
-  }
+  }*/
 
   chart.on('click', (params) => {
-  if (!dimensionKey) return;
 
-  const category = params.name;              // ejemplo: Diferencial
-  const status = params.seriesName || null;   // ejemplo: Concluida
+    console.log(params);
+    
+    if (!dimensionKey) return;
 
-  DashboardStore.setCrossFilter(dimensionKey, category, status);
+    let category = null;
+    let status = null;
 
-  if (onBarClick) onBarClick(category, params);
-});
+    if (params.componentType === 'series') {
+      category = params.name;
+      status = params.seriesName || null;
+    }
+
+    if (params.componentType === 'seriesLabel') {
+      category = params.name;
+      status = params.seriesName || null;
+    }
+
+    if (params.componentType === 'xAxis') {
+      category = params.value;
+      status = null;
+    }
+
+    if (params.componentType === 'yAxis') {
+      category = params.value; // 👈 "Cosecha Mecanizada"
+      status = null;
+    }
+
+    if (category) {
+      DashboardStore.setCrossFilter(dimensionKey, category, status);
+      if (onBarClick) onBarClick(category, params);
+    }
+  });
+
+  // DIAGNÓSTICO TEMPORAL
+  const zr = chart.getZr();
+  zr.on('click', (e) => {
+    console.log('ZRender click RAW:', e);
+    console.log('target:', e.target);
+    console.log('topTarget:', e.topTarget);
+  });
 
   window.addEventListener('resize', () => chart.resize());
   return chart;
