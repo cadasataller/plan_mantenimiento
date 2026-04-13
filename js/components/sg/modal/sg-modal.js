@@ -796,10 +796,10 @@ const SGModalComponent = (() => {
     const todasLasOTs = window.OTWorkStore?.getOTsByOM(sg.id_sg) || [];
     const pendientes = todasLasOTs.filter(ot => ot.Estatus !== 'Concluida');
 
-    const otRetrasadaAusencia = pendientes.filter(ot =>  ot.Estatus !== 'En Proceso' );
+    const otRetrasadaAusencia = pendientes.filter(ot =>  ot.Estatus === 'En Proceso' );
     
-    if (otRetrasadaAusencia.length <= 0) {
-      const msg = `No se puede concluir: Faltan ${pendientes.length} tareas por terminar.`;
+    if (otRetrasadaAusencia.length > 0) {
+      const msg = `No se puede concluir: Faltan ${otRetrasadaAusencia.length} tareas por terminar.`;
       if (window.ToastService) window.ToastService.show(msg, 'warning');
       else alert(msg);
       return;
