@@ -102,13 +102,24 @@ const OTStore = (() => {
 
       // 👇 LA MAGIA DE LOS PERMISOS:
       if (uArea === 'SERVICIOS GENERALES') {
-        // SG ve todas las áreas, pero SOLO las órdenes derivadas a ellos
-        query = query.eq('IS_SG', true);
+        // SG ve solo lo derivado a ellos
+        query = query
+          .eq('IS_SG', true)
+          .ilike('ID_Orden mantenimiento', 'SG-%'); // empieza con SG-
+
       } else if (uArea && uArea !== 'ALL') {
         const user = AuthService.getUser();
-        // Un área normal solo ve sus órdenes (hayan sido o no derivadas a SG)
-        query = query.eq('Área', user.area);
-      } 
+
+        // Área normal: solo sus órdenes
+        query = query
+          .eq('Área', user.area)
+          .not('ID_Orden mantenimiento', 'ilike', 'SG-%'); // excluir SG-
+
+      } else if (uArea === 'ALL') {
+        // Todas las áreas pero SIN SG-
+        query = query
+          .not('ID_Orden mantenimiento', 'ilike', 'SG-%');
+      }
       // (Si es ALL, no aplica ningún filtro y trae la base de datos completa)
 
       const { data, error } = await query;
