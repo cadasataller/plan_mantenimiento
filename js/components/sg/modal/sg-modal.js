@@ -942,7 +942,24 @@ const SGModalComponent = (() => {
     }
   }
 
-  return { open, close };
+  function externalUpdate(updated) {
+    if (!_currentSG) return;
+    if (!updated || updated.id_sg !== _currentSG.id_sg) return;
+
+    // Fusionar cambios recibidos desde fuera (p. ej. OTTab u otros componentes)
+    try {
+      Object.assign(_currentSG, updated);
+      if (updated.ORDEN_MANTENIMIENTO) {
+        _currentSG.ORDEN_MANTENIMIENTO = { ...(_currentSG.ORDEN_MANTENIMIENTO || {}), ...updated.ORDEN_MANTENIMIENTO };
+      }
+    } catch (err) {
+      console.warn('Error merging external SG update', err);
+    }
+
+    _renderContent();
+  }
+
+  return { open, close, externalUpdate };
 })();
 
 window.SGModalComponent = SGModalComponent;

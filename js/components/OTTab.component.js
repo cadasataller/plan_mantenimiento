@@ -955,6 +955,15 @@ async function _renderCard(ot, h, context, equipoTrabajo) {
           if (headerBadge && window.SGUI) {
             headerBadge.innerHTML = SGUI.Badge('En Proceso');
           }
+
+          // Si el modal SG está abierto, informarle de los cambios para que actualice semana/fecha/estado
+          if (window.SGModalComponent && typeof window.SGModalComponent.externalUpdate === 'function') {
+            try {
+              window.SGModalComponent.externalUpdate(resEstado.data);
+            } catch (err) {
+              console.warn('SGModal externalUpdate failed', err);
+            }
+          }
         }
       } else {
         // 👇 LLAMADA CORRECTA A OMService.actualizar 👇
