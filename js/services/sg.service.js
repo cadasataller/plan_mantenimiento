@@ -27,6 +27,10 @@ const SGService = (() => {
       query = query.ilike('ORDEN_MANTENIMIENTO.Área', uArea);
     }
 
+    if (uArea === 'SERVICIOS GENERALES') {
+      query = query.not('id_orden_base', 'ilike', 'OM-TEST%');
+    }
+
     const { data, error } = await query;
 
     if (error) {

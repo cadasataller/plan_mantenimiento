@@ -913,8 +913,7 @@ const SGModalComponent = (() => {
       Descripcion: om.Descripcion,
       ID_EQUIPO: om['ID_#EQUIPO'],
       tipo_trabajo:sg.tipo_trabajo,
-      
-      
+      Semana:sg.semana,
       Estatus: sg.Estatus,
       fecha_ejecucion: sg.fecha_ejecucion,
 
