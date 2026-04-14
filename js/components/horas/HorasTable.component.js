@@ -40,7 +40,13 @@ const HorasTable = (() => {
               const data = _mapFromDB(res.data);
 
               const resolveAndApply = (finalData) => {
-                _updateCache(finalData);
+              _updateCache(finalData);
+              _updateMecHeaderConcludeBtn(finalData.mecId);
+
+              // si cambió de mecánico también actualizar el anterior
+              if (original?.mecId && original.mecId !== finalData.mecId) {
+                _updateMecHeaderConcludeBtn(original.mecId);
+              }
 
                 // ¿Cambió la clave de agrupación?
                 const groupBy = _lastOpts.groupBy || 'semana';
@@ -91,6 +97,7 @@ const HorasTable = (() => {
               };
 
               _updateCache(data);
+              _updateMecHeaderConcludeBtn(data.mecId);
 
               const groupBy = _lastOpts.groupBy || 'semana';
               const oldKey  = _groupKeyOf(row, groupBy);
@@ -380,7 +387,84 @@ function _rebuildGroups() {
     if (el) el.innerHTML = _skeleton();
   }
 
-  return { mount, render, showLoading };
+  function _updateMecHeaderConcludeBtn(mecId) {
+  if (!mecId) return;
+
+  // 1. Obtener TODAS las filas del mecánico desde cache
+  const rows = Object.values(_rowsCache).filter(r => r.mecId === mecId);
+
+  if (!rows.length) return;
+
+  const hasEnProceso = rows.some(r => r.estatus === 'En Proceso');
+
+  // 2. Buscar el header del mecánico en el DOM
+  const header = document.querySelector(
+    `.hg-mec-group-header[data-mec-id="${mecId}"]`
+  );
+
+  if (!header) return;
+
+  const existing = header.querySelector('.hg-conclude-label');
+
+  // 3. Si DEBE existir pero no existe → crearlo
+  if (hasEnProceso && !existing) {
+    const cbId = `hg-mec-cb-${mecId}`;
+
+    const html = `
+      <label class="hg-conclude-label" title="Concluir todas las OTs En Proceso" for="${cbId}">
+        <input
+          type="checkbox"
+          id="${cbId}"
+          class="hg-mec-conclude-cb"
+          data-mec-id="${mecId}"
+          style="display:none"
+        />
+        <span class="hg-conclude-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="11" height="11">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Concluir rápido
+        </span>
+      </label>
+    `;
+
+    header.insertAdjacentHTML('beforeend', html);
+
+    const cb = header.querySelector(`#${cbId}`);
+
+    cb.addEventListener('change', e => {
+      e.stopPropagation();
+
+      const mecRows = Object.values(_rowsCache).filter(r => r.mecId === mecId);
+
+      const mecGroup = {
+        mecId,
+        key: rows[0]?.mecNombre,
+        rows: mecRows,
+        hasEnProceso: true
+      };
+
+      if (cb.checked) {
+        HorasGroup._onConcluirCheckboxActivated?.(cb, mecGroup);
+      }
+    });
+
+    return;
+  }
+
+  // 4. Si NO debe existir pero existe → eliminarlo
+  if (!hasEnProceso && existing) {
+    existing.remove();
+  }
+}
+
+  return { 
+    mount, 
+    render, 
+    showLoading,
+    _updateCache,
+    _updateMecHeaderConcludeBtn
+  };
 })();
 
 window.HorasTable = HorasTable;

@@ -299,7 +299,7 @@ const HorasGroup = (() => {
     const cbId = `hg-mec-cb-${mecGroup.mecId || _escHtml(mecGroup.key).replace(/\s+/g,'-')}`;
 
     mgEl.innerHTML = `
-      <div class="hg-mec-group-header" data-expanded="false">
+      <div class="hg-mec-group-header" data-expanded="false" data-mec-id="${mecGroup.mecId}">
         <button class="hg-sub-toggle hg-mec-toggle">
           <svg class="hg-mec-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11">
             <polyline points="6 9 12 15 18 9"/>
@@ -452,11 +452,43 @@ const HorasGroup = (() => {
     }
 
     try {
-      const promesas = otsProceso.map(r =>
-        window.OTService.actualizarOT(r.id, { Estatus: 'Concluida' })
-      );
+      const resultados = await Promise.allSettled(
+        otsProceso.map(async (r) => {
+          const res = await window.OTService.actualizarOT(r.id, { Estatus: 'Concluida' });
 
-      const resultados = await Promise.allSettled(promesas);
+          if (res.ok) {
+            const updated = {
+              ...r,
+              estatus: 'Concluida'
+            };
+
+            // ✅ actualizar cache
+            if (window.HorasTable?._updateCache) {
+              window.HorasTable._updateCache(updated);
+            }
+
+            // ✅ actualizar fila en DOM
+            const tr = document.querySelector(`.hg-row[data-ot-id="${r.id}"]`);
+            if (tr) {
+            // 🔥 animación suave
+            tr.style.transition = 'opacity .2s';
+            tr.style.opacity = '0.5';
+
+            // actualizar badge
+            HorasDetail.updateRowBadge({ ...updated, id: r.id });
+
+            // restaurar
+            setTimeout(() => {
+              tr.style.opacity = '1';
+            }, 200);
+            }
+
+            return { ok: true };
+          }
+
+          return { ok: false };
+        })
+      );
       const errores = resultados.filter(r => r.status === 'rejected' || r.value?.ok === false);
 
       if (errores.length > 0) {
@@ -480,6 +512,11 @@ const HorasGroup = (() => {
       // Re-renderizar para reflejar los cambios
       if (typeof window.HorasTable?._rebuildGroups === 'function') {
         window.HorasTable._rebuildGroups();
+      }
+
+      // ✅ actualizar botón del mecánico
+      if (window.HorasTable?._updateMecHeaderConcludeBtn) {
+        window.HorasTable._updateMecHeaderConcludeBtn(mecGroup.mecId);
       }
     }
   }
@@ -623,7 +660,7 @@ const HorasGroup = (() => {
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  return { render };
+  return { render,_onConcluirCheckboxActivated};
 })();
 
 window.HorasGroup = HorasGroup;
