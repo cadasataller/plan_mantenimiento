@@ -347,7 +347,7 @@ const ModalComponent = (() => {
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
     const isSGRole = uArea === 'SERVICIOS GENERALES';
   
-    if (_editMode) {
+    if (_editMode && !enTabOTs) {
       footerRight.innerHTML = `
         <button class="btn-modal-secondary" id="btn-cancel-edit">Cancelar</button>
         <button class="btn-modal-save" id="btn-save-edit" ${_saving ? 'disabled' : ''}>
@@ -559,6 +559,8 @@ const ModalComponent = (() => {
     if (tabId === 'info') {
       _refreshInfoPanel();
       _refreshHeaderBadge(); // Por si el estatus cambió desde la pestaña de OTs
+    }else if (tabId === 'ots') {
+      _editMode=false;
     }
 
     _refreshFooter();
