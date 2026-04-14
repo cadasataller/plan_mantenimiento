@@ -91,7 +91,8 @@ const SGFormComponent = (() => {
                 { value: 'Soldadura', label: 'Soldadura' },
                 { value: 'Torneria', label: 'Tornería' },
                 { value: 'Electromecanica', label: 'Electromecánica' },
-                { value: 'Bateria', label: 'Batería' }
+                { value: 'Bateria', label: 'Batería' },
+                { value: 'tornsold', label: 'Torneria y Soldadura' }
               ],
               required: true,
               fullWidth: true

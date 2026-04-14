@@ -61,7 +61,7 @@ const MecanicoSelectComponent = (() => {
           
           const eq = equipoTrabajo.toLowerCase();
 
-          if (eq === 'soldadura' || eq === 'torneria') {
+          if (eq === 'soldadura' || eq === 'torneria' || eq === 'tornsold') {
             query = query.or(
               `"EQUIPO DE TRABAJO".ilike.%Soldadura%,"EQUIPO DE TRABAJO".ilike.%Torneria%`
             );
