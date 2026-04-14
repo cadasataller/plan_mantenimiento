@@ -584,13 +584,14 @@ async function _renderCard(ot, h, context, equipoTrabajo) {
           : alert('Debe cambiar el estado de la OM para agregar nuevas tareas.');
         return;
       }
-
+      console.log(_om['Fecha inicio'] || _om.FechaInicio);
+      
       // 👇 NUEVA VALIDACIÓN: Bloquear si no hay fecha programada
       const fechaPadre = _om.IS_SG ? _om.fecha_ejecucion : (_om['Fecha inicio'] || _om.FechaInicio);
       const tieneFechaPadre = fechaPadre && fechaPadre !== '—' && String(fechaPadre).trim() !== '';
 
       if (
-        (!_om.IS_SG && (!tieneFechaPadre || _om.Estatus === 'Programado')) ||
+        (!_om.IS_SG && (!tieneFechaPadre || !_om.Estatus)) ||
         (!_om.Estatus)
       ) {
         const msg = 'Debe programar la Orden y asignarle una fecha de inicio (o ejecución) antes de agregar tareas.';
