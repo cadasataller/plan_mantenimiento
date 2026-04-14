@@ -77,27 +77,27 @@ const HorasTable = (() => {
         },
 
       onStatusChange: (id, newStatus) => {
-        // Optimista en DOM
         const row = _rowsCache[id];
         if (!row) return;
-        //const optimista = { ...row, estatus: newStatus };
-        //HorasDetail.updateRowBadge(optimista);
 
-        // Persistir en servidor
         OTService.actualizarOT(id, { Estatus: newStatus })
           .then(res => {
             if (res.ok) {
-              const data = _mapFromDB(res.data);
+              // NOTA: res.data puede no tener mecNombre ni mecId — los tomamos del cache
+              const data = {
+                ..._mapFromDB(res.data),
+                mecNombre: row.mecNombre,
+                mecId: row.mecId,
+              };
 
-              data = {...data, mecNombre: updatedRow.mecNombre, mecId: updatedRow.mecId};
               _updateCache(data);
 
               const groupBy = _lastOpts.groupBy || 'semana';
-              const oldKey = _groupKeyOf(row, groupBy);
-              const newKey = _groupKeyOf(data, groupBy);
+              const oldKey  = _groupKeyOf(row, groupBy);
+              const newKey  = _groupKeyOf(data, groupBy);
 
               if (oldKey !== newKey) {
-                _rebuildGroups(); // estatus cambió y se agrupa por estatus
+                _rebuildGroups();
               } else {
                 _patchRow(id, data);
               }

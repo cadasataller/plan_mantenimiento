@@ -70,7 +70,8 @@ const HorasStore = (() => {
           MECANICOS!ORDEN_TRABAJO_ID_Mecanico_fkey (
             id,
             NOMBRE,
-            AREA
+            AREA,
+            "EQUIPO DE TRABAJO"
           ),
           ORDEN_MANTENIMIENTO!ot_id_om_fkey (
             "ID_Orden mantenimiento",
@@ -82,7 +83,6 @@ const HorasStore = (() => {
             id_sg,
             tipo_trabajo,
             "Observaciones",
-
             ORDEN_MANTENIMIENTO!om_servicios_generales_id_orden_base_fkey (
               "ID_Orden mantenimiento",
               "Descripcion",
@@ -163,7 +163,8 @@ const HorasStore = (() => {
             '',
 
           // 🔥 EXTRA (muy útil)
-          tipoTrabajo: sg?.tipo_trabajo || null
+          tipoTrabajo: sg?.tipo_trabajo || null,
+          equipoTrabajo: (mec['EQUIPO DE TRABAJO'] || '').trim() || null,
         };
       });
 
@@ -228,24 +229,76 @@ const HorasStore = (() => {
 
     // Sub-agrupación por área dentro de cada día — solo para admin
     if (groupBy === 'dia' && isAdmin) {
-        grupos.forEach(g => {
+      grupos.forEach(g => {
         const subMap = new Map();
+
         g.rows.forEach(r => {
-            const areaKey = r.id_sg != null
+          const areaKey = r.id_sg != null
             ? 'Servicios Generales'
             : (r.area || r.mecArea || 'Sin área');
-            if (!subMap.has(areaKey)) subMap.set(areaKey, { key: areaKey, rows: [], totalHoras: 0, totalRetraso: 0 });
-            const sg = subMap.get(areaKey);
-            sg.rows.push(r);
-            sg.totalHoras   += r.horas;
-            sg.totalRetraso += r.retraso;
+
+          if (!subMap.has(areaKey)) {
+            subMap.set(areaKey, {
+              key: areaKey,
+              rows: [],
+              totalHoras: 0,
+              totalRetraso: 0,
+              mecGroups: null,
+              subSubGroups: null,
+              hasEquipoTrabajo: false,
+            });
+          }
+          const sg = subMap.get(areaKey);
+          sg.rows.push(r);
+          sg.totalHoras   += r.horas;
+          sg.totalRetraso += r.retraso;
+
+          // Detectar si el área tiene al menos una row con equipoTrabajo válido
+          if (r.equipoTrabajo) sg.hasEquipoTrabajo = true;
         });
+
         g.subGroups = [...subMap.values()].sort((a, b) => a.key.localeCompare(b.key));
+
+        // Construir el tercer nivel por equipo (si aplica) y el nivel mecánico
+        g.subGroups.forEach(sg => {
+          if (sg.hasEquipoTrabajo) {
+            // Tercer nivel: EQUIPO DE TRABAJO → mecánico
+            const equipoMap = new Map();
+
+            sg.rows.forEach(r => {
+              const eKey = r.equipoTrabajo || 'Sin equipo';
+              if (!equipoMap.has(eKey)) {
+                equipoMap.set(eKey, {
+                  key: eKey,
+                  rows: [],
+                  totalHoras: 0,
+                  totalRetraso: 0,
+                  mecGroups: null,
+                });
+              }
+              const eq = equipoMap.get(eKey);
+              eq.rows.push(r);
+              eq.totalHoras   += r.horas;
+              eq.totalRetraso += r.retraso;
+            });
+
+            sg.subSubGroups = [...equipoMap.values()].sort((a, b) => a.key.localeCompare(b.key));
+
+            // Nivel mecánico dentro de cada equipo
+            sg.subSubGroups.forEach(eq => {
+              eq.mecGroups = _buildMecGroups(eq.rows);
+            });
+
+          } else {
+            // Sin agrupación por equipo → nivel mecánico directo
+            sg.mecGroups = _buildMecGroups(sg.rows);
+          }
         });
+      });
     }
 
     return grupos;
-    }
+  }
 
   /** Filtro por texto de mecánico */
   function filterByMecanico(rows, query) {
@@ -257,6 +310,38 @@ const HorasStore = (() => {
   function getCache()  { return _cache; }
   function subscribe(fn) { _listeners.push(fn); return () => { _listeners = _listeners.filter(f => f !== fn); }; }
   function invalidate() { _cache = null; }
+
+  /**
+   * Agrupa un array de rows por mecánico.
+   * @param {NormalizedRow[]} rows
+   * @returns {MecGroup[]}
+   */
+  function _buildMecGroups(rows) {
+    const mecMap = new Map();
+
+    rows.forEach(r => {
+      const mecKey = r.mecId || r.mecNombre || 'Sin personal';
+
+      if (!mecMap.has(mecKey)) {
+        mecMap.set(mecKey, {
+          key: r.mecNombre || 'Sin personal',
+          mecId: r.mecId,
+          rows: [],
+          totalHoras: 0,
+          totalRetraso: 0,
+          hasEnProceso: false,
+        });
+      }
+      const mg = mecMap.get(mecKey);
+      mg.rows.push(r);
+      mg.totalHoras   += r.horas;
+      mg.totalRetraso += r.retraso;
+      if (r.estatus === 'En Proceso') mg.hasEnProceso = true;
+    });
+
+    return [...mecMap.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }
+
 
   return { fetchAll, group, filterByMecanico, getCache, subscribe, invalidate, AREAS };
 })();
