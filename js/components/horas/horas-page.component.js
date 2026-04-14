@@ -15,7 +15,7 @@ const HorasPageComponent = (() => {
   let _loading      = false;
 
   let _state = {
-    groupBy: 'semana',
+    groupBy: 'dia',
     search:  '',
     rawData: [],  // filas normalizadas de HorasStore
   };
