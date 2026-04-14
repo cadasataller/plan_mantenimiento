@@ -58,7 +58,17 @@ const MecanicoSelectComponent = (() => {
       if (context === 'mecanicos') {
         // 👇 FILTRAMOS POR EQUIPO DE TRABAJO SI SE PROPORCIONA, SINO POR AREA
         if (equipoTrabajo) {
-          query = query.ilike('"EQUIPO DE TRABAJO"', equipoTrabajo);
+          
+          const eq = equipoTrabajo.toLowerCase();
+
+          if (eq === 'soldadura' || eq === 'torneria') {
+            query = query.or(
+              `"EQUIPO DE TRABAJO".ilike.%Soldadura%,"EQUIPO DE TRABAJO".ilike.%Torneria%`
+            );
+          } else {
+            query = query.ilike('"EQUIPO DE TRABAJO"', `%${equipoTrabajo}%`);
+          }
+
         } else {
           query = query.ilike('AREA', 'Servicios Generales');
         }
