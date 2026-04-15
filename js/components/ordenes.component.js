@@ -19,6 +19,7 @@ const OTComponent = (() => {
   const ALL_DIMS = [
     { id: 'equipo',  label: 'Equipo'         },
     { id: 'semana',  label: 'Semana'          },
+    { id: 'dia',     label: 'Día'             },
     { id: 'proceso', label: 'Tipo de Proceso' },
     { id: 'area',    label: 'Área'            },
     { id: 'estatus', label: 'Estado'          },
@@ -73,14 +74,24 @@ const OTComponent = (() => {
   // ══════════════════════════════════════════════════════════
   // TOP CARD — búsqueda (50%) + agrupación (50%)
   // ══════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════
+  // TOP CARD — búsqueda (50%) + agrupación (50%)
+  // ══════════════════════════════════════════════════════════
   function renderTopBar() {
     const card = document.getElementById('ot-topcard');
     if (!card) return;
 
-    const available = ALL_DIMS.filter(d => !_activeDims.includes(d.id));
+    const isAdmin = AuthService?.getUser()?.role === 'ADMIN';
+
+    // 1. Usuarios normales solo ven Semana y Día. Admins ven todo.
+    const allowedDims = isAdmin 
+      ? ALL_DIMS 
+      : ALL_DIMS.filter(d => d.id === 'semana' || d.id === 'dia');
+
+    // 2. Sacamos las que ya están activas para no repetirlas
+    const available = allowedDims.filter(d => !_activeDims.includes(d.id));
 
     card.innerHTML = `
-      <!-- Mitad izquierda: búsqueda -->
       <div class="ot-topcard-search">
         <div class="ot-search-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -97,14 +108,11 @@ const OTComponent = (() => {
         </button>
       </div>
 
-      <!-- Divisor vertical -->
       <div class="ot-topcard-div" id="ot-topcard-div"></div>
 
-      <!-- Mitad derecha: agrupación — solo admins -->
       <div class="ot-topcard-grp" id="ot-topcard-grp">
         <span class="ot-grp-label">Agrupar</span>
 
-        <!-- Chips activos -->
         <div class="ot-grp-active">
           ${_activeDims.length === 0
             ? `<span class="ot-grp-none">Sin agrupación</span>`
@@ -116,15 +124,14 @@ const OTComponent = (() => {
                   ${idx > 0 ? `<span class="ot-grp-arrow">›</span>` : ''}
                   <span class="ot-grp-chip active dim-${dimId}">
                     ${dim.label}
-                    ${canUp ? `<button onclick="OTComponent._moveDim('${dimId}',-1)">‹</button>` : ''}
-                    ${canDn ? `<button onclick="OTComponent._moveDim('${dimId}',1)">›</button>`  : ''}
+                    ${canUp && isAdmin ? `<button onclick="OTComponent._moveDim('${dimId}',-1)">‹</button>` : ''}
+                    ${canDn && isAdmin ? `<button onclick="OTComponent._moveDim('${dimId}',1)">›</button>`  : ''}
                     <button class="rm" onclick="OTComponent._removeDim('${dimId}')">✕</button>
                   </span>`;
               }).join('')
           }
         </div>
 
-        <!-- Chips disponibles para añadir -->
         ${available.length > 0 ? `
           <span class="ot-grp-sep">+</span>
           <div class="ot-grp-available">
@@ -135,19 +142,19 @@ const OTComponent = (() => {
               </span>`).join('')}
           </div>` : ''}
 
-        <!-- Botón limpiar -->
         ${_activeDims.length > 0
           ? `<button class="ot-grp-clear" onclick="OTComponent._clearGroups()">✕ Quitar todo</button>`
           : ''}
       </div>`;
 
-    // Re-bind eventos del input (se re-renderizó)
+    // Re-bind eventos
     document.getElementById('ot-search')?.addEventListener('input', e => {
       OTStore.setFilter('search', e.target.value);
       _currentPage = 0;
       _updateGauge();
       renderList();
     });
+    
     document.getElementById('btn-reload')?.addEventListener('click', () => {
       const btn = document.getElementById('btn-reload');
       btn?.classList.add('spinning');
@@ -162,7 +169,19 @@ const OTComponent = (() => {
 
   // ── Acciones del panel ───────────────────────────────────
   function _addDim(dimId) {
-    if (!_activeDims.includes(dimId)) { _activeDims.push(dimId); _refreshPanel(); }
+    const isAdmin = AuthService?.getUser()?.role === 'ADMIN';
+
+    if (!isAdmin) {
+      // Si NO es admin, reemplazamos por completo el arreglo (solo 1 nivel a la vez)
+      _activeDims = [dimId];
+      _refreshPanel();
+    } else {
+      // Si ES admin, apilamos como de costumbre (multinivel)
+      if (!_activeDims.includes(dimId)) { 
+        _activeDims.push(dimId); 
+        _refreshPanel(); 
+      }
+    }
   }
   function _removeDim(dimId) {
     _activeDims = _activeDims.filter(d => d !== dimId); _refreshPanel();
@@ -222,8 +241,8 @@ const OTComponent = (() => {
     const isAdmin = AuthService.getUser()?.role === 'ADMIN';
     const grp     = document.getElementById('ot-topcard-grp');
     const div     = document.getElementById('ot-topcard-div');
-    if (grp) grp.style.display = isAdmin ? '' : 'none';
-    if (div) div.style.display = isAdmin ? '' : 'none';
+    if (grp) grp.style.display = '';
+    if (div) div.style.display = '';
   }
 
   // ══════════════════════════════════════════════════════════
@@ -520,6 +539,7 @@ const OTComponent = (() => {
     switch (dim) {
       case 'equipo':  return row.ID_EQUIPO ? `${row.ID_EQUIPO} — ${row.ITEM}` : 'Sin equipo';
       case 'semana':  return row.Semana ? `Semana ${String(row.Semana).padStart(2,'0')}` : 'No programada';
+      case 'dia':     return row.FechaInicio ? row.FechaInicio : 'Sin fecha';
       case 'proceso': return row.TipoProceso || 'Sin tipo de proceso';
       case 'area':    return row.Area || 'Sin área';
       case 'estatus': return row.Estatus || '-';
@@ -617,7 +637,7 @@ const OTComponent = (() => {
 
     const xH = showArea ? '<th>Área</th><th>Equipo</th>' : '';
     const thead = `<tr>${checkAllCell}<th>ID Orden</th><th>Equipo</th><th>Sistema</th><th>Descripción</th>
-      <th>Tipo Proceso</th><<th>Estado Ots</th><th>Fecha Inicio</th><th>Semana</th><th>Proceso</th><th>Estado</th><th>Compra</th>${xH}</tr>`;
+      <th>Tipo Proceso</th><th>Estado Ots</th><th>Fecha Inicio</th><th>Semana</th><th>Proceso</th><th>Estado</th><th>Compra</th>${xH}</tr>`;
 
     // … paginación igual que antes …
     const W = 10, h = Math.floor(W/2);
