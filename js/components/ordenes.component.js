@@ -617,7 +617,7 @@ const OTComponent = (() => {
 
     const xH = showArea ? '<th>Área</th><th>Equipo</th>' : '';
     const thead = `<tr>${checkAllCell}<th>ID Orden</th><th>Equipo</th><th>Sistema</th><th>Descripción</th>
-      <th>Estado Ots</th><th>Fecha Inicio</th><th>Semana</th><th>Estado</th><th>Compra</th>${xH}</tr>`;
+      <th>Tipo Proceso</th><<th>Estado Ots</th><th>Fecha Inicio</th><th>Semana</th><th>Proceso</th><th>Estado</th><th>Compra</th>${xH}</tr>`;
 
     // … paginación igual que antes …
     const W = 10, h = Math.floor(W/2);
@@ -693,6 +693,7 @@ const OTComponent = (() => {
         <td class="ot-sistema">${escH(row.ID_EQUIPO)}</td>
         <td class="ot-sistema">${escH(row.Sistema)}</td>
         <td><div class="ot-desc" title="${escH(row.Descripcion)}">${escH(row.Descripcion)}</div></td>
+        <td><span class="ot-etapa-chip etapa-${eIdx}">${ETAPA_SHORT[row.TipoProceso] ?? escH(row.TipoProceso||'—')}</span></td>
         <td>
           <span class="ot-resumen">
             <span class="ot-badge concluidas">${row.otsConcluidas}✔</span>
