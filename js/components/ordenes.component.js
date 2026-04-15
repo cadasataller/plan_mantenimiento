@@ -517,19 +517,49 @@ const OTComponent = (() => {
   function buildTree(rows, dims, depth) {
     if (depth >= dims.length) return rows;
     const dim = dims[depth], groups = {}, order = [];
+    
     rows.forEach(r => {
       const k = getDimKey(r, dim);
       if (!groups[k]) { groups[k] = []; order.push(k); }
       groups[k].push(r);
     });
+
+    // ── LÓGICA DE ORDENAMIENTO MEJORADA ──
     order.sort((a, b) => {
-      if (a.startsWith('Sin ')) return 1;
-      if (b.startsWith('Sin ')) return -1;
+      // 1. Mandar "Sin ..." y "No programada" siempre al final
+      const aEmpty = a.startsWith('Sin ') || a.startsWith('No ');
+      const bEmpty = b.startsWith('Sin ') || b.startsWith('No ');
+      if (aEmpty && !bEmpty) return 1;
+      if (!aEmpty && bEmpty) return -1;
+      if (aEmpty && bEmpty) return 0;
+
+      // 2. Ordenar Semanas numéricamente (14, 15, 16...)
+      if (dim === 'semana') {
+        // Extrae solo los números de "Semana 15"
+        const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+        
+        const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+        return numB - numA; // Orden ascendente. (Usa numB - numA si prefieres 16, 15, 14)
+      }
+
+      // 3. Ordenar Días cronológicamente (Fechas reales)
+      if (dim === 'dia') {
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        // Si ambas son fechas válidas, las restamos para ordenar cronológicamente
+        if (!isNaN(dateA) && !isNaN(dateB)) {
+          return dateB - dateA; // Orden ascendente (fechas más antiguas primero)
+        }
+      }
+
+      // 4. Ordenamiento por defecto para Equipos, Procesos, Áreas, etc.
       return a.localeCompare(b, 'es', { numeric: true });
     });
+
     return order.map(k => ({
       dim, key: k,
-      noAsig: k.startsWith('Sin '),
+      // Detectamos si es un grupo "vacío" para ponerle la clase CSS gris
+      noAsig: k.startsWith('Sin ') || k.startsWith('No '),
       count: groups[k].length,
       children: buildTree(groups[k], dims, depth + 1),
     }));
