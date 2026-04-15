@@ -269,6 +269,14 @@
   color: var(--color-danger);
 }
 
+.ht-summary-warning .ht-summary-val {
+  color: var(--color-warning);
+}
+
+.ht-summary-success .ht-summary-val {
+  color: var(--color-success);
+}
+
 .ht-summary-div {
   width: 1px;
   height: 28px;
@@ -458,8 +466,18 @@
 }
 
 .hg-stat-retraso {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.hg-stat-ausencia {
   background: var(--color-warning-bg);
   color: var(--color-warning);
+}
+
+.hg-stat-completadas {
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 /* Cuerpo colapsable */
