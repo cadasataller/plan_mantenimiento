@@ -466,8 +466,8 @@
 }
 
 .hg-stat-retraso {
-  background: var(--color-warning-bg);
-  color: var(--color-warning);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 .hg-stat-ausencia {

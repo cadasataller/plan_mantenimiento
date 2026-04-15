@@ -64,6 +64,8 @@ const HorasTable = (() => {
                 } else {
                   // Mismo grupo → solo patch en DOM
                   _patchRow(id, finalData);
+                  _updateGroupHeadersIncremental(original, finalData);
+                  _updateSummaryIncremental(original, finalData);
                 }
               };
 
@@ -107,6 +109,8 @@ const HorasTable = (() => {
                 _rebuildGroups();
               } else {
                 _patchRow(id, data);
+                _updateGroupHeadersIncremental(row, data);
+                _updateSummaryIncremental(row, data);
               }
             } else {
               _patchRow(id, row);
@@ -222,6 +226,169 @@ const HorasTable = (() => {
     // badge de estatus
     HorasDetail.updateRowBadge({...data,id:id});
     return true;
+  }
+
+  // ── Actualización incremental de headers sin re-render ─────────────────
+  /**
+   * Actualiza los headers de grupos y subgrupos con los nuevos totales.
+   * Se usa cuando cambia solo el estado/retraso de una fila sin cambiar de grupo.
+   */
+  function _updateGroupHeadersIncremental(oldRow, newRow) {
+    const fmt = n => Number(n).toFixed(1);
+
+    // Calcular cambios
+    const oldCompletadas = (oldRow.estatus === 'Concluida' || oldRow.estatus === 'Concluido') ? oldRow.horas : 0;
+    const newCompletadas = (newRow.estatus === 'Concluida' || newRow.estatus === 'Concluido') ? newRow.horas : 0;
+    const deltaCompletadas = newCompletadas - oldCompletadas;
+
+    const oldAusencia = oldRow.estatus === 'Ausencia' ? oldRow.horas : 0;
+    const newAusencia = newRow.estatus === 'Ausencia' ? newRow.horas : 0;
+    const deltaAusencia = newAusencia - oldAusencia;
+
+    const deltaRetraso = (newRow.retraso || 0) - (oldRow.retraso || 0);
+
+    if (deltaCompletadas === 0 && deltaAusencia === 0 && deltaRetraso === 0) return;
+
+    // Buscar el tr de la fila
+    const tr = document.querySelector(`.hg-row[data-ot-id="${newRow.id || newRow.ID_OT || newRow.ID_RowNumber}"]`);
+    if (!tr) return;
+
+    // Buscar todos los headers en ancestros
+    let current = tr.parentElement;
+    while (current && !current.classList.contains('ht-list')) {
+      const header = current.querySelector(':scope > .hg-header, :scope > .hg-subgroup-header, :scope > .hg-mec-group-header');
+      if (header) {
+        _updateHeaderStats(header, deltaCompletadas, deltaAusencia, deltaRetraso, fmt);
+      }
+      current = current.parentElement;
+    }
+  }
+
+  /**
+   * Actualiza los stats de un header específico.
+   */
+  function _updateHeaderStats(header, deltaCompletadas, deltaAusencia, deltaRetraso, fmt) {
+    // Actualizar completadas
+    if (deltaCompletadas !== 0) {
+      const stat = header.querySelector('.hg-stat-completadas');
+      if (stat) {
+        const text = stat.textContent.trim();
+        const current = parseFloat(text);
+        const newVal = Math.max(0, current + deltaCompletadas);
+        stat.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>
+            ${fmt(newVal)}h completadas`;
+        stat.style.display = newVal > 0 ? 'inline-flex' : 'none';
+      }
+    }
+
+    // Actualizar ausencia
+    if (deltaAusencia !== 0) {
+      const stat = header.querySelector('.hg-stat-ausencia');
+      if (stat) {
+        const text = stat.textContent.trim();
+        const current = parseFloat(text);
+        const newVal = Math.max(0, current + deltaAusencia);
+        stat.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            ${fmt(newVal)}h ausencia`;
+        stat.style.display = newVal > 0 ? 'inline-flex' : 'none';
+      }
+    }
+
+    // Actualizar retraso
+    if (deltaRetraso !== 0) {
+      const stat = header.querySelector('.hg-stat-retraso');
+      if (stat) {
+        const text = stat.textContent.trim();
+        const current = parseFloat(text);
+        const newVal = Math.max(0, current + deltaRetraso);
+        stat.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            ${fmt(newVal)}h retraso`;
+        stat.style.display = newVal > 0 ? 'inline-flex' : 'none';
+      }
+    }
+  }
+
+  /**
+   * Actualiza el summary global con los nuevos totales.
+   */
+  function _updateSummaryIncremental(oldRow, newRow) {
+    const fmt = n => Number(n).toFixed(1);
+
+    // Calcular cambios
+    const oldCompletadas = (oldRow.estatus === 'Concluida' || oldRow.estatus === 'Concluido') ? oldRow.horas : 0;
+    const newCompletadas = (newRow.estatus === 'Concluida' || newRow.estatus === 'Concluido') ? newRow.horas : 0;
+    const deltaCompletadas = newCompletadas - oldCompletadas;
+
+    const oldAusencia = oldRow.estatus === 'Ausencia' ? oldRow.horas : 0;
+    const newAusencia = newRow.estatus === 'Ausencia' ? newRow.horas : 0;
+    const deltaAusencia = newAusencia - oldAusencia;
+
+    const deltaRetraso = (newRow.retraso || 0) - (oldRow.retraso || 0);
+
+    if (deltaCompletadas === 0 && deltaAusencia === 0 && deltaRetraso === 0) return;
+
+    const summaryInner = document.querySelector('.ht-summary-inner');
+    if (!summaryInner) return;
+
+    // Actualizar stat de completadas
+    if (deltaCompletadas !== 0) {
+      const stat = summaryInner.querySelector('.ht-summary-success');
+      if (stat) {
+        const val = stat.querySelector('.ht-summary-val');
+        if (val) {
+          const text = val.textContent;
+          const current = parseFloat(text);
+          const newVal = Math.max(0, current + deltaCompletadas);
+          val.innerHTML = `${fmt(newVal)}<span class="ht-unit">h</span>`;
+        }
+        stat.style.display = newVal > 0 ? 'flex' : 'none';
+        // Mostrar/ocultar divisor anterior
+        let prevDiv = stat.previousElementSibling;
+        if (prevDiv && prevDiv.className === 'ht-summary-div') {
+          prevDiv.style.display = newVal > 0 ? 'block' : 'none';
+        }
+      }
+    }
+
+    // Actualizar stat de ausencia
+    if (deltaAusencia !== 0) {
+      const stat = summaryInner.querySelector('.ht-summary-warning');
+      if (stat) {
+        const val = stat.querySelector('.ht-summary-val');
+        if (val) {
+          const text = val.textContent;
+          const current = parseFloat(text);
+          const newVal = Math.max(0, current + deltaAusencia);
+          val.innerHTML = `${fmt(newVal)}<span class="ht-unit">h</span>`;
+        }
+        stat.style.display = newVal > 0 ? 'flex' : 'none';
+        // Mostrar/ocultar divisor anterior
+        let prevDiv = stat.previousElementSibling;
+        if (prevDiv && prevDiv.className === 'ht-summary-div') {
+          prevDiv.style.display = newVal > 0 ? 'block' : 'none';
+        }
+      }
+    }
+
+    // Actualizar stat de retraso
+    if (deltaRetraso !== 0) {
+      const stat = summaryInner.querySelector('.ht-summary-danger');
+      if (stat) {
+        const val = stat.querySelector('.ht-summary-val');
+        if (val) {
+          const text = val.textContent;
+          const current = parseFloat(text);
+          const newVal = Math.max(0, current + deltaRetraso);
+          val.innerHTML = `${fmt(newVal)}<span class="ht-unit">h</span>`;
+        }
+        stat.style.display = newVal > 0 ? 'flex' : 'none';
+        // Mostrar/ocultar divisor anterior
+        let prevDiv = stat.previousElementSibling;
+        if (prevDiv && prevDiv.className === 'ht-summary-div') {
+          prevDiv.style.display = newVal > 0 ? 'block' : 'none';
+        }
+      }
+    }
   }
 
   // ── Helpers internos ──────────────────────────────────────
@@ -342,24 +509,21 @@ function _rebuildGroups() {
           <span class="ht-summary-val">${Number(totalHoras).toFixed(1)}<span class="ht-unit">h</span></span>
           <span class="ht-summary-lbl">horas asignadas</span>
         </div>
-        ${totalRetraso > 0 ? `
-        <div class="ht-summary-div"></div>
-        <div class="ht-summary-stat ht-summary-danger">
+        <div class="ht-summary-div" style="display:${totalRetraso > 0 ? 'block' : 'none'}"></div>
+        <div class="ht-summary-stat ht-summary-danger" style="display:${totalRetraso > 0 ? 'flex' : 'none'}">
           <span class="ht-summary-val">${Number(totalRetraso).toFixed(1)}<span class="ht-unit">h</span></span>
           <span class="ht-summary-lbl">horas retraso</span>
-        </div>` : ''}
-        ${totalAusencia > 0 ? `
-        <div class="ht-summary-div"></div>
-        <div class="ht-summary-stat ht-summary-warning">
+        </div>
+        <div class="ht-summary-div" style="display:${totalAusencia > 0 ? 'block' : 'none'}"></div>
+        <div class="ht-summary-stat ht-summary-warning" style="display:${totalAusencia > 0 ? 'flex' : 'none'}">
           <span class="ht-summary-val">${Number(totalAusencia).toFixed(1)}<span class="ht-unit">h</span></span>
           <span class="ht-summary-lbl">horas ausencia</span>
-        </div>` : ''}
-        ${totalCompletadas > 0 ? `
-        <div class="ht-summary-div"></div>
-        <div class="ht-summary-stat ht-summary-success">
+        </div>
+        <div class="ht-summary-div" style="display:${totalCompletadas > 0 ? 'block' : 'none'}"></div>
+        <div class="ht-summary-stat ht-summary-success" style="display:${totalCompletadas > 0 ? 'flex' : 'none'}">
           <span class="ht-summary-val">${Number(totalCompletadas).toFixed(1)}<span class="ht-unit">h</span></span>
           <span class="ht-summary-lbl">horas completadas</span>
-        </div>` : ''}
+        </div>
         <div class="ht-summary-div"></div>
         <div class="ht-summary-stat">
           <span class="ht-summary-val">${groups.length}</span>
