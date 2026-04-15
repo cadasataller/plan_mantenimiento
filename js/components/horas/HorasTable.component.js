@@ -262,6 +262,8 @@ function _rebuildGroups() {
           rows: [],
           totalHoras: 0,
           totalRetraso: 0,
+          totalAusencia: 0,
+          totalCompletadas: 0,
           subGroups: null,
         });
       }
@@ -269,6 +271,8 @@ function _rebuildGroups() {
       g.rows.push(fresh);
       g.totalHoras   += (fresh.horas   || 0);
       g.totalRetraso += (fresh.retraso || 0);
+      g.totalAusencia += (fresh.estatus === 'Ausencia' ? fresh.horas : 0);
+      g.totalCompletadas += ((fresh.estatus === 'Concluida' || fresh.estatus === 'Concluido') ? fresh.horas : 0);
     });
   });
 
@@ -281,6 +285,8 @@ function _rebuildGroups() {
 
   const totalHoras   = refreshedGroups.reduce((s, g) => s + g.totalHoras, 0);
   const totalRetraso = refreshedGroups.reduce((s, g) => s + g.totalRetraso, 0);
+  const totalAusencia = refreshedGroups.reduce((s, g) => s + g.totalAusencia, 0);
+  const totalCompletadas = refreshedGroups.reduce((s, g) => s + g.totalCompletadas, 0);
   const totalRows    = refreshedGroups.reduce((s, g) => s + g.rows.length, 0);
 
   // ✅ Actualizar _lastGroups para futuros rebuilds
@@ -290,6 +296,8 @@ function _rebuildGroups() {
     ..._lastOpts,
     totalHoras,
     totalRetraso,
+    totalAusencia,
+    totalCompletadas,
     totalRows,
   });
 }
@@ -313,6 +321,8 @@ function _rebuildGroups() {
       loading      = false,
       totalHoras   = 0,
       totalRetraso = 0,
+      totalAusencia = 0,
+      totalCompletadas = 0,
       totalRows    = 0,
     } = opts;
 
@@ -337,6 +347,18 @@ function _rebuildGroups() {
         <div class="ht-summary-stat ht-summary-danger">
           <span class="ht-summary-val">${Number(totalRetraso).toFixed(1)}<span class="ht-unit">h</span></span>
           <span class="ht-summary-lbl">horas retraso</span>
+        </div>` : ''}
+        ${totalAusencia > 0 ? `
+        <div class="ht-summary-div"></div>
+        <div class="ht-summary-stat ht-summary-warning">
+          <span class="ht-summary-val">${Number(totalAusencia).toFixed(1)}<span class="ht-unit">h</span></span>
+          <span class="ht-summary-lbl">horas ausencia</span>
+        </div>` : ''}
+        ${totalCompletadas > 0 ? `
+        <div class="ht-summary-div"></div>
+        <div class="ht-summary-stat ht-summary-success">
+          <span class="ht-summary-val">${Number(totalCompletadas).toFixed(1)}<span class="ht-unit">h</span></span>
+          <span class="ht-summary-lbl">horas completadas</span>
         </div>` : ''}
         <div class="ht-summary-div"></div>
         <div class="ht-summary-stat">

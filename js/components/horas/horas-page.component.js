@@ -117,6 +117,8 @@ const HorasPageComponent = (() => {
     // Totales globales sobre filtrado
     const totalHoras   = filtered.reduce((s, r) => s + r.horas,   0);
     const totalRetraso = filtered.reduce((s, r) => s + r.retraso, 0);
+    const totalAusencia = filtered.reduce((s, r) => s + (r.estatus === 'Ausencia' ? r.horas : 0), 0);
+    const totalCompletadas = filtered.reduce((s, r) => s + ((r.estatus === 'Concluida' || r.estatus === 'Concluido') ? r.horas : 0), 0);
 
     HorasTable.render(groups, {
       isAdmin:      admin,
@@ -124,6 +126,8 @@ const HorasPageComponent = (() => {
       loading:      false,
       totalHoras,
       totalRetraso,
+      totalAusencia,
+      totalCompletadas,
       totalRows:    filtered.length,
     });
   }

@@ -72,6 +72,8 @@ const HorasGroup = (() => {
     const count  = group.rows.length;
     const hTotal = _fmt(group.totalHoras);
     const rTotal = _fmt(group.totalRetraso);
+    const aTotal = _fmt(group.totalAusencia || 0);
+    const cTotal = _fmt(group.totalCompletadas || 0);
 
     wrap.innerHTML = `
       <div class="hg-header" data-expanded="false">
@@ -94,6 +96,16 @@ const HorasGroup = (() => {
           <span class="hg-stat hg-stat-retraso">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             ${rTotal}h retraso
+          </span>` : ''}
+          ${parseFloat(cTotal) > 0 ? `
+          <span class="hg-stat hg-stat-completadas">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>
+            ${cTotal}h completadas
+          </span>` : ''}
+          ${parseFloat(aTotal) > 0 ? `
+          <span class="hg-stat hg-stat-ausencia">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            ${aTotal}h ausencia
           </span>` : ''}
         </div>
       </div>
@@ -172,7 +184,9 @@ const HorasGroup = (() => {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           ${_fmt(sg.totalHoras)}h
         </span>
+        ${sg.totalCompletadas > 0 ? `<span class="hg-stat hg-stat-completadas" style="font-size:11px">${_fmt(sg.totalCompletadas)}h completadas</span>` : ''}
         ${sg.totalRetraso > 0 ? `<span class="hg-stat hg-stat-retraso">${_fmt(sg.totalRetraso)}h retraso</span>` : ''}
+        ${sg.totalAusencia > 0 ? `<span class="hg-stat hg-stat-ausencia">${_fmt(sg.totalAusencia)}h ausencia</span>` : ''}
       </div>
       <div class="hg-subgroup-body"></div>
     `;
@@ -246,7 +260,9 @@ const HorasGroup = (() => {
         <span class="hg-stat hg-stat-horas" style="margin-left:auto; font-size:11px">
           ${_fmt(eq.totalHoras)}h
         </span>
+        ${eq.totalCompletadas > 0 ? `<span class="hg-stat hg-stat-completadas" style="font-size:11px">${_fmt(eq.totalCompletadas)}h completadas</span>` : ''}
         ${eq.totalRetraso > 0 ? `<span class="hg-stat hg-stat-retraso" style="font-size:11px">${_fmt(eq.totalRetraso)}h retraso</span>` : ''}
+        ${eq.totalAusencia > 0 ? `<span class="hg-stat hg-stat-ausencia" style="font-size:11px">${_fmt(eq.totalAusencia)}h ausencia</span>` : ''}
       </div>
       <div class="hg-subgroup-body"></div>
     `;

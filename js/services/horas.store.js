@@ -215,11 +215,13 @@ const HorasStore = (() => {
         default:        key = 'Todo';
         }
 
-        if (!map.has(key)) map.set(key, { key, rows: [], totalHoras: 0, totalRetraso: 0, subGroups: null });
+        if (!map.has(key)) map.set(key, { key, rows: [], totalHoras: 0, totalRetraso: 0, totalAusencia: 0, totalCompletadas: 0, subGroups: null });
         const g = map.get(key);
         g.rows.push(r);
         g.totalHoras   += r.horas;
         g.totalRetraso += r.retraso;
+        g.totalAusencia += r.estatus === 'Ausencia' ? r.horas : 0;
+        g.totalCompletadas += (r.estatus === 'Concluida' || r.estatus === 'Concluido') ? r.horas : 0;
     });
 
     const grupos = [...map.values()].sort((a, b) => {
@@ -243,6 +245,8 @@ const HorasStore = (() => {
               rows: [],
               totalHoras: 0,
               totalRetraso: 0,
+              totalAusencia: 0,
+              totalCompletadas: 0,
               mecGroups: null,
               subSubGroups: null,
               hasEquipoTrabajo: false,
@@ -252,6 +256,8 @@ const HorasStore = (() => {
           sg.rows.push(r);
           sg.totalHoras   += r.horas;
           sg.totalRetraso += r.retraso;
+          sg.totalAusencia += r.estatus === 'Ausencia' ? r.horas : 0;
+          sg.totalCompletadas += (r.estatus === 'Concluida' || r.estatus === 'Concluido') ? r.horas : 0;
 
           // Detectar si el área tiene al menos una row con equipoTrabajo válido
           if (r.equipoTrabajo) sg.hasEquipoTrabajo = true;
@@ -273,6 +279,8 @@ const HorasStore = (() => {
                   rows: [],
                   totalHoras: 0,
                   totalRetraso: 0,
+                  totalAusencia: 0,
+                  totalCompletadas: 0,
                   mecGroups: null,
                 });
               }
@@ -280,6 +288,8 @@ const HorasStore = (() => {
               eq.rows.push(r);
               eq.totalHoras   += r.horas;
               eq.totalRetraso += r.retraso;
+              eq.totalAusencia += r.estatus === 'Ausencia' ? r.horas : 0;
+              eq.totalCompletadas += (r.estatus === 'Concluida' || r.estatus === 'Concluido') ? r.horas : 0;
             });
 
             sg.subSubGroups = [...equipoMap.values()].sort((a, b) => a.key.localeCompare(b.key));
@@ -329,6 +339,8 @@ const HorasStore = (() => {
           rows: [],
           totalHoras: 0,
           totalRetraso: 0,
+          totalAusencia: 0,
+          totalCompletadas: 0,
           hasEnProceso: false,
         });
       }
@@ -336,6 +348,8 @@ const HorasStore = (() => {
       mg.rows.push(r);
       mg.totalHoras   += r.horas;
       mg.totalRetraso += r.retraso;
+      mg.totalAusencia += r.estatus === 'Ausencia' ? r.horas : 0;
+      mg.totalCompletadas += (r.estatus === 'Concluida' || r.estatus === 'Concluido') ? r.horas : 0;
       if (r.estatus === 'En Proceso') mg.hasEnProceso = true;
     });
 
