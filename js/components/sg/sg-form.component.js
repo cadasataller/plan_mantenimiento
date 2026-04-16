@@ -12,6 +12,8 @@ const SGFormComponent = (() => {
     _container = document.getElementById(containerId);
     _onCancel = callbacks?.onCancel;
     _onSuccess = callbacks?.onSuccess;
+
+    
     _render(initialData);
     _bindEvents(initialData);
 

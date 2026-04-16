@@ -395,7 +395,7 @@ const ModalComponent = (() => {
     if (!btn) return;
     const id = btn.id;
     if (id === 'btn-modal-footer-close') close();
-    if (id === 'btn-ver-ots')            switchTab('ots');
+    
     if (id === 'btn-modal-edit')         _enterEditMode();
     if (id === 'btn-cancel-edit')        _cancelEdit();
     if (id === 'btn-save-edit')          _saveEdit();
@@ -560,6 +560,7 @@ const ModalComponent = (() => {
       _refreshInfoPanel();
       _refreshHeaderBadge(); // Por si el estatus cambió desde la pestaña de OTs
     }else if (tabId === 'ots') {
+      Metrics.create({ screen: 'OTS MODAL', action: 'CLICK_WATCH_OTS', context: { 'VALUE':'VISTO DESDE MODAL DE OMS' },event_type:'CLICK_WATCH' });
       _editMode=false;
     }
 
