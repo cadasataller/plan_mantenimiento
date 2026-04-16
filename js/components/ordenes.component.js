@@ -26,6 +26,8 @@ const OTComponent = (() => {
   ];
 
   // ── Estado ───────────────────────────────────────────────
+  // Agrega estas dos líneas junto a:  let _selectedOMs = new Set();
+  let _currentBulkAction = null;   // 'concluir' | 'programar' | null
   let _activeDims = ['semana'];
   let _unsub      = null;
   let _activeKPI  = null;
@@ -149,6 +151,7 @@ const OTComponent = (() => {
 
     // Re-bind eventos
     document.getElementById('ot-search')?.addEventListener('input', e => {
+      _clearSelection();            // ← limpia zombies
       OTStore.setFilter('search', e.target.value);
       _currentPage = 0;
       _updateGauge();
@@ -202,19 +205,31 @@ const OTComponent = (() => {
   function _clearGroups() {
     _activeDims = []; _refreshPanel();
   }
+
   function _refreshPanel() {
-    _currentPage = 0;
-    renderTopBar();
-    renderList();
-  }
+  _clearSelection();            // ← limpia zombies
+  _currentPage = 0;
+  renderTopBar();
+  renderList();
+}
 
   // ══════════════════════════════════════════════════════════
   // bindStaticEvents — solo los que no están en renderTopBar
   // ══════════════════════════════════════════════════════════
   function bindStaticEvents() {
-    // Los del input y reload se bindean dentro de renderTopBar
-    // porque el DOM se re-crea al renderizar
-  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      const bar = document.getElementById('ot-bulk-bar');
+      // Si estamos en Estado B, solo cancelar el formulario (volver a A)
+      if (bar && _currentBulkAction !== null) {
+        _cancelBulkForm();
+      } else if (_selectedOMs.size > 0) {
+        // Si estamos en Estado A con selecciones, limpiamos todo
+        _clearSelection();
+      }
+    }
+  });
+}
 
   // ══════════════════════════════════════════════════════════
   // onEnter
@@ -417,6 +432,7 @@ const OTComponent = (() => {
   }
 
   function _filterByKPI(kpiKey, fk, fv) {
+    _clearSelection();
     if (_activeKPI === kpiKey) {
       _activeKPI = null;
       if (fk) OTStore.setFilter(fk, '');
@@ -471,6 +487,7 @@ const OTComponent = (() => {
       wrap.addEventListener('click', e => {
         const tr = e.target.closest('tr.ot-data-row');
         if (!tr) return;
+        _clearSelection();
         const row = _rowCache.get(String(tr.dataset.otId));
         if (row) openModal(row);
       });
@@ -787,98 +804,319 @@ const OTComponent = (() => {
 // ══════════════════════════════════════════════════════════
 function _syncBulkBar() {
   let bar = document.getElementById('ot-bulk-bar');
+
   if (!bar) {
     bar = document.createElement('div');
     bar.id = 'ot-bulk-bar';
     bar.innerHTML = `
-      <span class="bulk-bar-count"><span id="bulk-bar-num">0</span> órdenes seleccionadas</span>
-      <div class="bulk-bar-sep"></div>
-      <button class="bulk-bar-btn" id="bulk-bar-conclude">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-        Concluir seleccionadas
-      </button>
-      <button class="bulk-bar-clear" id="bulk-bar-clear">Limpiar</button>`;
+      <!-- ═══ ESTADO A: Reposo ═══ -->
+      <div class="bulk-state-a" id="bulk-state-a">
+        <span class="bulk-bar-count">
+          <span id="bulk-bar-num">0</span>
+          <span class="bulk-bar-count-label"> órdenes seleccionadas</span>
+        </span>
+        <div class="bulk-bar-sep"></div>
+        <button class="bulk-bar-btn bulk-btn-conclude" id="bulk-bar-conclude">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Concluir
+        </button>
+        <button class="bulk-bar-btn bulk-btn-schedule" id="bulk-bar-schedule">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          Programar
+        </button>
+        <button class="bulk-bar-clear" id="bulk-bar-clear">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          Limpiar
+        </button>
+      </div>
+
+      <!-- ═══ ESTADO B: Formulario ═══ -->
+      <div class="bulk-state-b" id="bulk-state-b" style="display:none">
+        <span class="bulk-bar-action-label" id="bulk-action-label">Concluir</span>
+        <div class="bulk-bar-sep"></div>
+        <div class="bulk-field-wrap">
+          <label class="bulk-field-label" for="bulk-obs">Observaciones</label>
+          <input
+            type="text"
+            id="bulk-obs"
+            class="bulk-input"
+            placeholder="Observaciones opcionales…"
+            autocomplete="off"
+          />
+        </div>
+        <div class="bulk-field-wrap" id="bulk-fecha-wrap" style="display:none">
+          <label class="bulk-field-label" for="bulk-fecha">Fecha</label>
+          <input
+            type="date"
+            id="bulk-fecha"
+            class="bulk-input bulk-input-date"
+          />
+        </div>
+        <button class="bulk-bar-btn bulk-btn-save" id="bulk-bar-save" disabled>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          Guardar
+        </button>
+        <button class="bulk-bar-btn bulk-btn-cancel" id="bulk-bar-cancel">
+          Cancelar
+        </button>
+      </div>`;
+
     document.body.appendChild(bar);
-    document.getElementById('bulk-bar-conclude').addEventListener('click', _bulkConcluir);
-    document.getElementById('bulk-bar-clear').addEventListener('click', () => {
-      _selectedOMs.clear();
-      // Re-render para quitar los checks visuales
-      renderList();
-      _syncBulkBar();
+
+    // ── Listeners Estado A ──
+    document.getElementById('bulk-bar-conclude').addEventListener('click', () => {
+      _enterBulkForm('concluir');
     });
+
+    document.getElementById('bulk-bar-schedule').addEventListener('click', () => {
+      _enterBulkForm('programar');
+    });
+
+    document.getElementById('bulk-bar-clear').addEventListener('click', () => {
+      _clearSelection();
+    });
+
+    // ── Listeners Estado B ──
+    document.getElementById('bulk-bar-cancel').addEventListener('click', _cancelBulkForm);
+
+    document.getElementById('bulk-bar-save').addEventListener('click', () => {
+      const obs   = document.getElementById('bulk-obs')?.value || '';
+      const fecha = document.getElementById('bulk-fecha')?.value || '';
+      _bulkUpdate(_currentBulkAction, { observaciones: obs, fecha });
+    });
+
+    // Validación dinámica del input de fecha (solo aplica a "programar")
+    document.getElementById('bulk-fecha').addEventListener('input', _validateBulkSaveBtn);
   }
 
+  // ── Sincronizar conteo ──
   const n = _selectedOMs.size;
-  document.getElementById('bulk-bar-num').textContent = n;
+  const numEl = document.getElementById('bulk-bar-num');
+  if (numEl) numEl.textContent = n;
+
   bar.classList.toggle('visible', n > 0);
+
+  // Si ya no hay selección, forzar regreso a Estado A
+  if (n === 0) {
+    _showBulkStateA();
+  }
 }
 
-async function _bulkConcluir() {
+/** Entra al Estado B con la acción indicada */
+function _enterBulkForm(accion) {
+  _currentBulkAction = accion;
+
+  // Actualizar etiqueta
+  const label = document.getElementById('bulk-action-label');
+  if (label) label.textContent = accion === 'programar' ? 'Programar' : 'Concluir';
+
+  // Mostrar/ocultar campo de fecha
+  const fechaWrap = document.getElementById('bulk-fecha-wrap');
+  const fechaInput = document.getElementById('bulk-fecha');
+
+  if (accion === 'programar') {
+    if (fechaWrap) fechaWrap.style.display = '';
+
+    // Resolución de fecha previa: si todas las OMs seleccionadas con fecha coinciden
+    const todas = OTStore.getAll();
+    const ids = [..._selectedOMs];
+    const oms = ids.map(id => todas.find(o => String(o.ID_Orden) === id)).filter(Boolean);
+    const fechas = oms
+      .map(om => om.FechaInicio)
+      .filter(f => f && f !== '—' && f.trim() !== '');
+
+    let prefill = '';
+    if (fechas.length > 0) {
+      // Normalizar a formato yyyy-mm-dd para el input date
+      const normalizadas = fechas.map(f => {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(f)) return f.slice(0, 10);
+        if (f.includes('T')) return f.split('T')[0];
+        return '';
+      }).filter(Boolean);
+
+      const unicas = [...new Set(normalizadas)];
+      if (unicas.length === 1) prefill = unicas[0]; // todas coinciden
+    }
+    if (fechaInput) fechaInput.value = prefill;
+  } else {
+    // "concluir": ocultar fecha
+    if (fechaWrap) fechaWrap.style.display = 'none';
+    if (fechaInput) fechaInput.value = '';
+  }
+
+  // Limpiar observaciones
+  const obsInput = document.getElementById('bulk-obs');
+  if (obsInput) obsInput.value = '';
+
+  // Estado del botón Guardar
+  _validateBulkSaveBtn();
+
+  // Cambiar vistas
+  _showBulkStateB();
+}
+
+/** Vuelve al Estado A sin limpiar la selección */
+function _cancelBulkForm() {
+  _currentBulkAction = null;
+  const obsInput = document.getElementById('bulk-obs');
+  const fechaInput = document.getElementById('bulk-fecha');
+  if (obsInput) obsInput.value = '';
+  if (fechaInput) fechaInput.value = '';
+  _showBulkStateA();
+}
+
+/** Muestra Estado A, oculta Estado B */
+function _showBulkStateA() {
+  const a = document.getElementById('bulk-state-a');
+  const b = document.getElementById('bulk-state-b');
+  if (a) a.style.display = '';
+  if (b) b.style.display = 'none';
+}
+
+/** Muestra Estado B, oculta Estado A */
+function _showBulkStateB() {
+  const a = document.getElementById('bulk-state-a');
+  const b = document.getElementById('bulk-state-b');
+  if (a) a.style.display = 'none';
+  if (b) b.style.display = '';
+}
+
+/** Habilita o deshabilita el botón Guardar según la acción actual */
+function _validateBulkSaveBtn() {
+  const btn = document.getElementById('bulk-bar-save');
+  if (!btn) return;
+
+  if (_currentBulkAction === 'programar') {
+    const fecha = document.getElementById('bulk-fecha')?.value || '';
+    btn.disabled = fecha.trim() === '';
+  } else {
+    // "concluir": siempre habilitado
+    btn.disabled = false;
+  }
+}
+
+function _clearSelection() {
+  _selectedOMs.clear();
+  _currentBulkAction = null;
+
+  // Quitar estilos visuales de filas seleccionadas sin re-renderizar toda la lista
+  document.querySelectorAll('tr.row-selected').forEach(tr => {
+    tr.classList.remove('row-selected');
+    const chk = tr.querySelector('.ot-row-check');
+    if (chk) chk.checked = false;
+  });
+  document.querySelectorAll('.ot-check-all').forEach(chk => {
+    chk.checked = false;
+  });
+
+  _syncBulkBar();
+}
+
+async function _bulkUpdate(accion, datosFormulario = {}) {
   if (_selectedOMs.size === 0) return;
 
   const ids   = [..._selectedOMs];
   const todas = OTStore.getAll();
   const oms   = ids.map(id => todas.find(o => String(o.ID_Orden) === id)).filter(Boolean);
 
-  // 1. Validar OTs pendientes en cada OM
-  const conOTsPendientes = oms.filter(om => {
-    const ots = window.OTWorkStore?.getOTsByOM(om.ID_Orden) || [];
-    return ots.some(ot => ot.Estatus !== 'Concluida');
-  });
+  // ── Validación: OTs pendientes (solo aplica a "concluir") ──
+  if (accion === 'concluir') {
+    const conOTsPendientes = oms.filter(om => {
+      const ots = window.OTWorkStore?.getOTsByOM(om.ID_Orden) || [];
+      return ots.some(ot => ot.Estatus !== 'Concluida');
+    });
 
-  if (conOTsPendientes.length > 0) {
-    const nombres = conOTsPendientes.map(o => o.ID_Orden).join(', ');
-    window.ToastService?.show(
-      `No se puede concluir: ${conOTsPendientes.length} OM(s) tienen OTs pendientes (${nombres}).`,
-      'warning'
-    );
-    return;
+    if (conOTsPendientes.length > 0) {
+      const nombres = conOTsPendientes.map(o => o.ID_Orden).join(', ');
+      window.ToastService?.show(
+        `No se puede concluir: ${conOTsPendientes.length} OM(s) tienen OTs pendientes (${nombres}).`,
+        'warning'
+      );
+      return;
+    }
   }
 
-  // 2. Confirmación
-  const usar = window.ConfirmConcluirModal ?? null;
+  // ── Función de ejecución real ──
   const ejecutar = async () => {
-    const btn = document.getElementById('bulk-bar-conclude');
-    const orig = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando…`;
+    const saveBtn = document.getElementById('bulk-bar-save');
+    const origHTML = saveBtn?.innerHTML;
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando…`;
+    }
 
     const hoy = new Date();
-    const yyyy = hoy.getFullYear();
-    const mm   = String(hoy.getMonth() + 1).padStart(2, '0');
-    const dd   = String(hoy.getDate()).padStart(2, '0');
-    const hoyFmt = `${mm}/${dd}/${yyyy}`;
+    const hoyISO = hoy.toISOString().slice(0, 10);
 
     let errores = 0;
+
     for (const om of oms) {
-      // 3. Si no tiene fecha de inicio, la ponemos igual a hoy
-      const cambios = { estatus: 'Concluida', fechaConclusion: hoyFmt };
-      if (!om.FechaInicio || om.FechaInicio === '—' || om.FechaInicio.trim() === '') {
-        cambios.fechaInicio = hoyFmt;
+      let cambios = {};
+
+      if (accion === 'concluir') {
+        cambios.estatus = 'Concluida';
+        cambios.fechaConclusion = hoyISO;
+        const nuevaObs = datosFormulario.observaciones?.trim();
+        const actualObs = String(om.Observaciones ?? '').trim();
+        if (nuevaObs) {
+          cambios.observaciones = actualObs
+            ? `${actualObs} -- ${nuevaObs}`
+            : nuevaObs;
+        }
+        if (!om.FechaInicio || om.FechaInicio === '—' || om.FechaInicio.trim() === '') {
+          cambios.fechaInicio = hoyISO;
+        }
+      } else if (accion === 'programar') {
+        cambios.estatus = 'Programado';
+        if (datosFormulario.fecha) {
+          cambios.fechaInicio = datosFormulario.fecha;
+        }
+        const nuevaObs = datosFormulario.observaciones?.trim();
+        const actualObs = String(om.Observaciones ?? '').trim();
+        if (nuevaObs) {
+          cambios.observaciones = actualObs
+            ? `${actualObs} -- ${nuevaObs}`
+            : nuevaObs;
+        }
       }
+
       const res = await OMService.actualizar(om, cambios);
       if (!res.ok) errores++;
     }
 
-    btn.disabled = false;
-    btn.innerHTML = orig;
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      if (origHTML) saveBtn.innerHTML = origHTML;
+    }
 
     if (errores === 0) {
-      window.ToastService?.show(`${oms.length} orden(es) concluida(s) correctamente.`, 'success');
-      _selectedOMs.clear();
-      _syncBulkBar();
-      renderList();
+      const accionLabel = accion === 'concluir' ? 'concluida(s)' : 'programada(s)';
+      window.ToastService?.show(`${oms.length} orden(es) ${accionLabel} correctamente.`, 'success');
+      _clearSelection();           // limpia selección y cierra barra
       _updateGauge();
       renderKPIs();
+      renderList();
     } else {
       window.ToastService?.show(`${errores} error(es) al guardar. Revisa e intenta de nuevo.`, 'danger');
     }
   };
 
-  if (usar) {
-    usar.show(ejecutar);
+  // Confirmación modal solo para "concluir"
+  if (accion === 'concluir' && window.ConfirmConcluirModal) {
+    window.ConfirmConcluirModal.show(ejecutar);
   } else {
     ejecutar();
   }
@@ -891,7 +1129,8 @@ async function _bulkConcluir() {
   _goPage, _goTablePage,
   _filterByKPI,
   _updateGauge,
-  _syncBulkBar,   // 👈 nuevo
-  _bulkConcluir,  // 👈 nuevo
+  _syncBulkBar,
+  _bulkUpdate,
+  _clearSelection,
 };
 })();
