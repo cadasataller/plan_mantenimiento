@@ -13,38 +13,49 @@ const SGService = (() => {
     const user = window.AuthService?.getUser() || {};
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
 
-    // Traemos todo de OM_SG (raíz) y anidamos ORDEN_MANTENIMIENTO
-    let query = db
-      .from('OM_SG')
-      .select(`
-        *,
-        fecha_solicitud::timestamptz,
-        ORDEN_MANTENIMIENTO!inner (*)
-      `)
-      .order('fecha_solicitud', { ascending: false });
+    const PAGE_SIZE = 1000;
+    let from = 0;
+    let allData = [];
+    let hasMore = true;
 
-    if (uArea !== 'ALL' && uArea !== 'SERVICIOS GENERALES') {
-      query = query.ilike('ORDEN_MANTENIMIENTO.Área', uArea);
+    while (hasMore) {
+      let query = db
+        .from('OM_SG')
+        .select(`
+          *,
+          fecha_solicitud::timestamptz,
+          ORDEN_MANTENIMIENTO!inner (*)
+        `)
+        .order('fecha_solicitud', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (uArea !== 'ALL' && uArea !== 'SERVICIOS GENERALES') {
+        query = query.ilike('ORDEN_MANTENIMIENTO.Área', uArea);
+      }
+
+      if (uArea === 'SERVICIOS GENERALES') {
+        query = query.not('id_orden_base', 'ilike', 'OM-TEST%');
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('[SGService] Error fetchSGs:', error);
+        return [];
+      }
+
+      allData.push(...data);
+      hasMore = data.length === PAGE_SIZE;
+      from += PAGE_SIZE;
     }
 
-    if (uArea === 'SERVICIOS GENERALES') {
-      query = query.not('id_orden_base', 'ilike', 'OM-TEST%');
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('[SGService] Error fetchSGs:', error);
-      return [];
-    }
-
-    const dataFormateada = data.map(row => ({
-        ...row,
-        fecha_solicitud: new Date(row.fecha_solicitud).toLocaleString('es-PA', {
-          timeZone: 'America/Panama',
-          year: 'numeric', month: '2-digit', day: '2-digit',
-          hour: '2-digit', minute: '2-digit', second: '2-digit'
-        })
+    const dataFormateada = allData.map(row => ({
+      ...row,
+      fecha_solicitud: new Date(row.fecha_solicitud).toLocaleString('es-PA', {
+        timeZone: 'America/Panama',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      })
     }));
 
     _sgCache = dataFormateada;
@@ -180,6 +191,9 @@ const SGService = (() => {
       };
 
       _sgCache.unshift(nuevaSG);
+
+      
+      Metrics.create({ screen: 'NUEVA_OM_SG', action: 'CLICK_NEW_OMSG_MANUAL', context: { 'VALUE':'SG-NEW-FORM-MANUAL' } });
       return { ok: true, data: nuevaSG };
     } catch (err) {
       console.error('[SGService] Error createManualSG:', err);
@@ -217,6 +231,8 @@ const SGService = (() => {
       };
 
       _sgCache.unshift(nuevaSG);
+      
+      Metrics.create({ screen: 'NUEVA_OM_SG', action: 'CLICK_NEW_OMSG_AUTO', context: { 'VALUE':'SG-NEW-FORM-AUTO' },event_type:'CLICK_SAVE' });
       return { ok: true, data: nuevaSG };
     } catch (err) {
       console.error('[SGService] Error createAutoSG:', err);
