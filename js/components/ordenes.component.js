@@ -640,9 +640,12 @@ const OTComponent = (() => {
     }).join('');
   }
 
+  // DESPUÉS (IDs estables basados en valor lógico)
   function safeUID(l, d, k) {
-    return ('g'+l+'_'+d+'_'+k).replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,50)
-      + '_' + Math.random().toString(36).slice(2,7);
+    return ('cnt-' + d + '-' + k)
+      .replace(/\s+/g, '-')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 80);
   }
 
   function _toggle(uid) { document.getElementById(uid)?.classList.toggle('collapsed'); }
@@ -1093,7 +1096,7 @@ async function _bulkUpdate(accion, datosFormulario = {}) {
         }
       }
 
-      const res = await OMService.actualizar(om, cambios);
+      const res = await OMService.actualizar(om, cambios,false);
       if (!res.ok) errores++;
     }
 
@@ -1103,15 +1106,24 @@ async function _bulkUpdate(accion, datosFormulario = {}) {
     }
 
     if (errores === 0) {
-      const accionLabel = accion === 'concluir' ? 'concluida(s)' : 'programada(s)';
-      window.ToastService?.show(`${oms.length} orden(es) ${accionLabel} correctamente.`, 'success');
-      _clearSelection();           // limpia selección y cierra barra
-      _updateGauge();
-      renderKPIs();
-      renderList();
-    } else {
-      window.ToastService?.show(`${errores} error(es) al guardar. Revisa e intenta de nuevo.`, 'danger');
-    }
+        const accionLabel = accion === 'concluir' ? 'concluida(s)' : 'programada(s)';
+        window.ToastService?.show(
+          `${oms.length} orden(es) ${accionLabel} correctamente.`,
+          'success',
+        );
+        _clearSelection();
+        _updateGauge();
+        renderKPIs();
+
+        // Actualizar solo las filas afectadas, no toda la tabla
+        oms.forEach(om => updateSingleRow(String(om.ID_Orden)));
+
+      } else {
+        window.ToastService?.show(
+          `${errores} error(es) al guardar. Revisa e intenta de nuevo.`,
+          'danger',
+        );
+      }
   };
 
   // Confirmación modal solo para "concluir"
@@ -1122,15 +1134,130 @@ async function _bulkUpdate(accion, datosFormulario = {}) {
   }
 }
 
+/**
+ * Actualización parcial de una fila sin re-render completo.
+ * Llama tras recibir res.ok desde OMService o OTService.
+ *
+ * @param {string|number} omId  — ID_Orden de la OM cuya fila debe actualizarse
+ */
+function updateSingleRow(omId) {
+  const key = String(omId);
+  const updatedRow = OTStore.getById(key);
+  if (!updatedRow) return;
+
+  // 1. Actualizar caché local del row
+  _rowCache.set(key, updatedRow);
+
+  // 2. Buscar el <tr> en el DOM
+  const tr = document.querySelector(`tr.ot-data-row[data-ot-id="${CSS.escape(key)}"]`);
+
+  if (!tr) {
+    // La fila no está visible (página diferente o filtro). Nada que hacer en el DOM.
+    return;
+  }
+
+  // 3. Determinar si la agrupación activa cambió para esta fila
+  const groupingChanged = _activeDims.length > 0 && _hasGroupingChanged(tr, updatedRow);
+
+  if (!groupingChanged) {
+    // ── Caso simple: solo actualizar el HTML del <tr> ──────────────────
+    const isSelected = _selectedOMs.has(key);
+    const newTr = _parseTR(buildRow(updatedRow, tr.cells.length > 11));
+    // Conservar el estado de selección visual
+    if (isSelected && updatedRow.Estatus !== 'Concluida' && updatedRow.Estatus !== 'Concluido') {
+      newTr.classList.add('row-selected');
+    }
+    tr.replaceWith(newTr);
+  } else {
+    // ── Caso complejo: la fila debe moverse entre grupos ──────────────
+    _moveRowBetweenGroups(tr, updatedRow, key);
+  }
+
+  // 4. Si pasó a Concluida, desmarcarla de la selección bulk
+  if (updatedRow.Estatus === 'Concluida' || updatedRow.Estatus === 'Concluido') {
+    if (_selectedOMs.has(key)) {
+      _selectedOMs.delete(key);
+      _syncBulkBar();
+    }
+  }
+
+  // 5. Actualizar KPIs y gauge (no tocan el DOM de la tabla)
+  renderKPIs();
+  _updateGauge();
+}
+
+/** Parsea el HTML string de un <tr> en un elemento DOM real */
+function _parseTR(html) {
+  const t = document.createElement('table');
+  t.innerHTML = `<tbody>${html}</tbody>`;
+  return t.querySelector('tr');
+}
+
+/**
+ * Comprueba si el valor de agrupación de la fila en el DOM
+ * difiere del valor real en updatedRow.
+ */
+function _hasGroupingChanged(tr, updatedRow) {
+  if (!_activeDims.length) return false;
+  const firstDim = _activeDims[0];
+  const newKey = getDimKey(updatedRow, firstDim);
+  // El contenedor de primer nivel que contiene el <tr>
+  const groupContainer = tr.closest('[id^="cnt-"]');
+  if (!groupContainer) return false;
+  // El ID estable tiene el valor codificado: cnt-{dim}-{key}
+  const expectedId = safeUID(0, firstDim, newKey);
+  return groupContainer.id !== expectedId;
+}
+
+/**
+ * Mueve una fila de su grupo actual al grupo nuevo,
+ * creando el grupo destino si no existe.
+ * Cae en renderList() si la estructura no se puede reconstruir.
+ */
+function _moveRowBetweenGroups(tr, updatedRow, key) {
+  try {
+    // 1. Quitar de grupo origen
+    const originGroup = tr.closest('.ot-group, .ot-subgroup, .ot-sub2group');
+    const originTbody = tr.closest('tbody');
+    tr.remove();
+
+    // 2. Si el grupo origen quedó vacío (sin filas de datos), eliminarlo
+    if (originGroup && !originGroup.querySelector('tr.ot-data-row')) {
+      originGroup.remove();
+    }
+
+    // 3. Buscar grupo destino
+    const firstDim = _activeDims[0];
+    const newKey = getDimKey(updatedRow, firstDim);
+    const destId = safeUID(0, firstDim, newKey);
+    let destGroup = document.getElementById(destId);
+
+    if (destGroup) {
+      // Insertar al final del tbody de la primera tabla del grupo
+      const destTbody = destGroup.querySelector('tbody');
+      if (destTbody) {
+        const newTr = _parseTR(buildRow(updatedRow, false));
+        destTbody.appendChild(newTr);
+      }
+    } else {
+      // No se puede reconstruir sin el árbol completo → render completo
+      renderList();
+      return;
+    }
+
+  } catch (e) {
+    console.warn('[OTComponent] _moveRowBetweenGroups falló, cayendo en renderList:', e);
+    renderList();
+  }
+}
+
   return {
   mount, onEnter,
-  _toggle, _addDim, _removeDim, _moveDim,
-  _applyPreset, _clearGroups,
-  _goPage, _goTablePage,
-  _filterByKPI,
-  _updateGauge,
-  _syncBulkBar,
-  _bulkUpdate,
-  _clearSelection,
-};
+  _toggle, _addDim, _removeDim, _moveDim, _applyPreset, _clearGroups,
+  _goPage, _goTablePage, _filterByKPI, _updateGauge,
+  _syncBulkBar, _bulkUpdate, _clearSelection,
+  updateSingleRow,   // ← nuevo
+  };
 })();
+
+window.OTComponent = OTComponent;
