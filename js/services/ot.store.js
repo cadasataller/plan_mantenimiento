@@ -102,10 +102,14 @@ const OTStore = (() => {
     const size  = PAGE_LOAD;
 
     while (true) {
+      const pageFrom = from;
+      const pageTo   = from + size - 1;
+
       let query = db
         .from('om_con_resumen_ots')
         .select('*')
-        .range(from, from + size - 1);
+        .order('ID_Orden mantenimiento', { ascending: true, nulls: 'last' })
+        .range(pageFrom, pageTo);
 
       // 👇 LA MAGIA DE LOS PERMISOS:
       if (uArea === 'SERVICIOS GENERALES') {
@@ -133,9 +137,16 @@ const OTStore = (() => {
 
       if (error) throw error;
 
-      allRows = allRows.concat(data || []);
+      const pageRows = data || [];
+      allRows = allRows.concat(pageRows);
 
-      if (!data || data.length < size) break;
+      const pageIds = pageRows.map(r => r['ID_Orden mantenimiento']).filter(Boolean);
+      const firstId = pageIds[0] || 'N/A';
+      const lastId  = pageIds[pageIds.length - 1] || 'N/A';
+      const uniqueCount = new Set(allRows.map(r => r['ID_Orden mantenimiento']).filter(Boolean)).size;
+      console.log(`[OTStore][_fetchAll] page ${pageFrom}-${pageTo}: rows=${pageRows.length} first=${firstId} last=${lastId} uniqueAccum=${uniqueCount}`);
+
+      if (!pageRows || pageRows.length < size) break;
       from += size;
     }
 
