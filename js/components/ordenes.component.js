@@ -667,7 +667,7 @@ const OTComponent = (() => {
 
     const xH = showArea ? '<th>Área</th><th>Equipo</th>' : '';
     const thead = `<tr>${checkAllCell}<th>ID Orden</th><th>Equipo</th><th>Sistema</th><th>Descripción</th>
-      <th>Tipo Proceso</th><th>Estado Ots</th><th>Fecha Inicio</th><th>Semana</th><th>Proceso</th><th>Estado</th><th>Compra</th>${xH}</tr>`;
+      <th>Tipo Proceso</th><th>Estado Ots</th><th>Fecha Inicio</th><th>Semana</th><th>Estado</th><th>Compra</th>${xH}</tr>`;
 
     // … paginación igual que antes …
     const W = 10, h = Math.floor(W/2);

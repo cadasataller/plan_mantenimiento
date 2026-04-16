@@ -18,7 +18,10 @@
 
   Router.register('dashboard', {
     el:           document.getElementById('page-dashboard'),
-    onEnter:      () => DashboardComponent.onEnter(),
+    onEnter:      () => {
+      Metrics.init({ supabase: window.SupabaseClient, getUser: AuthService.getUser });
+      DashboardComponent.onEnter()
+    },
     requiresAuth: true,
   });
 
@@ -45,6 +48,7 @@
     //const hash  = location.hash.replace('#', '');
     // Si el usuario abrió directo #dashboard pero no hay sesión,
     // el guard del router lo manda al login correctamente.
+
     Router.init();
   };
 

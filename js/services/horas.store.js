@@ -52,70 +52,74 @@ const HorasStore = (() => {
       const sb = window.SupabaseClient;
       const fechaDesde = _fechaInicioSemanas(1);
 
-      // Base query: OT + mecánico + orden mantenimiento + sg
-      let query = sb
-        .from('ORDEN_TRABAJO')
-        .select(`
-          ID_OT,
-          id_om,
-          id_sg,
-          Fecha,
-          "Duración (horas)",
-          Estatus,
-          "Retraso (horas)",
-          Semana,
-          Causa,
-          Comentario,
-          Observaciones,
-          MECANICOS!ORDEN_TRABAJO_ID_Mecanico_fkey (
-            id,
-            NOMBRE,
-            AREA,
-            "EQUIPO DE TRABAJO"
-          ),
-          ORDEN_MANTENIMIENTO!ot_id_om_fkey (
-            "ID_Orden mantenimiento",
-            "Descripcion",
-            "Área",
-            "ID_#EQUIPO"
-          ),
-          OM_SG!OT_id_sg_fkey (
+      const PAGE_SIZE = 1000;
+      let from = 0;
+      let allData = [];
+      let hasMore = true;
+
+      while (hasMore) {
+        let query = sb
+          .from('ORDEN_TRABAJO')
+          .select(`
+            ID_OT,
+            id_om,
             id_sg,
-            tipo_trabajo,
-            "Observaciones",
-            ORDEN_MANTENIMIENTO!om_servicios_generales_id_orden_base_fkey (
+            Fecha,
+            "Duración (horas)",
+            Estatus,
+            "Retraso (horas)",
+            Semana,
+            Causa,
+            Comentario,
+            Observaciones,
+            MECANICOS!ORDEN_TRABAJO_ID_Mecanico_fkey (
+              id,
+              NOMBRE,
+              AREA,
+              "EQUIPO DE TRABAJO"
+            ),
+            ORDEN_MANTENIMIENTO!ot_id_om_fkey (
               "ID_Orden mantenimiento",
               "Descripcion",
               "Área",
               "ID_#EQUIPO"
+            ),
+            OM_SG!OT_id_sg_fkey (
+              id_sg,
+              tipo_trabajo,
+              "Observaciones",
+              ORDEN_MANTENIMIENTO!om_servicios_generales_id_orden_base_fkey (
+                "ID_Orden mantenimiento",
+                "Descripcion",
+                "Área",
+                "ID_#EQUIPO"
+              )
             )
-          )
-        `)
-        .gte('Fecha', fechaDesde)
-        .order('Fecha', { ascending: false });
+          `)
+          .gte('Fecha', fechaDesde)
+          .order('Fecha', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
 
-      // Filtro por área si no es administrador ALL
-      if (userArea && userArea !== 'ALL') {
-        if (userArea === 'SERVICIOS GENERALES') {
-          // SG: sólo OTs con id_sg
-          query = query.not('id_sg', 'is', null);
-        } else {
-          // Área normal: filtra por área del mecánico
-          // Supabase no permite filtros en foreign tables directamente en .filter,
-          // así que traemos todo y filtramos en JS para simplicidad.
+        if (userArea && userArea !== 'ALL') {
+          if (userArea === 'SERVICIOS GENERALES') {
+            query = query.not('id_sg', 'is', null);
+          }
         }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        allData.push(...(data || []));
+        hasMore = (data || []).length === PAGE_SIZE;
+        from += PAGE_SIZE;
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-
       // Normalizar rows
-      const rows = (data || []).map(row => {
+      const rows = allData.map(row => {
         const mec = row.MECANICOS || {};
         const omDirect = row.ORDEN_MANTENIMIENTO || null;
         const sg = row.OM_SG || null;
 
-        // 🔥 OM final (puede venir directa o desde SG)
         const om = omDirect || sg?.ORDEN_MANTENIMIENTO || null;
 
         const isOM = !!omDirect;
@@ -138,39 +142,34 @@ const HorasStore = (() => {
           comentario: row.Comentario || '',
           observaciones: row.Observaciones || '',
 
-          // 🔧 MECÁNICO
           mecId: mec.id,
           mecNombre: (mec.NOMBRE || '').trim(),
           mecArea: mec.AREA || '',
 
-          // 🔥 ORIGEN REAL
           origen: isOM ? 'OM' : 'SG',
 
           origenRef: isOM
             ? omDirect?.['ID_Orden mantenimiento']
             : sg?.id_sg,
 
-          // 🔥 DESCRIPCIÓN UNIFICADA
           descripcion:
-            om?.Descripcion ||              // fallback SG
-            sg?.Observaciones ||              // fallback SG
+            om?.Descripcion ||
+            sg?.Observaciones ||
             '',
 
-          // 🔥 ÁREA UNIFICADA (MEJORADO)
           area:
-            om?.['Área'] ||                   // prioridad OM
-            mec.AREA ||                      // fallback mecánico
+            om?.['Área'] ||
+            mec.AREA ||
             '',
 
-          // 🔥 EXTRA (muy útil)
           tipoTrabajo: sg?.tipo_trabajo || null,
           equipoTrabajo: (mec['EQUIPO DE TRABAJO'] || '').trim() || null,
         };
       });
 
-      // Filtro JS por área si no ALL
+      // Filtro JS por área
       let filtered = rows;
-      if (userArea && userArea.toUpperCase()!== 'ALL' && userArea.toUpperCase() !== 'SERVICIOS GENERALES') {
+      if (userArea && userArea.toUpperCase() !== 'ALL' && userArea.toUpperCase() !== 'SERVICIOS GENERALES') {
         const uArea = userArea.trim().toLowerCase();
         filtered = rows.filter(r => r.mecArea.trim().toLowerCase() === uArea);
       }
