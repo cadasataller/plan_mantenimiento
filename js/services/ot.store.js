@@ -322,13 +322,28 @@ const OTStore = (() => {
     notify('updated');
   }
 
+  // ── Actualización masiva local para evitar re-fetch ───
+  function updateEtapaMasivaLocal(ids, nuevaEtapa) {
+    const idsSet = new Set(ids.map(String));
+    
+    _allOrders.forEach(om => {
+      if (idsSet.has(String(om.ID_Orden))) {
+        om.Etapa = nuevaEtapa;
+      }
+    });
+
+    applyFilters(); // Re-filtra y re-agrupa
+    notify('updated'); // Avisa a Dashboard y a EtapasComponent que se dibujen de nuevo
+  }
+
+
   return {
     load, subscribe,
     setFilter, getFilters,
     getAll, getFiltered, getGrouped,
     isLoading, getSource,
     getKPIs, getAreas, getSemanas, getEtapas, empties,
-    updateLocal, getById, updateOMCounts,
+    updateLocal, getById, updateOMCounts,updateEtapaMasivaLocal,
   };
 })();
 

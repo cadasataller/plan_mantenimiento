@@ -25,6 +25,10 @@ const DashboardComponent = (() => {
       id:    'horas',
       label: 'Horas Asignadas',
       icon:  () => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    },{
+      id:    'etapas',
+      label: 'Definición de Etapas',
+      icon:  () => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M12 18h.01M8 21h8"/></svg>`, // Ícono de ejemplo
     },
   ];
 
@@ -101,6 +105,11 @@ const DashboardComponent = (() => {
            
           </div>
         </div>
+
+        ${visibleTabs.some(t => t.id === 'etapas') ? `
+        <div class="tab-panel ${_activeTab==='etapas'?'active':''}" id="tab-panel-etapas">
+          <div id="etapas-module-container" style="width:100%; height:100%;"></div>
+        </div>` : ''}
       </div>
     `;
 
@@ -119,6 +128,10 @@ const DashboardComponent = (() => {
 
     if (visibleTabs.some(t => t.id === 'horas')) {
       try { DashboardPageComponent.mount('dashboard-page-container') } catch (e) { console.error('Error DASHBOARD:', e); }
+    }
+
+    if (visibleTabs.some(t => t.id === 'etapas')) {
+      try { window.EtapasComponent?.mount('etapas-module-container'); } catch (e) { console.error('Error ETAPAS:', e); }
     }
 
     _hasRendered = true;
@@ -141,6 +154,10 @@ const DashboardComponent = (() => {
       HorasPageComponent.onEnter();
     }
 
+    if (_activeTab === 'etapas' && window.EtapasComponent) {
+      EtapasComponent.onEnter();
+    }
+
     setTimeout(updateTabBadges, 1200);
   }
 
@@ -161,6 +178,10 @@ const DashboardComponent = (() => {
     if (tabId === 'horas') HorasPageComponent.onEnter();
 
     if (tabId === 'dashboard') DashboardPageComponent.onEnter();
+
+    if (tabId === 'etapas' && window.EtapasComponent) {
+      EtapasComponent.onEnter();
+    }
   }
 
   function updateTabBadges() {

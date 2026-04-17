@@ -8,6 +8,7 @@
   LoginComponent.mount('page-login');
   DashboardComponent.mount('page-dashboard');
   SGPageComponent.mount('page-sg');
+  EtapasComponent.mount('page-etapas');
 
   // ── 2. Registrar rutas ──
   Router.register('login', {
@@ -28,6 +29,13 @@
   Router.register('sg', {
     el: document.getElementById('page-sg'),
     onEnter: () => SGPageComponent.onEnter(),
+    requiresAuth: true,
+  });
+
+  Router.register('etapas', {
+    el: document.getElementById('page-etapas'),
+    onEnter: () => EtapasComponent.onEnter(),
+    onLeave: () => EtapasComponent.onLeave && EtapasComponent.onLeave(),
     requiresAuth: true,
   });
 
