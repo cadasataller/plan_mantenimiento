@@ -211,7 +211,16 @@ const SGModalComponent = (() => {
     _editMode = false;
     _editState = {};
     window.ToastService?.show('Cambios guardados', 'success');
-    _renderContent(); 
+    
+    // Actualizar el título del modal con el nuevo trabajo a realizar
+    const titleEl = document.querySelector('#sg-backdrop .ot-modal-title');
+    if (titleEl) {
+      const om = _currentSG.ORDEN_MANTENIMIENTO;
+      const trabajoRealizar = _getTrabajoRealizar(_currentSG, om);
+      titleEl.textContent = _upper(trabajoRealizar) || 'SIN DESCRIPCIÓN';
+    }
+    
+    _renderContent();
 
     if (window.SGListComponent && typeof window.SGListComponent.refresh === 'function') {
       window.SGListComponent.refresh();
