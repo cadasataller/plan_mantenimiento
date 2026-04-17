@@ -66,6 +66,7 @@ const SGCardComponent = (() => {
     const om = sg.ORDEN_MANTENIMIENTO || {};
     const estatus = sg.Estatus || 'No Programado';
     const observaciones = sg.Observaciones || '';
+    const trabajoRealizar = String(sg.trabajo_realizar || om.trabajo_realizar || om.Descripcion || 'Sin descripción').toUpperCase();
     
     // Convertimos el objeto a un string base64 o inyectamos el ID para recuperarlo
     const dataString = encodeURIComponent(JSON.stringify(sg));
@@ -73,7 +74,7 @@ const SGCardComponent = (() => {
     return `
       <div class="sg-card-comp" data-sg-payload="${dataString}">
         <div class="sg-card-header-comp">
-          <div class="sg-card-title-comp">${om.Descripcion || 'Sin descripción'}</div>
+          <div class="sg-card-title-comp">${trabajoRealizar}</div>
           <div class="sg-card-id-comp">${om['ID_#EQUIPO'] || 'N/A'}</div>
         </div>
         

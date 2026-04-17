@@ -83,7 +83,7 @@ const SGFormComponent = (() => {
           <div class="ot-form-grid" style="margin-bottom: 1.5rem;">
             <div class="ot-modal-field" style="grid-column: 1 / -1;">
               <label class="ot-modal-label">Trabajo a realizar <span style="color:#ef4444">*</span></label>
-              <input type="text" id="sg-desc" class="sg-field-input" value="${data.Descripcion || ''}" required />
+              <input type="text" id="sg-trabajo_realizar" class="sg-field-input" value="${data.trabajo_realizar || data.Descripcion || ''}" required />
             </div>
             
             ${SGUI.ButtonGroup({
@@ -100,6 +100,12 @@ const SGFormComponent = (() => {
               fullWidth: true
             })}
 
+
+            <div class="ot-modal-field" style="grid-column: 1 / -1;">
+              <label class="ot-modal-label">Mecánico a Solicitar <span style="color:#ef4444">*</span></label>
+              ${window.MecanicoSelectComponent ? window.MecanicoSelectComponent.renderHtml() : '<input type="text" id="sg-personal" class="sg-field-input" />'}
+            </div>
+
             <div class="ot-modal-field">
               <label class="ot-modal-label">Estimación (Horas) <span style="color:#ef4444">*</span></label>
               <input type="number" id="sg-horas" class="sg-field-input" min="1" required />
@@ -109,10 +115,7 @@ const SGFormComponent = (() => {
               <input type="date" id="sg-fecha-entrega" class="sg-field-input" required />
             </div>
             
-            <div class="ot-modal-field" style="grid-column: 1 / -1;">
-              <label class="ot-modal-label">Mecánico a Solicitar <span style="color:#ef4444">*</span></label>
-              ${window.MecanicoSelectComponent ? window.MecanicoSelectComponent.renderHtml() : '<input type="text" id="sg-personal" class="sg-field-input" />'}
-            </div>
+            
           </div>
 
           <h4 style="margin-bottom: 1rem; color: var(--color-main); font-size: 0.9rem; border-bottom: 1px solid var(--color-gray-200); padding-bottom: 0.3rem;">3. Gestión de Compras</h4>
@@ -215,11 +218,14 @@ const SGFormComponent = (() => {
         if (mecId) personalIdStr = String(mecId);
       }
 
+      const trabajoRealizarVal = document.getElementById('sg-trabajo_realizar').value.trim();
+
       // Datos exclusivos de la tabla OM_SG (comunes para ambos métodos)
       const sgData = {
         tipo_trabajo: tipoTrabajoVal,
+        trabajo_realizar: trabajoRealizarVal || null,
         "Estatus": "Programado",
-        "Observaciones":document.getElementById('sg-obs').value.trim() || null,
+        "Observaciones": document.getElementById('sg-obs').value.trim() || null,
         estimacion_horas: parseInt(document.getElementById('sg-horas').value, 10),
         solicitar_personal: personalIdStr,
         fecha_entrega: fechaEntrega 
@@ -247,7 +253,7 @@ const SGFormComponent = (() => {
           'ID_#EQUIPO': document.getElementById('sg-equipo').value.trim(),
           'ITEM': document.getElementById('sg-item').value.trim(),
           'Sistema': document.getElementById('sg-sistema').value.trim(),
-          'Descripcion': document.getElementById('sg-desc').value.trim(),
+          'Descripcion': trabajoRealizarVal,
           'Estatus': '', 
           'Tiene solicitud de compra?': document.getElementById('sg-tiene-compra').value === 'true',
           'N° solicitud': document.getElementById('sg-n-solicitud').value.trim() || null,
