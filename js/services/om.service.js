@@ -247,7 +247,32 @@ const OMService = (() => {
     }
   }
 
-  return { actualizar };
+  // ── Actualización masiva de Etapa ──────────────────────
+  async function actualizarEtapaMasiva(ids, nuevaEtapa) {
+    try {
+      const db = window.SupabaseClient;
+      if (!ids || ids.length === 0) return { ok: false };
+
+      const { error } = await db
+        .from(TABLE)
+        .update({ Etapa: nuevaEtapa })
+        .in(PK, ids.map(String));
+
+      if (error) throw new Error(error.message);
+
+      // Sincronizar el store local sin recargar de la BD
+      if (window.OTStore && window.OTStore.updateEtapaMasivaLocal) {
+        window.OTStore.updateEtapaMasivaLocal(ids, nuevaEtapa);
+      }
+
+      return { ok: true };
+    } catch (err) {
+      console.error('[OMService] Error masivo:', err.message);
+      return { ok: false, error: err.message };
+    }
+  }
+
+  return { actualizar, actualizarEtapaMasiva }; 
 })();
 
 window.OMService = OMService;
