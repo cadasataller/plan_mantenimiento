@@ -19,7 +19,7 @@
   Router.register('dashboard', {
     el:           document.getElementById('page-dashboard'),
     onEnter:      () => {
-      Metrics.init({ supabase: window.SupabaseClient, getUser: AuthService.getUser });
+      
       DashboardComponent.onEnter()
     },
     requiresAuth: true,
@@ -57,5 +57,6 @@
 
   // Iniciar auth (getSession es async; llama _onAuthReady al terminar)
   AuthService.init();
+  Metrics.init({ supabase: window.SupabaseClient, getUser: AuthService.getUser });
 
 })();

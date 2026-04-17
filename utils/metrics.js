@@ -21,14 +21,12 @@ const Metrics = (() => {
       }
 
       const user = _currentUser?.();
-      if (!user) return;
-
       const { error } = await _supabase
         .from('usage_events')
         .insert([
           {
-            user_id: user.id,
-            user_name: user.name,
+            user_id: user?.id || null,
+            user_name: user?.name || 'anonymous',
             screen_name: screen,
             action_name: action,
             event_type: event_type,
