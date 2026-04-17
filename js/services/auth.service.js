@@ -68,18 +68,33 @@ async function initAuth() {
   console.log("INIT AUTH");
   const db = window.SupabaseClient;
 
-  const { data: { session } } = await db.auth.getSession();
+  try {
+    const { data: { session }, error } = await db.auth.getSession();
 
-  if (session?.user) {
-    const user = await _buildUser(session.user);
-    AuthState.setUser(user);
-    console.log('[Auth] Sesión activa:', user.email);
-  } else {
+    if (error) {
+      throw error;
+    }
+
+    if (session?.user) {
+      const user = await _buildUser(session.user);
+      AuthState.setUser(user);
+      console.log('[Auth] Sesión activa:', user.email);
+    } else {
+      AuthState.setUser(null);
+      console.log('[Auth] Sin sesión');
+    }
+  } catch (err) {
+    console.error('[Auth] Error obteniendo sesión:', err?.message || err);
+    window.Metrics?.create({
+      screen: 'AUTH',
+      action: 'SESSION_FETCH_ERROR',
+      context: { message: err?.message || String(err) },
+      event_type: 'ERROR'
+    });
     AuthState.setUser(null);
-    console.log('[Auth] Sin sesión');
+  } finally {
+    window._onAuthReady?.();
   }
-
-  window._onAuthReady?.();
 }
 
 // ── Iniciar sesión (email + password) ────────────────────────
@@ -91,6 +106,12 @@ async function signIn(email, password) {
 
   if (error) {
     console.error('[Auth] Error signIn:', error.message);
+    window.Metrics?.create({
+      screen: 'AUTH',
+      action: 'SIGNIN_ERROR',
+      context: { message: error.message, code: error.status || error.code || null, email: email || null },
+      event_type: 'ERROR'
+    });
     ToastService?.show('Credenciales incorrectas. Intenta de nuevo.', 'danger');
     _setLoginLoading(false);
     return;

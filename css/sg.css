@@ -131,3 +131,22 @@
 .sg-badge.st-pendiente { background: var(--color-warning-bg); color: var(--color-warning); }
 .sg-badge.st-en-proceso { background: var(--color-info-bg); color: var(--color-info); }
 .sg-badge.st-concluida { background: var(--color-success-bg); color: var(--color-success); }
+
+
+.sgl-card-submeta{
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.sgl-card-chip{
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #eef2f7;
+  color: #334155;
+  line-height: 1.4;
+}

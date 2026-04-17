@@ -415,33 +415,53 @@ const SGListComponent = (() => {
     const om  = sg.ORDEN_MANTENIMIENTO || {};
     const obs = sg.Observaciones || '';
     const dataStr = encodeURIComponent(JSON.stringify(sg));
+    const user = window.AuthService?.getUser?.() || {};
+    const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
+    const showArea = uArea === 'SERVICIOS GENERALES' || uArea === 'ALL';
 
     return `
-      <div class="sgl-card" data-sg-payload="${dataStr}">
-        <div class="sgl-card-top">
-          <div class="sgl-card-title">${_escH(om.Descripcion || 'Sin descripción')}</div>
-          <div class="sgl-card-id">${_escH(om['ID_#EQUIPO'] || 'N/A')}</div>
-        </div>
-        ${_renderDiasBadge(sg)}
-        ${obs ? `<div class="sgl-card-obs"><strong>Obs:</strong> ${_escH(obs)}</div>` : ''}
-        <div class="sgl-card-footer">
-          <span class="sgl-card-meta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            ${_escH(sg.fecha_solicitud || '—')}
-          </span>
-          <span class="sgl-card-meta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            ${sg.estimacion_horas || 0}h
-          </span>
-          ${sg.semana ? `<span class="sgl-card-meta">Sem ${String(sg.semana).padStart(2,'0')}</span>` : ''}
-          <span style="margin-left: auto;">${_renderStatusBadge(sg.Estatus)}</span>
-        </div>
-      </div>`;
+    <div class="sgl-card" data-sg-payload="${dataStr}">
+
+  <div class="sgl-card-top">
+    <div>
+      <div class="sgl-card-title">${_escH(om.Descripcion.toUpperCase() || 'Sin descripción')}</div>
+
+      <div class="sgl-card-submeta">
+        <span class="sgl-card-chip">${_escH(sg.tipo_trabajo || 'Sin tipo')}</span>
+        ${showArea ? `<span class="sgl-card-chip">${_escH(om['Área'] || 'Sin área')}</span>` : ''}
+      </div>
+    </div>
+
+    <div class="sgl-card-id">${_escH(om['ID_#EQUIPO'] || 'N/A')}</div>
+  </div>
+
+  ${_renderDiasBadge(sg)}
+
+  ${obs ? `<div class="sgl-card-obs"><strong>Obs:</strong> ${_escH(obs)}</div>` : ''}
+
+  <div class="sgl-card-footer">
+    <span class="sgl-card-meta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      ${_escH(sg.fecha_solicitud || '—')}
+    </span>
+
+    <span class="sgl-card-meta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      ${sg.estimacion_horas || 0}h
+    </span>
+
+    ${sg.semana ? `<span class="sgl-card-meta">Sem ${String(sg.semana).padStart(2,'0')}</span>` : ''}
+
+    <span style="margin-left: auto;">${_renderStatusBadge(sg.Estatus)}</span>
+  </div>
+
+</div>  
+    `;
   }
 
   // ── Pastilla de días ──────────────────────────────────────
