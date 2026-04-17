@@ -300,7 +300,7 @@ const SGModalComponent = (() => {
           <div class="ot-modal-header">
             <div class="ot-modal-header-left">
               <div class="ot-modal-id-badge">${om['ID_Orden mantenimiento'] || 'N/A'}</div>
-              <div class="ot-modal-title">${om.Descripcion || 'Sin descripción'}</div>
+              <div class="ot-modal-title">${om.Descripcion.toUpperCase() || 'Sin descripción'}</div>
               <div class="ot-modal-area">
                 <span>${om['Área'] || 'N/A'}</span>
                 <span class="ot-modal-area-sep">·</span>
