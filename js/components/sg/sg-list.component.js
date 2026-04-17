@@ -194,10 +194,11 @@ const SGListComponent = (() => {
     const q = _search.toLowerCase();
     return sgs.filter(sg => {
       const om = sg.ORDEN_MANTENIMIENTO || {};
+      const trabajoRealizar = String(sg.trabajo_realizar || om.trabajo_realizar || om.Descripcion || '');
       return (
         String(om['ID_Orden mantenimiento'] || '').toLowerCase().includes(q) ||
         String(om['ID_#EQUIPO'] || '').toLowerCase().includes(q) ||
-        String(om.Descripcion  || '').toLowerCase().includes(q)
+        trabajoRealizar.toLowerCase().includes(q)
       );
     });
   }
@@ -419,12 +420,13 @@ const SGListComponent = (() => {
     const uArea = String(user.Area || user.area || user.Área || '').trim().toUpperCase();
     const showArea = uArea === 'SERVICIOS GENERALES' || uArea === 'ALL';
 
+    const trabajoRealizar = _escH(String(sg.trabajo_realizar || om.trabajo_realizar || om.Descripcion || 'Sin descripción').toUpperCase());
     return `
     <div class="sgl-card" data-sg-payload="${dataStr}">
 
   <div class="sgl-card-top">
     <div>
-      <div class="sgl-card-title">${_escH(om.Descripcion.toUpperCase() || 'Sin descripción')}</div>
+      <div class="sgl-card-title">${trabajoRealizar}</div>
 
       <div class="sgl-card-submeta">
         <span class="sgl-card-chip">${_escH(sg.tipo_trabajo || 'Sin tipo')}</span>

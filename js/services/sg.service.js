@@ -91,7 +91,8 @@ const SGService = (() => {
         sgPayload.tipo_trabajo = editState.tipo_trabajo || null;
         sgPayload.estimacion_horas = parseInt(editState.estimacion_horas, 10) || null;
         sgPayload.solicitar_personal = editState.solicitar_personal || null;
-        sgPayload.fecha_entrega = editState.fecha_entrega || null; 
+        sgPayload.fecha_entrega = editState.fecha_entrega || null;
+        sgPayload.trabajo_realizar = editState.trabajo_realizar || null;
       }
 
       // C. God Mode (Info Core del Equipo en ORDEN_MANTENIMIENTO)

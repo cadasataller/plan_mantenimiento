@@ -73,6 +73,14 @@ const SGModalComponent = (() => {
     }
   }
 
+  function _getTrabajoRealizar(sg, om) {
+    return String(sg.trabajo_realizar || om.trabajo_realizar || om.Descripcion || '').trim();
+  }
+
+  function _upper(value) {
+    return String(value || '').toUpperCase();
+  }
+
   function _getWeekNumber(d) {
     const date = new Date(d.getTime());
     date.setHours(0, 0, 0, 0);
@@ -84,6 +92,7 @@ const SGModalComponent = (() => {
   function _enterEditMode() {
     _editMode = true;
     const om = _currentSG.ORDEN_MANTENIMIENTO || {};
+    const trabajoRealizar = _getTrabajoRealizar(_currentSG, om);
     
     _editState = {
       estatus: _currentSG.Estatus || '', // Ojo: ahora leemos de SG
@@ -103,7 +112,7 @@ const SGModalComponent = (() => {
       equipo: om['ID_#EQUIPO'] || '',
       item: om.ITEM || '',
       sistema: om.Sistema || '',
-      descripcion: om.Descripcion || ''
+      trabajo_realizar: trabajoRealizar
     };
     _renderContent();
   }
@@ -177,15 +186,19 @@ const SGModalComponent = (() => {
       return; 
     }
 
-    _currentSG = resultado.data; 
+    _currentSG = resultado.data;
+    if (_editState.trabajo_realizar !== undefined) {
+      _currentSG.trabajo_realizar = _editState.trabajo_realizar;
+    }
     loadOTs(_currentSG, true);
 
     if (_perms.godMode) {
       const om = _currentSG.ORDEN_MANTENIMIENTO;
       const titleEl = document.querySelector('#sg-backdrop .ot-modal-title');
       const areaEl =  document.querySelector('#sg-backdrop .ot-modal-area');
+      const trabajoRealizar = _getTrabajoRealizar(_currentSG, om);
       
-      if (titleEl) titleEl.innerText = om.Descripcion || 'Sin descripción';
+      if (titleEl) titleEl.innerText = _upper(trabajoRealizar) || 'SIN DESCRIPCIÓN';
       if (areaEl) {
         areaEl.innerHTML = `
           <span>${om['Área'] || 'N/A'}</span>
@@ -198,7 +211,16 @@ const SGModalComponent = (() => {
     _editMode = false;
     _editState = {};
     window.ToastService?.show('Cambios guardados', 'success');
-    _renderContent(); 
+    
+    // Actualizar el título del modal con el nuevo trabajo a realizar
+    const titleEl = document.querySelector('#sg-backdrop .ot-modal-title');
+    if (titleEl) {
+      const om = _currentSG.ORDEN_MANTENIMIENTO;
+      const trabajoRealizar = _getTrabajoRealizar(_currentSG, om);
+      titleEl.textContent = _upper(trabajoRealizar) || 'SIN DESCRIPCIÓN';
+    }
+    
+    _renderContent();
 
     if (window.SGListComponent && typeof window.SGListComponent.refresh === 'function') {
       window.SGListComponent.refresh();
@@ -285,6 +307,7 @@ const SGModalComponent = (() => {
   function _renderShell(sg) {
     const root = document.getElementById('sg-modal-root');
     const om = sg.ORDEN_MANTENIMIENTO || {};
+    const trabajoRealizar = _getTrabajoRealizar(sg, om);
 
     // 👇 OBTENEMOS EL ÁREA DEL USUARIO LOGUEADO
     const user = window.AuthService?.getUser() || {};
@@ -300,7 +323,7 @@ const SGModalComponent = (() => {
           <div class="ot-modal-header">
             <div class="ot-modal-header-left">
               <div class="ot-modal-id-badge">${om['ID_Orden mantenimiento'] || 'N/A'}</div>
-              <div class="ot-modal-title">${om.Descripcion.toUpperCase() || 'Sin descripción'}</div>
+              <div class="ot-modal-title">${_upper(trabajoRealizar) || 'SIN DESCRIPCIÓN'}</div>
               <div class="ot-modal-area">
                 <span>${om['Área'] || 'N/A'}</span>
                 <span class="ot-modal-area-sep">·</span>
@@ -367,6 +390,8 @@ const SGModalComponent = (() => {
 
     const sg = _currentSG;
     const om = sg.ORDEN_MANTENIMIENTO || {};
+    const trabajoRealizar = _getTrabajoRealizar(sg, om);
+    const displayTrabajo = _upper(trabajoRealizar) || 'Sin descripción';
     
     const v = (key, fallback) => _editMode ? (_editState[key] ?? fallback) : fallback;
     const fechaEntregaReal = sg.fecha_entrega || om['Fecha Entrega'];
@@ -445,7 +470,7 @@ const SGModalComponent = (() => {
         <div class="ot-modal-section" style="opacity: 0.85; pointer-events: none; filter: grayscale(50%);">
           <div class="ot-modal-section-title">Contexto de la Orden (Solo lectura)</div>
           <div class="ot-modal-grid">
-            <div class="ot-modal-field" style="grid-column: 1/-1;"><div class="ot-modal-label">Descripción</div><div class="ot-modal-val">${om.Descripcion || '—'}</div></div>
+            <div class="ot-modal-field" style="grid-column: 1/-1;"><div class="ot-modal-label">Trabajo a realizar</div><div class="ot-modal-val">${displayTrabajo}</div></div>
             <div class="ot-modal-field"><div class="ot-modal-label">Área Solicitante</div><div class="ot-modal-val">${om['Área'] || '—'}</div></div>
             <div class="ot-modal-field"><div class="ot-modal-label">Equipo / Item</div><div class="ot-modal-val">${om['ID_#EQUIPO'] || '—'} - ${om.ITEM || '—'}</div></div>
             <div class="ot-modal-field"><div class="ot-modal-label">Tipo Trabajo</div><div class="ot-modal-val">${sg.tipo_trabajo || '—'}</div></div>
@@ -469,14 +494,18 @@ const SGModalComponent = (() => {
         <div class="ot-modal-section">
           <div class="ot-modal-section-title">Identificación y Ubicación</div>
           <div class="ot-modal-grid">
+            ${(_editMode) ? `
+              ${SGUI.EditableField({ id: 'edit-trabajo_realizar', label: 'Trabajo a realizar', value: v('trabajo_realizar', trabajoRealizar), type: 'textarea', isEditMode: true, canEdit: true, fullWidth: true })}
+            ` : `
+              <div class="ot-modal-field" style="grid-column: 1/-1;"><div class="ot-modal-label">Trabajo a realizar</div><div class="ot-modal-val">${displayTrabajo}</div></div>
+            `}
+
             ${(_editMode && _perms.godMode) ? `
-              ${SGUI.EditableField({ id: 'edit-descripcion', label: 'Trabajo a realizar', value: v('descripcion', om.Descripcion), type: 'textarea', isEditMode: true, canEdit: true, fullWidth: true })}
               ${SGUI.EditableField({ id: 'edit-area_om', label: 'Área', value: v('area_om', om['Área']), type: 'buttongroup', options: SGUI.AREAS_OPTIONS, isEditMode: true, canEdit: true, fullWidth: true })}
               ${SGUI.EditableField({ id: 'edit-equipo', label: 'Equipo', value: v('equipo', om['ID_#EQUIPO']), type: 'text', isEditMode: true, canEdit: true })}
               ${SGUI.EditableField({ id: 'edit-item', label: 'Item', value: v('item', om.ITEM), type: 'text', isEditMode: true, canEdit: true })}
               ${SGUI.EditableField({ id: 'edit-sistema', label: 'Sistema', value: v('sistema', om.Sistema), type: 'text', isEditMode: true, canEdit: true })}
             ` : `
-              <div class="ot-modal-field" style="grid-column: 1/-1;"><div class="ot-modal-label">Trabajo a realizar</div><div class="ot-modal-val">${om.Descripcion || '—'}</div></div>
               <div class="ot-modal-field"><div class="ot-modal-label">Área</div><div class="ot-modal-val">${om['Área'] || '—'}</div></div>
               <div class="ot-modal-field"><div class="ot-modal-label">Equipo</div><div class="ot-modal-val">${om['ID_#EQUIPO'] || '—'}</div></div>
               <div class="ot-modal-field"><div class="ot-modal-label">Item</div><div class="ot-modal-val">${om.ITEM || '—'}</div></div>
@@ -910,7 +939,7 @@ const SGModalComponent = (() => {
       ...om,
       ID_Orden: om['ID_Orden mantenimiento'], // Para visualización en el Tab
       Area: om['Área'],
-      Descripcion: om.Descripcion,
+      Descripcion: sg.trabajo_realizar || om.trabajo_realizar || om.Descripcion,
       ID_EQUIPO: om['ID_#EQUIPO'],
       tipo_trabajo:sg.tipo_trabajo,
       Semana:sg.semana,
