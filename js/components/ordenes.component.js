@@ -84,6 +84,7 @@ const OTComponent = (() => {
     if (!card) return;
 
     const isAdmin = AuthService?.getUser()?.role === 'ADMIN';
+    const currentSearch = OTStore.getFilters().search || '';
 
     // 1. Usuarios normales solo ven Semana y Día. Admins ven todo.
     const allowedDims = isAdmin 
@@ -100,7 +101,12 @@ const OTComponent = (() => {
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <input class="ot-search" id="ot-search"
-            type="text" placeholder="Buscar por ID, equipo, descripción…" autocomplete="off"/>
+            type="text" placeholder="Buscar por ID, equipo, descripción…" autocomplete="off"
+            value="${escH(currentSearch)}"/>
+          <button type="button" class="ot-search-clear" id="ot-search-clear" aria-label="Borrar búsqueda"
+            style="display:${currentSearch ? 'flex' : 'none'};">
+            ×
+          </button>
         </div>
         <button class="btn-reload" id="btn-reload" title="Recargar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -150,14 +156,34 @@ const OTComponent = (() => {
       </div>`;
 
     // Re-bind eventos
-    document.getElementById('ot-search')?.addEventListener('input', e => {
+    const searchInput = document.getElementById('ot-search');
+    const clearBtn = document.getElementById('ot-search-clear');
+
+    searchInput?.addEventListener('input', e => {
       _clearSelection();            // ← limpia zombies
-      OTStore.setFilter('search', e.target.value);
+      const value = e.target.value;
+      if (clearBtn) clearBtn.style.display = value ? 'flex' : 'none';
+      OTStore.setFilter('search', value);
       _currentPage = 0;
+      renderKPIs();
       _updateGauge();
       renderList();
     });
-    
+
+    clearBtn?.addEventListener('click', () => {
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+      }
+      if (clearBtn) clearBtn.style.display = 'none';
+      _clearSelection();
+      OTStore.setFilter('search', '');
+      _currentPage = 0;
+      renderKPIs();
+      _updateGauge();
+      renderList();
+    });
+
     document.getElementById('btn-reload')?.addEventListener('click', () => {
       const btn = document.getElementById('btn-reload');
       btn?.classList.add('spinning');
