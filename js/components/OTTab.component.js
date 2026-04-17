@@ -621,43 +621,43 @@ async function _renderCard(ot, h, context, equipoTrabajo) {
     const ot = _ots.find(o => String(o.ID_RowNumber) === String(otId));
     if (!ot || ot.Estatus === newStatus) return;
 
-    // Retrasado → abrir formulario para capturar causa y horas
+    // Retrasado → abrir formulario
     if (newStatus === 'Retrasada') {
       _editingOT = { ...ot, Estatus: 'Retrasada' };
-      _state     = 'edit';
+      _state = 'edit';
       _render();
       return;
     }
 
     const oldStatus = ot.Estatus;
 
-    // Optimistic: actualizar badge de estado en la card
-    ot.Estatus = newStatus;
-    _updateCardBadge(ot);
-
+    // ── Sin optimistic update: esperar confirmación del servidor ──
     const res = await OTService.actualizarOT(otId, { Estatus: newStatus });
 
     if (res.ok) {
       const idx = _ots.findIndex(o => String(o.ID_RowNumber) === String(otId));
       if (idx !== -1) _ots[idx] = res.data;
 
-      // Actualizar badge con datos confirmados del server
+      // Actualizar badge con datos confirmados del servidor
       _updateCardBadge(res.data);
 
-      // Si pasó a Concluida → mover card al bloque de concluidas en el DOM
       if (newStatus === 'Concluida') {
         _moveCardToConcluidas(res.data);
       }
-      // Si venía de Concluida y ahora es otro estado → mover a activas
       if (oldStatus === 'Concluida' && newStatus !== 'Concluida') {
         _moveCardToActivas(res.data);
       }
 
       _onOTsChange?.([..._ots]);
+      window.OTStore?.updateOMCounts(_om.ID_Orden, [..._ots]);
       ToastService?.show(`Estado: ${newStatus}`, 'success');
+
+      // Actualizar la fila de la OM en la tabla principal (contadores OTs)
+      if (_om?.ID_Orden) {
+        window.OTComponent.updateSingleRow(_om.ID_Orden);
+      }
     } else {
-      ot.Estatus = oldStatus;
-      _updateCardBadge(ot);
+      // No había optimistic update, nada que revertir en el DOM
       ToastService?.show('Error al cambiar estado.', 'danger');
     }
   }
@@ -1032,9 +1032,16 @@ async function _renderCard(ot, h, context, equipoTrabajo) {
       if (badge) { badge.textContent = _ots.length; badge.style.display = 'inline-block'; }
 
       _onOTsChange?.([..._ots]);
+      window.OTStore?.updateOMCounts(_om.ID_Orden, [..._ots]);
       ToastService?.show(isEdit ? 'OT actualizada correctamente.' : 'OT creada correctamente.', 'success');
+
+      // ── Actualizar fila OM en tabla principal ──
+      if (_om?.ID_Orden) {
+        window.OTComponent?.updateSingleRow(_om.ID_Orden);
+      }
+
       if (_om.IS_SG && window.SGListComponent && typeof window.SGListComponent.refresh === 'function') {
-         window.SGListComponent.refresh();
+        window.SGListComponent.refresh();
       }
 
     } else {

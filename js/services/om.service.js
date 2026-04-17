@@ -211,7 +211,7 @@ const OMService = (() => {
    * }
    * @returns {Promise<{ ok: boolean, error?: string }>}
    */
-  async function actualizar(omActual, cambios) {
+  async function actualizar(omActual, cambios,updateCache=true) {
     try {
 
       if (cambios.estatus === 'Concluida') {
@@ -235,7 +235,7 @@ const OMService = (() => {
       await _updateSupabase(omActual.ID_Orden, payload);
       _syncLocal(omActual, payload);
 
-      if (window.OTStore?.updateLocal) {
+      if (window.OTStore?.updateLocal && updateCache) {
         OTStore.updateLocal();
       }
 

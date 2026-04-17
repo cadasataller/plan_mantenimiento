@@ -453,20 +453,21 @@ const ModalComponent = (() => {
     btn.innerHTML = `<div class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Guardando...`;
 
     // 4. Guardar en BD
-    const resultado = await OMService.actualizar(om, cambios);
+    const resultado = await OMService.actualizar(om, cambios,false);
 
     if (resultado.ok) {
       window.ToastService?.show('Orden concluida exitosamente.', 'success');
-      
-      // 5. Actualizar caché y UI local
+
       _currentOM.Estatus = 'Concluida';
       _currentOM.FechaConclusion = hoyFormatted;
       if (cambios.fechaInicio) _currentOM.FechaInicio = hoyFormatted;
 
       _refreshInfoPanel();
       _refreshHeaderBadge();
-      _refreshFooter(); // Esto desaparecerá el botón de "Concluir Rápido"
-      
+      _refreshFooter();
+
+      // Actualización parcial de la fila: NO llama renderList
+      OTComponent?.updateSingleRow(_currentOM.ID_Orden);
     } else {
       window.ToastService?.show('Error al concluir la orden.', 'danger');
       btn.disabled = false;
@@ -529,7 +530,7 @@ const ModalComponent = (() => {
     const omSnapshot = _currentOM;
     const cambiosSnapshot = { ..._editState };
     
-    const resultado = await OMService.actualizar(omSnapshot, cambiosSnapshot);
+    const resultado = await OMService.actualizar(omSnapshot, cambiosSnapshot,false);
 
     _saving = false;
 
@@ -540,7 +541,9 @@ const ModalComponent = (() => {
       _refreshInfoPanel();
       _refreshFooter();
       _refreshHeaderBadge();
-      if (window.OTComponent) OTComponent._updateGauge();
+
+      // Actualización parcial de la fila en la tabla: NO llama renderList
+      OTComponent?.updateSingleRow(_currentOM.ID_Orden);
     } else {
       if(resultado.error){ ToastService?.show(resultado.error, 'danger'); }
       else{ ToastService?.show('Error al guardar. Intenta de nuevo.', 'danger'); }

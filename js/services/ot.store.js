@@ -302,13 +302,33 @@ const OTStore = (() => {
     notify('filtered');
   }
 
+  function getById(omId) {
+    return _allOrders.find(o => String(o.ID_Orden) === String(omId)) ?? null;
+  }
+
+  function updateOMCounts(omId, ots) {
+    const om = _allOrders.find(o => String(o.ID_Orden) === String(omId));
+    if (!om) return;
+
+    const totalOTs = ots.length;
+    const otsConcluidas = ots.filter(ot => ot.Estatus === 'Concluida').length;
+    const otsPendientes = totalOTs - otsConcluidas;
+
+    om.totalOTs = totalOTs;
+    om.otsConcluidas = otsConcluidas;
+    om.otsPendientes = otsPendientes;
+    om.resumenOTs = `${totalOTs} (${otsConcluidas}✔, ${otsPendientes}⏳)`;
+
+    notify('updated');
+  }
+
   return {
     load, subscribe,
     setFilter, getFilters,
     getAll, getFiltered, getGrouped,
     isLoading, getSource,
     getKPIs, getAreas, getSemanas, getEtapas, empties,
-    updateLocal  
+    updateLocal, getById, updateOMCounts,
   };
 })();
 
